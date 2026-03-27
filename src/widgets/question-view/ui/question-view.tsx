@@ -2,6 +2,7 @@ import { Answer } from "@/shared/ui/answer";
 import { QuestionNavigation } from "./question-navigation";
 import type { QuestionMeta, AdjacentQuestions } from "@/entities/question";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import rehypePrettyCode from "rehype-pretty-code";
 
 const mdxComponents = {
   Answer,
@@ -34,7 +35,23 @@ export async function QuestionView({
 
       <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>
 
-      <MDXRemote source={content} components={mdxComponents} />
+      <MDXRemote
+        source={content}
+        components={mdxComponents}
+        options={{
+          mdxOptions: {
+            rehypePlugins: [
+              [
+                rehypePrettyCode,
+                {
+                  theme: "github-dark-default",
+                  keepBackground: true,
+                },
+              ],
+            ],
+          },
+        }}
+      />
 
       <QuestionNavigation adjacent={adjacent} />
     </article>

@@ -2,6 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@plugin "@tailwindcss/typography";
+
+/* Code block styling for MDX content */
+[data-rehype-pretty-code-figure] pre {
+  @apply overflow-x-auto rounded-lg border border-border p-4;
+}
+
+[data-rehype-pretty-code-figure] code {
+  @apply text-sm leading-relaxed;
+}
+
+/* Inline code */
+.prose :not(pre) > code {
+  @apply rounded bg-muted px-1.5 py-0.5 text-sm font-normal;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

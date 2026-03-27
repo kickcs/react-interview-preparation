@@ -35,7 +35,7 @@ export function Answer({ lang, children }: AnswerProps) {
         </Badge>
         <span className="text-xs text-muted-foreground">{config.sublabel}</span>
       </div>
-      <div className="prose prose-invert prose-sm max-w-none">{children}</div>
+      <div className="prose dark:prose-invert prose-sm max-w-none">{children}</div>
     </div>
   );
 }
