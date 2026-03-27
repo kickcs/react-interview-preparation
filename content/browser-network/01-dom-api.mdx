@@ -1,0 +1,45 @@
+---
+title: "What is the DOM?"
+order: 1
+---
+
+<Answer lang="en">
+
+The **DOM** (Document Object Model) is a tree-like representation of an HTML document. When a browser loads a page, it parses the HTML and creates a tree of objects called **nodes**. Each HTML element becomes a node in this tree.
+
+JavaScript can interact with the DOM to read, add, change, or remove elements on the page. The browser provides a set of APIs for this.
+
+```javascript
+// Select a single element by ID
+const title = document.getElementById("main-title");
+
+// Select multiple elements with a CSS selector
+const items = document.querySelectorAll(".list-item");
+
+// Change text content
+title.textContent = "Updated Title";
+
+// Create and append a new element
+const paragraph = document.createElement("p");
+paragraph.textContent = "This was added dynamically.";
+document.body.appendChild(paragraph);
+
+// Listen for events
+title.addEventListener("click", () => {
+  console.log("Title was clicked!");
+});
+```
+
+The DOM is not the same as your HTML source code. The browser may fix errors in the HTML, and JavaScript can modify the DOM after the page loads.
+
+</Answer>
+
+<Answer lang="ru">
+
+**DOM** (Document Object Model) — это древовидное представление HTML-документа. Когда браузер загружает страницу, он разбирает HTML и создаёт дерево объектов, называемых **узлами** (nodes). Каждый HTML-элемент становится узлом в этом дереве.
+
+JavaScript может взаимодействовать с DOM, чтобы читать, добавлять, изменять или удалять элементы на странице. Браузер предоставляет набор API для этого, включая `getElementById`, `querySelectorAll`, `createElement`, `appendChild` и другие.
+
+DOM — это не то же самое, что исходный HTML-код. Браузер может исправить ошибки в HTML, а JavaScript может изменять DOM после загрузки страницы.
+
+</Answer>

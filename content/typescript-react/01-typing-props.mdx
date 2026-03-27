@@ -1,0 +1,65 @@
+---
+title: "How do you type component props?"
+order: 1
+---
+
+<Answer lang="en">
+
+In TypeScript, you define the shape of a component's props using an **interface** or **type alias**. This gives you autocompletion, error checking, and clear documentation of what a component expects.
+
+```tsx
+// Define an interface for the props
+interface UserCardProps {
+  name: string;
+  age: number;
+  email?: string; // optional prop
+}
+
+// Use the interface in the function component
+function UserCard({ name, age, email }: UserCardProps) {
+  return (
+    <div>
+      <h2>{name}</h2>
+      <p>Age: {age}</p>
+      {email && <p>Email: {email}</p>}
+    </div>
+  );
+}
+
+// TypeScript will catch errors at compile time
+<UserCard name="Alice" age={30} />           // OK
+<UserCard name="Bob" age={25} email="b@x.com" /> // OK
+<UserCard name="Charlie" />                  // Error: 'age' is missing
+```
+
+You can also type props with **children** using `React.PropsWithChildren` or by adding `children: React.ReactNode` to your interface:
+
+```tsx
+interface LayoutProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function Layout({ title, children }: LayoutProps) {
+  return (
+    <div>
+      <h1>{title}</h1>
+      <main>{children}</main>
+    </div>
+  );
+}
+```
+
+</Answer>
+
+<Answer lang="ru">
+
+В TypeScript вы определяете структуру пропсов компонента с помощью **интерфейса** или **типового псевдонима** (type alias). Это даёт автодополнение, проверку ошибок и понятную документацию того, что компонент ожидает.
+
+Вы создаёте интерфейс с нужными полями (обязательными и необязательными со знаком `?`), а затем используете его в параметрах функционального компонента.
+
+Для типизации `children` можно добавить `children: React.ReactNode` в интерфейс или использовать `React.PropsWithChildren`.
+
+TypeScript ловит ошибки на этапе компиляции — например, если вы забудете передать обязательный проп, код не скомпилируется.
+
+</Answer>

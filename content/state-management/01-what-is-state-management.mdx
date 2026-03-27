@@ -1,0 +1,65 @@
+---
+title: "What is state management in React?"
+order: 1
+---
+
+<Answer lang="en">
+
+**State management** is about how you store, update, and share data across your React application. As apps grow, passing data through props can become complex ("prop drilling"), so different tools help organize state at different levels.
+
+There are three common approaches, and you should start with the simplest one that meets your needs:
+
+```tsx
+// 1. Local state with useState — best for component-level state
+function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+
+// 2. Shared state with Context — good for small shared data (theme, auth)
+const ThemeContext = React.createContext("light");
+
+function App() {
+  return (
+    <ThemeContext.Provider value="dark">
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+}
+
+function Toolbar() {
+  const theme = React.useContext(ThemeContext);
+  return <div className={theme}>Current theme: {theme}</div>;
+}
+
+// 3. Global state with Redux Toolkit — for complex, app-wide state
+import { createSlice, configureStore } from "@reduxjs/toolkit";
+
+const counterSlice = createSlice({
+  name: "counter",
+  initialState: { value: 0 },
+  reducers: {
+    increment: (state) => { state.value += 1; },
+  },
+});
+
+const store = configureStore({ reducer: { counter: counterSlice.reducer } });
+```
+
+**Best practice:** start with `useState`, move to Context when multiple components need the same data, and only use Redux Toolkit or Zustand when the state logic becomes complex or widespread.
+
+</Answer>
+
+<Answer lang="ru">
+
+**Управление состоянием** — это то, как вы храните, обновляете и передаёте данные в React-приложении. По мере роста приложения передача данных через пропсы может стать сложной (это называется «prop drilling»), поэтому различные инструменты помогают организовать состояние на разных уровнях.
+
+Существует три распространённых подхода:
+
+1. **Локальное состояние с `useState`** — лучше всего подходит для состояния на уровне компонента.
+2. **Общее состояние с Context** — хорошо для небольших общих данных (тема оформления, авторизация).
+3. **Глобальное состояние с Redux Toolkit** — для сложного состояния на уровне всего приложения.
+
+**Лучшая практика:** начинайте с `useState`, переходите на Context, когда нескольким компонентам нужны одни и те же данные, и используйте Redux Toolkit или Zustand только когда логика состояния становится сложной или охватывает всё приложение.
+
+</Answer>

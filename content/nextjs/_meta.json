@@ -1,0 +1,5 @@
+{
+  "title": "Next.js",
+  "order": 11,
+  "description": "App Router, Server Components, SSR/SSG/ISR, роутинг, middleware, API routes"
+}

@@ -1,0 +1,5 @@
+{
+  "title": "Testing",
+  "order": 10,
+  "description": "Jest, React Testing Library, юнит/интеграционные тесты, моки, тестирование хуков"
+}

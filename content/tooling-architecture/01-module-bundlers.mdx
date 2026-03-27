@@ -1,0 +1,54 @@
+---
+title: "What is a module bundler?"
+order: 1
+---
+
+<Answer lang="en">
+
+A **module bundler** is a tool that takes your project's many JavaScript files (and other assets like CSS, images) and combines them into one or more optimized files that browsers can load efficiently.
+
+Browsers do not natively support the `import`/`export` syntax used in modern JavaScript projects with many files. A bundler resolves all the dependencies and produces bundles that work in the browser.
+
+The two most popular bundlers today are **Webpack** and **Vite**:
+
+```javascript
+// math.js — a module
+export function add(a, b) {
+  return a + b;
+}
+
+// app.js — imports the module
+import { add } from "./math.js";
+console.log(add(2, 3)); // 5
+```
+
+**Webpack** is the traditional bundler. It is very configurable but can be slow for large projects because it bundles everything before the development server starts.
+
+**Vite** is a modern alternative. During development, it uses native ES modules and only transforms files on demand, which makes the dev server start almost instantly. For production, Vite uses Rollup under the hood.
+
+| Feature | Webpack | Vite |
+|---------|---------|------|
+| Dev server speed | Slower (bundles first) | Very fast (on-demand) |
+| Configuration | Complex | Simple defaults |
+| Production build | Webpack | Rollup |
+| HMR (Hot Module Replacement) | Supported | Faster HMR |
+
+Most new React projects today use **Vite** because of its speed and simplicity.
+
+</Answer>
+
+<Answer lang="ru">
+
+**Сборщик модулей** (module bundler) — это инструмент, который берёт множество JavaScript-файлов вашего проекта (и другие ресурсы: CSS, изображения) и объединяет их в один или несколько оптимизированных файлов, которые браузер может эффективно загрузить.
+
+Браузеры не поддерживают синтаксис `import`/`export`, используемый в современных JavaScript-проектах с множеством файлов. Сборщик разрешает все зависимости и создаёт бандлы, работающие в браузере.
+
+Два самых популярных сборщика сегодня — **Webpack** и **Vite**.
+
+**Webpack** — классический сборщик. Он очень гибко настраивается, но может быть медленным для больших проектов, потому что собирает всё перед запуском dev-сервера.
+
+**Vite** — современная альтернатива. Во время разработки он использует нативные ES-модули и трансформирует файлы по запросу, благодаря чему dev-сервер стартует почти мгновенно. Для production-сборки Vite использует Rollup.
+
+Большинство новых React-проектов сегодня используют **Vite** из-за его скорости и простоты.
+
+</Answer>

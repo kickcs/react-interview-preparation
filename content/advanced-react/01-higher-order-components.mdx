@@ -1,0 +1,50 @@
+---
+title: "What are Higher-Order Components (HOC)?"
+order: 1
+---
+
+<Answer lang="en">
+
+A **Higher-Order Component (HOC)** is a function that takes a component and returns a new component with additional behavior. HOCs are a pattern for reusing component logic.
+
+The name comes from "higher-order functions" in JavaScript — functions that accept or return other functions.
+
+```tsx
+import { useEffect } from "react";
+
+// HOC that adds logging on mount
+function withLogger<T extends object>(WrappedComponent: React.ComponentType<T>) {
+  return function LoggerComponent(props: T) {
+    useEffect(() => {
+      console.log(`${WrappedComponent.name} mounted`);
+    }, []);
+
+    return <WrappedComponent {...props} />;
+  };
+}
+
+// Original component
+function UserProfile({ name }: { name: string }) {
+  return <p>User: {name}</p>;
+}
+
+// Enhanced component
+const UserProfileWithLogger = withLogger(UserProfile);
+
+// Usage
+<UserProfileWithLogger name="Alice" />
+```
+
+HOCs were very popular before React Hooks. Today, **custom hooks** are the preferred way to share logic between components because they are simpler and do not add extra nesting to the component tree. However, you will still encounter HOCs in older codebases.
+
+</Answer>
+
+<Answer lang="ru">
+
+**Компонент высшего порядка (HOC)** — это функция, которая принимает компонент и возвращает новый компонент с дополнительным поведением. HOC — это паттерн для повторного использования логики компонентов.
+
+Название происходит от «функций высшего порядка» в JavaScript — функций, которые принимают или возвращают другие функции.
+
+HOC были очень популярны до появления React Hooks. Сегодня **пользовательские хуки** являются предпочтительным способом совместного использования логики между компонентами, потому что они проще и не добавляют лишнюю вложенность в дерево компонентов. Тем не менее, вы всё ещё встретите HOC в старых кодовых базах.
+
+</Answer>

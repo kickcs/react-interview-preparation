@@ -1,0 +1,56 @@
+---
+title: "Why do we test React applications?"
+order: 1
+---
+
+<Answer lang="en">
+
+Testing React applications helps you **catch bugs early**, **refactor with confidence**, and **document expected behavior**. Tests act as a safety net: when you change code, they tell you if something breaks.
+
+The most popular tools for testing React are **Jest** (test runner) and **React Testing Library (RTL)** (for rendering components and interacting with them).
+
+The key idea behind RTL is: **test behavior, not implementation**. Instead of checking internal state or method calls, you test what the user sees and does.
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+}
+
+test("increments counter on button click", async () => {
+  render(<Counter />);
+
+  // Check initial state
+  expect(screen.getByText("Count: 0")).toBeInTheDocument();
+
+  // Simulate user interaction
+  await userEvent.click(screen.getByRole("button", { name: /increment/i }));
+
+  // Verify the result
+  expect(screen.getByText("Count: 1")).toBeInTheDocument();
+});
+```
+
+**Best practice:** write tests that resemble how a real user interacts with your app. Query elements by role, label, or text — not by CSS class names or test IDs (unless necessary).
+
+</Answer>
+
+<Answer lang="ru">
+
+Тестирование React-приложений помогает **находить ошибки на ранней стадии**, **уверенно рефакторить код** и **документировать ожидаемое поведение**. Тесты служат страховочной сетью: когда вы меняете код, они сообщают, если что-то сломалось.
+
+Самые популярные инструменты для тестирования React — **Jest** (среда выполнения тестов) и **React Testing Library (RTL)** (для рендеринга компонентов и взаимодействия с ними).
+
+Главная идея RTL: **тестируйте поведение, а не реализацию**. Вместо проверки внутреннего состояния или вызовов методов вы тестируете то, что пользователь видит и делает.
+
+**Лучшая практика:** пишите тесты, которые имитируют взаимодействие реального пользователя с приложением. Ищите элементы по роли, метке или тексту — а не по CSS-классам или тестовым идентификаторам (если это не необходимо).
+
+</Answer>

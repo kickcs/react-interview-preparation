@@ -1,0 +1,5 @@
+{
+  "title": "Hooks",
+  "order": 5,
+  "description": "useState, useEffect, useContext, useRef, useMemo, useCallback, useReducer, кастомные хуки"
+}
