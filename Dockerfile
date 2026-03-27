@@ -1,8 +1,5 @@
 FROM node:20-alpine AS base
 
-# Install bun for faster installs
-RUN corepack enable
-
 # --- Dependencies ---
 FROM base AS deps
 WORKDIR /app
