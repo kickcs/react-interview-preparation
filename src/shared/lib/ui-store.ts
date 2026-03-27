@@ -1,8 +1,8 @@
+import { useState, useEffect } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface UIState {
-  _hydrated: boolean;
   revealedQuestions: Record<string, boolean>;
   toggleQuestion: (id: string) => void;
   collapsedCategories: Record<string, boolean>;
@@ -12,7 +12,6 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      _hydrated: false,
       revealedQuestions: {},
       toggleQuestion: (id) =>
         set((state) => ({
@@ -35,13 +34,20 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         collapsedCategories: state.collapsedCategories,
       }),
-      onRehydrateStorage: () => (_state, _error) => {
-        useUIStore.setState({ _hydrated: true });
-      },
     }
   )
 );
 
 export function useHydrated() {
-  return useUIStore((s) => s._hydrated);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (useUIStore.persist.hasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    return useUIStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
+
+  return hydrated;
 }
