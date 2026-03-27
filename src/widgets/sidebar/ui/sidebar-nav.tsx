@@ -43,14 +43,14 @@ export function SidebarNav({
     );
   }
 
+  const activeCategory = pathname.split("/")[1];
+
   return (
     <nav className="space-y-1 p-3">
       {categories.map((category) => {
         const isCollapsed = !!collapsedCategories[category.slug];
         const questions = questionsByCategory[category.slug] ?? [];
-        const hasActiveQuestion = questions.some(
-          (q) => pathname === `/${category.slug}/${q.slug}`
-        );
+        const hasActiveQuestion = activeCategory === category.slug;
 
         return (
           <div key={category.slug} className="mb-1">
@@ -75,8 +75,7 @@ export function SidebarNav({
 
             <div
               className={cn(
-                "grid",
-                hydrated && "transition-all duration-200 ease-in-out",
+                "grid transition-all duration-200 ease-in-out",
                 isCollapsed
                   ? "grid-rows-[0fr] opacity-0"
                   : "grid-rows-[1fr] opacity-100"

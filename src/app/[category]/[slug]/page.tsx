@@ -16,19 +16,16 @@ interface PageProps {
 
 export async function generateStaticParams() {
   const categories = await getCategories();
-  const params: { category: string; slug: string }[] = [];
+  const allQuestions = await Promise.all(
+    categories.map((c) => getQuestionsByCategory(c.slug))
+  );
 
-  for (const category of categories) {
-    const questions = await getQuestionsByCategory(category.slug);
-    for (const question of questions) {
-      params.push({
-        category: category.slug,
-        slug: question.slug,
-      });
-    }
-  }
-
-  return params;
+  return categories.flatMap((category, i) =>
+    allQuestions[i].map((question) => ({
+      category: category.slug,
+      slug: question.slug,
+    }))
+  );
 }
 
 export async function generateMetadata({ params }: PageProps) {

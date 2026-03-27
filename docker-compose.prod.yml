@@ -1,6 +1,6 @@
 services:
   react-interview:
-    image: ghcr.io/kickcs/react-interview-preparation:latest
+    build: .
     container_name: react-interview
     restart: unless-stopped
     ports:

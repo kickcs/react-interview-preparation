@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import { CONTENT_DIR } from "@/shared/config/constants";
+import { getCategories } from "@/entities/category/lib/get-categories";
 import type { QuestionMeta, QuestionFull, AdjacentQuestions } from "../model/types";
 
 function fileNameToSlug(fileName: string): string {
@@ -72,10 +73,6 @@ export async function getAdjacentQuestions(
   categorySlug: string,
   questionSlug: string
 ): Promise<AdjacentQuestions> {
-  const { getCategories } = await import("@/entities/category/lib/get-categories");
-  const categories = await getCategories();
-  const categoryIndex = categories.findIndex((c) => c.slug === categorySlug);
-
   const questions = await getQuestionsByCategory(categorySlug);
   const questionIndex = questions.findIndex((q) => q.slug === questionSlug);
 
@@ -84,21 +81,27 @@ export async function getAdjacentQuestions(
 
   if (questionIndex > 0) {
     prev = questions[questionIndex - 1];
-  } else if (categoryIndex > 0) {
-    const prevCategory = categories[categoryIndex - 1];
-    const prevQuestions = await getQuestionsByCategory(prevCategory.slug);
-    if (prevQuestions.length > 0) {
-      prev = prevQuestions[prevQuestions.length - 1];
+  } else if (questionIndex === 0) {
+    const categories = await getCategories();
+    const categoryIndex = categories.findIndex((c) => c.slug === categorySlug);
+    if (categoryIndex > 0) {
+      const prevQuestions = await getQuestionsByCategory(categories[categoryIndex - 1].slug);
+      if (prevQuestions.length > 0) {
+        prev = prevQuestions[prevQuestions.length - 1];
+      }
     }
   }
 
   if (questionIndex < questions.length - 1) {
     next = questions[questionIndex + 1];
-  } else if (categoryIndex < categories.length - 1) {
-    const nextCategory = categories[categoryIndex + 1];
-    const nextQuestions = await getQuestionsByCategory(nextCategory.slug);
-    if (nextQuestions.length > 0) {
-      next = nextQuestions[0];
+  } else if (questionIndex === questions.length - 1) {
+    const categories = await getCategories();
+    const categoryIndex = categories.findIndex((c) => c.slug === categorySlug);
+    if (categoryIndex < categories.length - 1) {
+      const nextQuestions = await getQuestionsByCategory(categories[categoryIndex + 1].slug);
+      if (nextQuestions.length > 0) {
+        next = nextQuestions[0];
+      }
     }
   }
 

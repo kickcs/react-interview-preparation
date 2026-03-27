@@ -1,20 +1,20 @@
-FROM node:20-alpine AS base
+FROM oven/bun:1-alpine AS base
 
 # --- Dependencies ---
 FROM base AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
-RUN npm install --frozen-lockfile || npm install
+RUN bun install --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN bun run build
 
 # --- Runner ---
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

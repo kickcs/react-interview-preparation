@@ -15,11 +15,7 @@ export function Spoiler({ id, children }: SpoilerProps) {
   const toggle = useUIStore((s) => s.toggleQuestion);
 
   if (!hydrated) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-12 w-full rounded-xl" />
-      </div>
-    );
+    return <Skeleton className="h-12 w-full rounded-xl" />;
   }
 
   return (
