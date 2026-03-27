@@ -1,0 +1,7 @@
+services:
+  react-interview:
+    image: ghcr.io/kickcs/react-interview-preparation:latest
+    container_name: react-interview
+    restart: unless-stopped
+    ports:
+      - "8083:3000"

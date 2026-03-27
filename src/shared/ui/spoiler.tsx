@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
+import { Skeleton } from "@/shared/ui/skeleton";
 
 interface SpoilerProps {
+  id: string;
   children: React.ReactNode;
 }
 
-export function Spoiler({ children }: SpoilerProps) {
-  const [revealed, setRevealed] = useState(false);
+export function Spoiler({ id, children }: SpoilerProps) {
+  const hydrated = useHydrated();
+  const revealed = useUIStore((s) => s.revealedQuestions[id] ?? false);
+  const toggle = useUIStore((s) => s.toggleQuestion);
+
+  if (!hydrated) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 w-full rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <div>
       <button
-        onClick={() => setRevealed(!revealed)}
+        onClick={() => toggle(id)}
+        aria-expanded={revealed}
         className="mb-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-3.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground"
       >
         {revealed ? (

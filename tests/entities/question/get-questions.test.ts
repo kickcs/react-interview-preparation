@@ -39,19 +39,30 @@ describe("getQuestion", () => {
 });
 
 describe("getAdjacentQuestions", () => {
-  it("returns null prev for first question", async () => {
+  it("returns prev from previous category for first question in category", async () => {
     const adj = await getAdjacentQuestions("react-basics", "what-is-jsx");
 
-    expect(adj.prev).toBeNull();
+    // react-basics (order 4) is after browser-network (order 3)
+    expect(adj.prev).not.toBeNull();
+    expect(adj.prev!.category).toBe("browser-network");
     expect(adj.next).not.toBeNull();
     expect(adj.next!.slug).toBe("components-and-props");
   });
 
-  it("returns null next for last question", async () => {
+  it("returns next from next category for last question in category", async () => {
     const adj = await getAdjacentQuestions("react-basics", "components-and-props");
 
     expect(adj.prev).not.toBeNull();
     expect(adj.prev!.slug).toBe("what-is-jsx");
-    expect(adj.next).toBeNull();
+    // react-basics (order 4) is before hooks (order 5)
+    expect(adj.next).not.toBeNull();
+    expect(adj.next!.category).toBe("hooks");
+  });
+
+  it("returns null prev for very first question overall", async () => {
+    const adj = await getAdjacentQuestions("javascript-core", "closures");
+
+    expect(adj.prev).toBeNull();
+    expect(adj.next).not.toBeNull();
   });
 });

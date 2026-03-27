@@ -59,12 +59,18 @@ export default async function QuestionPage({ params }: PageProps) {
   const adjacent = await getAdjacentQuestions(category, slug);
   const questionIndex = questions.findIndex((q) => q.slug === slug) + 1;
 
+  const firstQuestion = questions[0];
+  const categoryHref = firstQuestion
+    ? `/${category}/${firstQuestion.slug}`
+    : `/${category}`;
+
   return (
     <QuestionView
       meta={question.meta}
       content={question.content}
       adjacent={adjacent}
       categoryTitle={categoryMeta?.title ?? category}
+      categoryHref={categoryHref}
       questionIndex={questionIndex}
       totalQuestions={questions.length}
     />

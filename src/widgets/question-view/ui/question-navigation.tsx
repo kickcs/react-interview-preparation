@@ -13,6 +13,7 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
       {adjacent.prev ? (
         <Button
           variant="ghost"
+          nativeButton={false}
           render={
             <Link href={`/${adjacent.prev.category}/${adjacent.prev.slug}`} />
           }
@@ -21,11 +22,15 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
           {adjacent.prev.title}
         </Button>
       ) : (
-        <div />
+        <Button variant="ghost" disabled className="opacity-0 pointer-events-none">
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Prev
+        </Button>
       )}
       {adjacent.next ? (
         <Button
           variant="ghost"
+          nativeButton={false}
           render={
             <Link href={`/${adjacent.next.category}/${adjacent.next.slug}`} />
           }
@@ -34,7 +39,10 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
           <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       ) : (
-        <div />
+        <Button variant="ghost" disabled className="opacity-0 pointer-events-none">
+          Next
+          <ChevronRight className="ml-1 h-4 w-4" />
+        </Button>
       )}
     </div>
   );
