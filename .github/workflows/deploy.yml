@@ -19,7 +19,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            if [ -d /opt/react-interview-preparation/.git ]; then
+              git -C /opt/react-interview-preparation pull origin main
+            else
+              git clone https://github.com/${{ github.repository }}.git /opt/react-interview-preparation
+            fi
             cd /opt/react-interview-preparation
-            git pull origin main || git clone https://github.com/${{ github.repository }}.git /opt/react-interview-preparation
             docker compose -f docker-compose.prod.yml up -d --build --force-recreate
             docker image prune -f

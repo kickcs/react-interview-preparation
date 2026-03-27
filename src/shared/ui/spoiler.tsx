@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
 import { Skeleton } from "@/shared/ui/skeleton";
 
@@ -39,11 +40,12 @@ export function Spoiler({ id, children }: SpoilerProps) {
       </button>
 
       <div
-        className={`grid transition-all duration-300 ease-in-out ${
+        className={cn(
+          "grid transition-all duration-300 ease-in-out",
           revealed
             ? "grid-rows-[1fr] opacity-100"
             : "grid-rows-[0fr] opacity-0"
-        }`}
+        )}
       >
         <div className="overflow-hidden">{children}</div>
       </div>

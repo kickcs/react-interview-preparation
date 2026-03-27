@@ -33,10 +33,9 @@ export const useUIStore = create<UIState>()(
     {
       name: "ui-store",
       partialize: (state) => ({
-        revealedQuestions: state.revealedQuestions,
         collapsedCategories: state.collapsedCategories,
       }),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (_state, _error) => {
         useUIStore.setState({ _hydrated: true });
       },
     }

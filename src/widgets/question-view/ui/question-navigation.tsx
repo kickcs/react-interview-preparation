@@ -22,10 +22,7 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
           {adjacent.prev.title}
         </Button>
       ) : (
-        <Button variant="ghost" disabled className="opacity-0 pointer-events-none">
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Prev
-        </Button>
+        <div />
       )}
       {adjacent.next ? (
         <Button
@@ -39,10 +36,7 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
           <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       ) : (
-        <Button variant="ghost" disabled className="opacity-0 pointer-events-none">
-          Next
-          <ChevronRight className="ml-1 h-4 w-4" />
-        </Button>
+        <div />
       )}
     </div>
   );
