@@ -1,5 +1,4 @@
 import { Badge } from "@/shared/ui/badge";
-import { cn } from "@/shared/lib/utils";
 
 interface AnswerProps {
   lang: "en" | "ru";
@@ -23,12 +22,7 @@ export function Answer({ lang, children }: AnswerProps) {
   const config = langConfig[lang];
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-card p-5 md:p-6",
-        lang === "en" ? "mb-4" : ""
-      )}
-    >
+    <div className="rounded-lg border border-border bg-card p-5 md:p-6">
       <div className="mb-3 flex items-center gap-2">
         <Badge variant="outline" className={config.badgeClassName}>
           {config.label}

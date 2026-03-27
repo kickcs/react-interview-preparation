@@ -1,4 +1,6 @@
 import { Answer } from "@/shared/ui/answer";
+import { AnswerGroup } from "@/shared/ui/answer-group";
+import { Spoiler } from "@/shared/ui/spoiler";
 import { QuestionNavigation } from "./question-navigation";
 import type { QuestionMeta, AdjacentQuestions } from "@/entities/question";
 import { MDXRemote } from "next-mdx-remote/rsc";
@@ -6,6 +8,7 @@ import rehypePrettyCode from "rehype-pretty-code";
 
 const mdxComponents = {
   Answer,
+  AnswerGroup,
 };
 
 interface QuestionViewProps {
@@ -26,7 +29,7 @@ export async function QuestionView({
   totalQuestions,
 }: QuestionViewProps) {
   return (
-    <article className="mx-auto max-w-[720px] px-4 py-6 md:px-12 md:py-10">
+    <article className="mx-auto max-w-[900px] px-4 py-6 md:px-12 md:py-10">
       <div className="mb-4 text-sm text-muted-foreground">
         {categoryTitle}{" "}
         <span className="text-muted-foreground/50">›</span> Вопрос{" "}
@@ -35,23 +38,25 @@ export async function QuestionView({
 
       <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>
 
-      <MDXRemote
-        source={content}
-        components={mdxComponents}
-        options={{
-          mdxOptions: {
-            rehypePlugins: [
-              [
-                rehypePrettyCode,
-                {
-                  theme: "github-dark-default",
-                  keepBackground: true,
-                },
+      <Spoiler>
+        <MDXRemote
+          source={content}
+          components={mdxComponents}
+          options={{
+            mdxOptions: {
+              rehypePlugins: [
+                [
+                  rehypePrettyCode,
+                  {
+                    theme: "github-dark-default",
+                    keepBackground: true,
+                  },
+                ],
               ],
-            ],
-          },
-        }}
-      />
+            },
+          }}
+        />
+      </Spoiler>
 
       <QuestionNavigation adjacent={adjacent} />
     </article>
