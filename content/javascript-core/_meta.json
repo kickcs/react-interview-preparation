@@ -1,0 +1,5 @@
+{
+  "title": "JavaScript Core",
+  "order": 1,
+  "description": "Замыкания, прототипы, Event Loop, промисы, async/await, this, ES6+"
+}
