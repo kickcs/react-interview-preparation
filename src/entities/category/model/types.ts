@@ -3,4 +3,5 @@ export interface CategoryMeta {
   order: number;
   description: string;
   slug: string;
+  icon?: string;
 }

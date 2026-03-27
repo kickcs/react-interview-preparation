@@ -25,4 +25,12 @@ describe("getCategories", () => {
       expect(category).toHaveProperty("slug");
     }
   });
+
+  it("categories with icon field include it in result", async () => {
+    const categories = await getCategories();
+    const jsCategory = categories.find((c) => c.slug === "javascript-core");
+
+    expect(jsCategory).toBeDefined();
+    expect(jsCategory!.icon).toBe("javascript");
+  });
 });

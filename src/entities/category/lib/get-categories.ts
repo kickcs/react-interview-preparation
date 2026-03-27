@@ -20,6 +20,7 @@ export const getCategories = cache(async (): Promise<CategoryMeta[]> => {
         order: meta.order,
         description: meta.description,
         slug: entry.name,
+        icon: meta.icon,
       });
     } catch {
       // Skip directories without _meta.json
