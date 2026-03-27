@@ -3,6 +3,7 @@ title: "What is a module bundler?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 A **module bundler** is a tool that takes your project's many JavaScript files (and other assets like CSS, images) and combines them into one or more optimized files that browsers can load efficiently.
@@ -10,17 +11,6 @@ A **module bundler** is a tool that takes your project's many JavaScript files (
 Browsers do not natively support the `import`/`export` syntax used in modern JavaScript projects with many files. A bundler resolves all the dependencies and produces bundles that work in the browser.
 
 The two most popular bundlers today are **Webpack** and **Vite**:
-
-```javascript
-// math.js — a module
-export function add(a, b) {
-  return a + b;
-}
-
-// app.js — imports the module
-import { add } from "./math.js";
-console.log(add(2, 3)); // 5
-```
 
 **Webpack** is the traditional bundler. It is very configurable but can be slow for large projects because it bundles everything before the development server starts.
 
@@ -36,7 +26,6 @@ console.log(add(2, 3)); // 5
 Most new React projects today use **Vite** because of its speed and simplicity.
 
 </Answer>
-
 <Answer lang="ru">
 
 **Сборщик модулей** (module bundler) — это инструмент, который берёт множество JavaScript-файлов вашего проекта (и другие ресурсы: CSS, изображения) и объединяет их в один или несколько оптимизированных файлов, которые браузер может эффективно загрузить.
@@ -49,6 +38,25 @@ Most new React projects today use **Vite** because of its speed and simplicity.
 
 **Vite** — современная альтернатива. Во время разработки он использует нативные ES-модули и трансформирует файлы по запросу, благодаря чему dev-сервер стартует почти мгновенно. Для production-сборки Vite использует Rollup.
 
+| Характеристика | Webpack | Vite |
+|---------|---------|------|
+| Скорость dev-сервера | Медленнее (сначала сборка) | Очень быстро (по запросу) |
+| Конфигурация | Сложная | Простые настройки по умолчанию |
+| Production-сборка | Webpack | Rollup |
+| HMR (Hot Module Replacement) | Поддерживается | Более быстрый HMR |
+
 Большинство новых React-проектов сегодня используют **Vite** из-за его скорости и простоты.
 
 </Answer>
+</AnswerGroup>
+
+```javascript
+// math.js — a module
+export function add(a, b) {
+  return a + b;
+}
+
+// app.js — imports the module
+import { add } from "./math.js";
+console.log(add(2, 3)); // 5
+```

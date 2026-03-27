@@ -3,9 +3,22 @@ title: "What are closures?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 A **closure** is a function that has access to variables from its outer (enclosing) function's scope, even after the outer function has returned. Closures are created every time a function is created.
+
+The inner function "closes over" the `count` variable. Even though `createCounter` has finished running, the inner function still has access to `count`.
+
+</Answer>
+<Answer lang="ru">
+
+**Замыкание** — это функция, которая имеет доступ к переменным из области видимости внешней (обёртывающей) функции, даже после того как внешняя функция завершила выполнение. Замыкания создаются каждый раз при создании функции.
+
+Внутренняя функция «замыкает» переменную `count`. Даже после завершения `createCounter`, внутренняя функция сохраняет доступ к `count`.
+
+</Answer>
+</AnswerGroup>
 
 ```javascript
 function createCounter() {
@@ -20,15 +33,3 @@ const counter = createCounter();
 console.log(counter()); // 1
 console.log(counter()); // 2
 ```
-
-The inner function "closes over" the `count` variable. Even though `createCounter` has finished running, the inner function still has access to `count`.
-
-</Answer>
-
-<Answer lang="ru">
-
-**Замыкание** — это функция, которая имеет доступ к переменным из области видимости внешней (обёртывающей) функции, даже после того как внешняя функция завершила выполнение. Замыкания создаются каждый раз при создании функции.
-
-Внутренняя функция «замыкает» переменную `count`. Даже после завершения `createCounter`, внутренняя функция сохраняет доступ к `count`.
-
-</Answer>

@@ -3,11 +3,36 @@ title: "What are React Hooks?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 **React Hooks** are functions that let you use state and other React features in function components. Before Hooks, you had to use class components to manage state or lifecycle methods. Hooks were introduced in React 16.8.
 
 The two most common hooks are `useState` (for managing state) and `useEffect` (for side effects like data fetching or subscriptions).
+
+**Rules of Hooks:**
+
+1. Only call hooks at the top level of your component — never inside loops, conditions, or nested functions.
+2. Only call hooks from React function components or custom hooks — not from regular JavaScript functions.
+
+These rules exist because React relies on the order of hook calls to correctly track state between renders.
+
+</Answer>
+<Answer lang="ru">
+
+**React Hooks** — это функции, которые позволяют использовать состояние и другие возможности React в функциональных компонентах. До появления хуков для управления состоянием или методами жизненного цикла нужно было использовать классовые компоненты. Хуки были добавлены в React 16.8.
+
+Два самых распространённых хука — `useState` (для управления состоянием) и `useEffect` (для побочных эффектов, таких как загрузка данных или подписки).
+
+**Правила хуков:**
+
+1. Хуки вызываются только на верхнем уровне компонента — никогда внутри циклов, условий или вложенных функций.
+2. Хуки вызываются только из функциональных компонентов React или пользовательских хуков — не из обычных JavaScript-функций.
+
+Эти правила существуют, потому что React опирается на порядок вызова хуков для корректного отслеживания состояния между рендерами.
+
+</Answer>
+</AnswerGroup>
 
 ```tsx
 import { useState, useEffect } from "react";
@@ -27,27 +52,3 @@ function Timer() {
   return <p>Elapsed time: {seconds}s</p>;
 }
 ```
-
-**Rules of Hooks:**
-
-1. Only call hooks at the top level of your component — never inside loops, conditions, or nested functions.
-2. Only call hooks from React function components or custom hooks — not from regular JavaScript functions.
-
-These rules exist because React relies on the order of hook calls to correctly track state between renders.
-
-</Answer>
-
-<Answer lang="ru">
-
-**React Hooks** — это функции, которые позволяют использовать состояние и другие возможности React в функциональных компонентах. До появления хуков для управления состоянием или методами жизненного цикла нужно было использовать классовые компоненты. Хуки были добавлены в React 16.8.
-
-Два самых распространённых хука — `useState` (для управления состоянием) и `useEffect` (для побочных эффектов, таких как загрузка данных или подписки).
-
-**Правила хуков:**
-
-1. Хуки вызываются только на верхнем уровне компонента — никогда внутри циклов, условий или вложенных функций.
-2. Хуки вызываются только из функциональных компонентов React или пользовательских хуков — не из обычных JavaScript-функций.
-
-Эти правила существуют, потому что React опирается на порядок вызова хуков для корректного отслеживания состояния между рендерами.
-
-</Answer>

@@ -3,9 +3,26 @@ title: "How do you type component props?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 In TypeScript, you define the shape of a component's props using an **interface** or **type alias**. This gives you autocompletion, error checking, and clear documentation of what a component expects.
+
+You can also type props with **children** using `React.PropsWithChildren` or by adding `children: React.ReactNode` to your interface.
+
+TypeScript will catch errors at compile time — for example, if you forget to pass a required prop, the code will not compile.
+
+</Answer>
+<Answer lang="ru">
+
+В TypeScript вы определяете структуру пропсов компонента с помощью **интерфейса** или **типового псевдонима** (type alias). Это даёт автодополнение, проверку ошибок и понятную документацию того, что компонент ожидает.
+
+Для типизации `children` можно добавить `children: React.ReactNode` в интерфейс или использовать `React.PropsWithChildren`.
+
+TypeScript ловит ошибки на этапе компиляции — например, если вы забудете передать обязательный проп, код не скомпилируется.
+
+</Answer>
+</AnswerGroup>
 
 ```tsx
 // Define an interface for the props
@@ -32,8 +49,6 @@ function UserCard({ name, age, email }: UserCardProps) {
 <UserCard name="Charlie" />                  // Error: 'age' is missing
 ```
 
-You can also type props with **children** using `React.PropsWithChildren` or by adding `children: React.ReactNode` to your interface:
-
 ```tsx
 interface LayoutProps {
   title: string;
@@ -49,17 +64,3 @@ function Layout({ title, children }: LayoutProps) {
   );
 }
 ```
-
-</Answer>
-
-<Answer lang="ru">
-
-В TypeScript вы определяете структуру пропсов компонента с помощью **интерфейса** или **типового псевдонима** (type alias). Это даёт автодополнение, проверку ошибок и понятную документацию того, что компонент ожидает.
-
-Вы создаёте интерфейс с нужными полями (обязательными и необязательными со знаком `?`), а затем используете его в параметрах функционального компонента.
-
-Для типизации `children` можно добавить `children: React.ReactNode` в интерфейс или использовать `React.PropsWithChildren`.
-
-TypeScript ловит ошибки на этапе компиляции — например, если вы забудете передать обязательный проп, код не скомпилируется.
-
-</Answer>

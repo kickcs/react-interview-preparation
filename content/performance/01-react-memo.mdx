@@ -3,9 +3,26 @@ title: "What is React.memo?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 **`React.memo`** is a higher-order component that prevents a component from re-rendering if its props have not changed. By default, React re-renders a child component every time its parent re-renders, even if the child's props are the same.
+
+`React.memo` does a **shallow comparison** of props. If you pass objects or functions as props, they may have new references on every render, which breaks memoization. In that case, combine `React.memo` with `useMemo` or `useCallback`.
+
+**Warning:** Do not wrap every component in `React.memo`. Memoization has a cost — React must store the previous props and compare them. Use it only when you have measured a performance problem. Premature optimization can make code harder to read without real benefits.
+
+</Answer>
+<Answer lang="ru">
+
+**`React.memo`** — это компонент высшего порядка, который предотвращает повторный рендеринг компонента, если его пропсы не изменились. По умолчанию React повторно рендерит дочерний компонент каждый раз, когда перерисовывается родитель, даже если пропсы дочернего компонента остались прежними.
+
+`React.memo` выполняет **поверхностное сравнение** пропсов. Если вы передаёте объекты или функции как пропсы, они могут иметь новые ссылки при каждом рендере, что ломает мемоизацию. В таком случае используйте `React.memo` вместе с `useMemo` или `useCallback`.
+
+**Предупреждение:** не оборачивайте каждый компонент в `React.memo`. Мемоизация имеет свою цену — React должен хранить предыдущие пропсы и сравнивать их. Используйте её только когда вы измерили проблему с производительностью. Преждевременная оптимизация может усложнить код без реальной пользы.
+
+</Answer>
+</AnswerGroup>
 
 ```tsx
 import { memo, useState } from "react";
@@ -30,19 +47,3 @@ function App() {
   );
 }
 ```
-
-`React.memo` does a **shallow comparison** of props. If you pass objects or functions as props, they may have new references on every render, which breaks memoization. In that case, combine `React.memo` with `useMemo` or `useCallback`.
-
-**Warning:** Do not wrap every component in `React.memo`. Memoization has a cost — React must store the previous props and compare them. Use it only when you have measured a performance problem. Premature optimization can make code harder to read without real benefits.
-
-</Answer>
-
-<Answer lang="ru">
-
-**`React.memo`** — это компонент высшего порядка, который предотвращает повторный рендеринг компонента, если его пропсы не изменились. По умолчанию React повторно рендерит дочерний компонент каждый раз, когда перерисовывается родитель, даже если пропсы дочернего компонента остались прежними.
-
-`React.memo` выполняет **поверхностное сравнение** пропсов. Если вы передаёте объекты или функции как пропсы, они могут иметь новые ссылки при каждом рендере, что ломает мемоизацию. В таком случае используйте `React.memo` вместе с `useMemo` или `useCallback`.
-
-**Предупреждение:** не оборачивайте каждый компонент в `React.memo`. Мемоизация имеет свою цену — React должен хранить предыдущие пропсы и сравнивать их. Используйте её только когда вы измерили проблему с производительностью. Преждевременная оптимизация может усложнить код без реальной пользы.
-
-</Answer>

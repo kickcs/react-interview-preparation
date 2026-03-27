@@ -3,11 +3,22 @@ title: "What are components and props?"
 order: 2
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 **Components** are the building blocks of any React application. A component is a JavaScript function that returns JSX describing a part of the UI.
 
 **Props** (short for "properties") are the way to pass data from a parent component to a child component. Props are read-only — a component must never modify its own props.
+
+</Answer>
+<Answer lang="ru">
+
+**Компоненты** — это строительные блоки любого React-приложения. Компонент — это JavaScript-функция, которая возвращает JSX, описывающий часть интерфейса.
+
+**Пропсы** (сокращение от "properties") — это способ передачи данных от родительского компонента к дочернему. Пропсы доступны только для чтения — компонент никогда не должен изменять свои пропсы.
+
+</Answer>
+</AnswerGroup>
 
 ```tsx
 interface GreetingProps {
@@ -21,13 +32,3 @@ function Greeting({ name }: GreetingProps) {
 // Usage
 <Greeting name="Alice" />
 ```
-
-</Answer>
-
-<Answer lang="ru">
-
-**Компоненты** — это строительные блоки любого React-приложения. Компонент — это JavaScript-функция, которая возвращает JSX, описывающий часть интерфейса.
-
-**Пропсы** (сокращение от "properties") — это способ передачи данных от родительского компонента к дочернему. Пропсы доступны только для чтения — компонент никогда не должен изменять свои пропсы.
-
-</Answer>

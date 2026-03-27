@@ -3,6 +3,7 @@ title: "What is Next.js and why use it?"
 order: 1
 ---
 
+<AnswerGroup>
 <Answer lang="en">
 
 **Next.js** is a React framework that adds server-side rendering, static site generation, file-based routing, and many other features on top of React. It is built by Vercel and is one of the most popular ways to build production React applications.
@@ -13,6 +14,25 @@ Key features of Next.js:
 - **SSG (Static Site Generation)** — HTML is generated at build time, making pages very fast to serve.
 - **Server Components** — components that run only on the server, reducing the JavaScript sent to the browser.
 - **File-based routing** — the folder structure in `app/` defines your routes automatically.
+
+In this example, the data fetching and rendering happen on the server. No JavaScript for this component is sent to the browser, which makes the page lighter and faster.
+
+</Answer>
+<Answer lang="ru">
+
+**Next.js** — это React-фреймворк, который добавляет серверный рендеринг, статическую генерацию, файловую маршрутизацию и множество других возможностей поверх React. Он создан компанией Vercel и является одним из самых популярных способов создания production-приложений на React.
+
+Ключевые возможности Next.js:
+
+- **SSR (Server-Side Rendering)** — HTML генерируется на сервере для каждого запроса, что улучшает SEO и скорость первой загрузки.
+- **SSG (Static Site Generation)** — HTML генерируется во время сборки, что делает страницы очень быстрыми.
+- **Server Components** — компоненты, которые выполняются только на сервере, уменьшая объём JavaScript, отправляемого в браузер.
+- **Файловая маршрутизация** — структура папок в `app/` автоматически определяет маршруты.
+
+В серверных компонентах загрузка данных и рендеринг происходят на сервере. JavaScript для таких компонентов не отправляется в браузер, что делает страницу легче и быстрее.
+
+</Answer>
+</AnswerGroup>
 
 ```tsx
 // app/page.tsx — a Server Component by default in Next.js App Router
@@ -37,22 +57,3 @@ export default async function HomePage() {
   );
 }
 ```
-
-In this example, the data fetching and rendering happen on the server. No JavaScript for this component is sent to the browser, which makes the page lighter and faster.
-
-</Answer>
-
-<Answer lang="ru">
-
-**Next.js** — это React-фреймворк, который добавляет серверный рендеринг, статическую генерацию, файловую маршрутизацию и множество других возможностей поверх React. Он создан компанией Vercel и является одним из самых популярных способов создания production-приложений на React.
-
-Ключевые возможности Next.js:
-
-- **SSR (Server-Side Rendering)** — HTML генерируется на сервере для каждого запроса, что улучшает SEO и скорость первой загрузки.
-- **SSG (Static Site Generation)** — HTML генерируется во время сборки, что делает страницы очень быстрыми.
-- **Server Components** — компоненты, которые выполняются только на сервере, уменьшая объём JavaScript, отправляемого в браузер.
-- **Файловая маршрутизация** — структура папок в `app/` автоматически определяет маршруты.
-
-В серверных компонентах загрузка данных и рендеринг происходят на сервере. JavaScript для таких компонентов не отправляется в браузер, что делает страницу легче и быстрее.
-
-</Answer>
