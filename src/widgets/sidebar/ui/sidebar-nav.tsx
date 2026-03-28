@@ -59,6 +59,33 @@ interface SidebarNavProps {
   onNavigate?: () => void;
 }
 
+export function CollapseAllButton({ slugs }: { slugs: string[] }) {
+  const hydrated = useHydrated();
+  const collapsedCategories = useUIStore((s) => s.collapsedCategories);
+  const toggleAllCategories = useUIStore((s) => s.toggleAllCategories);
+
+  if (!hydrated) return null;
+
+  const allCollapsed = slugs.every((s) => collapsedCategories[s]);
+  const label = allCollapsed ? "Развернуть все" : "Свернуть все";
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={() => toggleAllCategories(slugs, !allCollapsed)}
+      aria-label={label}
+      title={label}
+    >
+      {allCollapsed ? (
+        <ChevronsUpDown className="h-4 w-4" />
+      ) : (
+        <ChevronsDownUp className="h-4 w-4" />
+      )}
+    </Button>
+  );
+}
+
 export function SidebarNav({
   categories,
   questionsByCategory,
@@ -68,7 +95,6 @@ export function SidebarNav({
   const hydrated = useHydrated();
   const collapsedCategories = useUIStore((s) => s.collapsedCategories);
   const toggleCategory = useUIStore((s) => s.toggleCategory);
-  const toggleAllCategories = useUIStore((s) => s.toggleAllCategories);
 
   if (!hydrated) {
     return (
@@ -89,27 +115,9 @@ export function SidebarNav({
   }
 
   const activeCategory = pathname.split("/")[1];
-  const slugs = categories.map((c) => c.slug);
-  const allCollapsed = slugs.every((s) => collapsedCategories[s]);
-  const toggleLabel = allCollapsed ? "Развернуть все" : "Свернуть все";
 
   return (
     <nav className="space-y-1 p-3">
-      <div className="flex justify-end px-3 pb-1">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => toggleAllCategories(slugs, !allCollapsed)}
-          aria-label={toggleLabel}
-          title={toggleLabel}
-        >
-          {allCollapsed ? (
-            <ChevronsUpDown className="h-4 w-4" />
-          ) : (
-            <ChevronsDownUp className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
       {categories.map((category) => {
         const isCollapsed = !!collapsedCategories[category.slug];
         const questions = questionsByCategory[category.slug] ?? [];

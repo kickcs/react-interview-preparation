@@ -10,7 +10,7 @@ import {
   SheetTitle,
 } from "@/shared/ui/sheet";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { SidebarNav } from "./sidebar-nav";
+import { SidebarNav, CollapseAllButton } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
 
@@ -24,6 +24,7 @@ export function MobileSidebar({
   questionsByCategory,
 }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
+  const slugs = categories.map((c) => c.slug);
 
   return (
     <div className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
@@ -32,11 +33,14 @@ export function MobileSidebar({
           <Menu className="h-5 w-5" />
         </SheetTrigger>
         <SheetContent side="left" className="w-[280px] p-0">
-          <SheetTitle className="border-b border-border px-5 py-4">
-            <div className="text-lg font-bold">React Interview</div>
-            <div className="mt-1 text-xs font-normal text-muted-foreground">
-              Подготовка к собеседованию
+          <SheetTitle className="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <div className="text-lg font-bold">React Interview</div>
+              <div className="mt-1 text-xs font-normal text-muted-foreground">
+                Подготовка к собеседованию
+              </div>
             </div>
+            <CollapseAllButton slugs={slugs} />
           </SheetTitle>
           <ScrollArea className="h-[calc(100vh-73px)]">
             <SidebarNav
