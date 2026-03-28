@@ -1,0 +1,114 @@
+---
+title: "IIFE, замыкания и this"
+order: 9
+---
+
+IIFE (Immediately Invoked Function Expression) — функция, которая вызывается немедленно после объявления. Задача проверяет понимание того, какой `this` получает IIFE в разных контекстах.
+
+**Предскажите `this` в каждом случае:**
+
+<StarterCode>
+
+```js
+// Случай 1: IIFE на верхнем уровне
+(function() {
+  console.log('IIFE обычная:', this);
+})();
+
+// Случай 2: стрелочная IIFE на верхнем уровне
+(() => {
+  console.log('IIFE стрелка:', this);
+})();
+
+// Случай 3: IIFE внутри метода объекта
+const obj = {
+  name: 'test',
+  run() {
+    (function() {
+      console.log('IIFE в методе:', this);
+    })();
+  }
+};
+obj.run();
+
+// Случай 4: стрелочная IIFE внутри метода объекта
+const obj2 = {
+  name: 'test2',
+  run() {
+    (() => {
+      console.log('стрелочная IIFE в методе:', this);
+    })();
+  }
+};
+obj2.run();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+IIFE — это просто функция, которая тут же вызывается. `(function() { ... })()` — скобки вокруг функции превращают её в выражение, а `()` в конце вызывают её. Нет объекта перед вызовом → **default binding**.
+</Hint>
+
+<Hint title="Подсказка 2">
+Для случая 1 и 3: обычная IIFE → default binding. В нестрогом режиме `this === globalThis`. В строгом режиме (ES-модули, 'use strict') → `this === undefined`.
+
+Для случая 2: стрелочная IIFE на верхнем уровне захватывает `this` лексически. На верхнем уровне в браузере `this === window`, в Node.js ES-модуле `this === {}` (пустой объект модуля), в CommonJS `this === module.exports`.
+</Hint>
+
+<Hint title="Подсказка 3">
+Случай 4: стрелочная IIFE внутри метода `obj2.run()`. При вызове `obj2.run()` внутри метода `this === obj2`. Стрелочная IIFE захватывает этот `this` лексически → `this === obj2`.
+</Hint>
+
+<Solution>
+
+Вывод (браузер, нестрогий режим):
+```
+IIFE обычная: Window {}                  // default binding → globalThis
+IIFE стрелка: Window {}                  // лексически на верхнем уровне → window
+IIFE в методе: Window {}                 // default binding → globalThis (не obj!)
+стрелочная IIFE в методе: { name: 'test2', run: [Function] }  // this === obj2
+```
+
+Вывод (Node.js CommonJS, нестрогий режим):
+```
+IIFE обычная: Object [global] {}          // globalThis
+IIFE стрелка: {}                          // this модуля CommonJS = module.exports = {}
+IIFE в методе: Object [global] {}         // globalThis
+стрелочная IIFE в методе: { name: 'test2', run: [Function: run] }
+```
+
+**Объяснение:**
+
+**Случай 1 — обычная IIFE:**
+`(function() { ... })()` — вызов без объекта перед точкой. Default binding → `globalThis` (нестрогий) или `undefined` (строгий).
+
+**Случай 2 — стрелочная IIFE:**
+`(() => { ... })()` — стрелка захватывает `this` лексически из места написания. На верхнем уровне в браузере это `window`. В Node.js CommonJS-модуле верхнеуровневый `this` — это `module.exports` (изначально `{}`), что может удивить.
+
+**Случай 3 — обычная IIFE внутри метода:**
+Важный момент: `obj.run()` задаёт `this === obj` **только для метода `run`**. Внутри `run` появляется новая функция IIFE. При её вызове нет объекта перед точкой → default binding → `this === globalThis`. Метод `run` и IIFE — это **разные вызовы** с разными `this`.
+
+**Случай 4 — стрелочная IIFE внутри метода:**
+Стрелочная IIFE не создаёт своего `this`. Она захватывает его лексически из метода `run`, где `this === obj2`. Поэтому внутри стрелки `this === obj2`.
+
+**Паттерн замыкания для сохранения контекста:**
+```js
+const obj = {
+  name: 'example',
+  run() {
+    // Явно сохраняем this для использования в IIFE
+    const self = this;
+    (function() {
+      console.log(self.name); // "example"
+    })();
+
+    // Или просто используем стрелку:
+    (() => {
+      console.log(this.name); // "example"
+    })();
+  }
+};
+obj.run();
+```
+
+</Solution>

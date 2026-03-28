@@ -1,0 +1,67 @@
+---
+title: "Лавина микротасок: queueMicrotask внутри queueMicrotask"
+order: 6
+---
+
+Микротаска может порождать новые микротаски — и они тоже будут выполнены в текущем «батче» microtask queue, до перехода к следующей macrotask. Это означает, что `setTimeout` не выполнится, пока все микротаски (включая вновь добавленные) не завершатся.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+setTimeout(() => console.log('macrotask'), 0);
+
+queueMicrotask(() => {
+  console.log('microtask 1');
+  queueMicrotask(() => {
+    console.log('microtask 2');
+    queueMicrotask(() => console.log('microtask 3'));
+  });
+});
+
+console.log('sync');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+Event loop опустошает всю microtask queue перед взятием следующей macrotask. Если во время обработки микротаски добавляется новая микротаска — она добавляется в конец той же очереди и будет обработана в том же «батче», до `setTimeout`.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+sync
+microtask 1
+microtask 2
+microtask 3
+macrotask
+```
+
+**Объяснение:**
+
+**Call stack (синхронный код):**
+- `setTimeout(...)` → колбэк в macrotask queue
+- `queueMicrotask(...)` → первый колбэк в microtask queue
+- `console.log('sync')` → `sync`
+- Call stack пуст.
+
+**Microtask queue — итерация 1:**
+- Выполняется `microtask 1`: `console.log('microtask 1')` → `microtask 1`
+- Внутри него `queueMicrotask(...)` добавляет новую микротаску в конец очереди.
+
+**Microtask queue — итерация 2:**
+- Выполняется `microtask 2`: `console.log('microtask 2')` → `microtask 2`
+- Внутри него `queueMicrotask(...)` добавляет ещё одну микротаску.
+
+**Microtask queue — итерация 3:**
+- Выполняется `microtask 3`: `console.log('microtask 3')` → `microtask 3`. Очередь пуста.
+
+**Macrotask queue:**
+- Только теперь event loop берёт macrotask из `setTimeout` → `macrotask`.
+
+`queueMicrotask` — низкоуровневый API для добавления в microtask queue (в отличие от `Promise.resolve().then`, не создаёт объект промиса). Бесконечный цикл микротасок заблокирует event loop навсегда.
+
+</Solution>

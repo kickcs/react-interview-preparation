@@ -1,0 +1,118 @@
+---
+title: "Потеря this в методах класса"
+order: 5
+---
+
+Классы в JavaScript — это синтаксический сахар над прототипами. Методы класса так же теряют `this` при «отрыве» от объекта. Это частая проблема при передаче методов как колбэков (например, в React).
+
+**Предскажите, что произойдёт, и предложите три способа исправления:**
+
+<StarterCode>
+
+```js
+class Counter {
+  count = 0;
+
+  increment() {
+    this.count++;
+    console.log(this.count);
+  }
+}
+
+const c = new Counter();
+
+// Вызов 1: нормальный
+c.increment();
+
+// Вызов 2: потеря контекста
+const inc = c.increment;
+inc();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`c.increment()` — объект перед точкой есть, **implicit binding**, `this === c`. Всё работает.
+
+`const inc = c.increment; inc()` — копируем ссылку на функцию без привязки к объекту. `inc()` — вызов без объекта перед точкой, **default binding**: в строгом режиме (а классы всегда в строгом режиме) `this === undefined`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Методы класса добавляются на `prototype`, а не в сам экземпляр. Когда вы делаете `const inc = c.increment`, вы получаете ссылку на функцию с прототипа. При вызове без контекста в строгом режиме `this === undefined`, и обращение к `this.count` выбросит `TypeError`.
+</Hint>
+
+<Hint title="Подсказка 3">
+Три решения: 1) `bind` в конструкторе — `this.increment = this.increment.bind(this)`, 2) class field со стрелочной функцией — `increment = () => { this.count++; }`, 3) в JSX/колбэке — `onClick={this.increment.bind(this)}` или `onClick={() => this.increment()}`.
+</Hint>
+
+<Solution>
+
+Вывод без исправления:
+```
+1                           // c.increment() — работает
+TypeError: Cannot read properties of undefined (reading 'count')
+// inc() — this === undefined в строгом режиме класса
+```
+
+**Объяснение:**
+
+Классы JS всегда работают в строгом режиме. При вызове `inc()` без объекта перед точкой применяется **default binding**, но строгий режим запрещает привязку к `globalThis` — вместо этого `this === undefined`. Обращение к `undefined.count` → `TypeError`.
+
+**Три способа исправления:**
+
+**Способ 1: bind в конструкторе**
+```js
+class Counter {
+  count = 0;
+
+  constructor() {
+    this.increment = this.increment.bind(this);
+    // теперь this.increment — новая функция с зафиксированным this
+  }
+
+  increment() {
+    this.count++;
+    console.log(this.count);
+  }
+}
+
+const c = new Counter();
+const inc = c.increment;
+inc(); // 1 — работает! this зафиксирован
+```
+
+Минус: нужно перечислять все методы в конструкторе. Каждый экземпляр создаёт свою копию метода (не на прототипе).
+
+**Способ 2: class field — стрелочная функция**
+```js
+class Counter {
+  count = 0;
+
+  // Стрелка захватывает this из конструктора (момент создания экземпляра)
+  increment = () => {
+    this.count++;
+    console.log(this.count);
+  };
+}
+
+const c = new Counter();
+const inc = c.increment;
+inc(); // 1 — работает!
+```
+
+Плюс: чистый синтаксис, не нужен конструктор. Минус: метод на каждом экземпляре (не на прототипе), занимает больше памяти при множестве экземпляров.
+
+**Способ 3: bind или стрелка в месте использования**
+```js
+// В React JSX
+<button onClick={this.increment.bind(this)}>+</button>
+// или:
+<button onClick={() => this.increment()}>+</button>
+```
+
+Минус: новая функция создаётся при каждом рендере, что может влиять на производительность (актуально для оптимизации с `React.memo`).
+
+**Рекомендация:**
+В современном React с хуками эта проблема решается использованием функциональных компонентов — хуки (`useState`, `useCallback`) не имеют `this`.
+
+</Solution>

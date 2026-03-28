@@ -1,0 +1,5 @@
+{
+  "title": "Event Loop",
+  "order": 9,
+  "description": "Порядок выполнения: промисы, микротаски, setTimeout, queueMicrotask"
+}

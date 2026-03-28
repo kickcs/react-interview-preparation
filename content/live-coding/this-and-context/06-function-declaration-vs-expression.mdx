@@ -1,0 +1,98 @@
+---
+title: "Hoisting: объявление vs выражение функции"
+order: 6
+---
+
+Hoisting (поднятие) — механизм JavaScript, при котором объявления обрабатываются до выполнения кода. Function declaration поднимается **целиком**, function expression — нет.
+
+**Предскажите, что выведет каждый блок:**
+
+<StarterCode>
+
+```js
+// Блок 1: вызов до объявления (declaration)
+console.log(foo());
+
+function foo() {
+  return 'function declaration';
+}
+
+// Блок 2: вызов до объявления (expression с var)
+try {
+  console.log(bar());
+} catch (e) {
+  console.log(e.constructor.name + ': ' + e.message);
+}
+
+var bar = function() {
+  return 'function expression';
+};
+
+// Блок 3: вызов до объявления (arrow с const)
+try {
+  console.log(baz());
+} catch (e) {
+  console.log(e.constructor.name + ': ' + e.message);
+}
+
+const baz = () => 'arrow function';
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+**Function declaration** (`function foo() {}`) поднимается полностью — и объявление, и тело функции. К моменту первой строки кода `foo` уже существует и уже является функцией.
+</Hint>
+
+<Hint title="Подсказка 2">
+`var bar = function() {}` — здесь `var bar` поднимается (как любой `var`), но инициализируется как `undefined`. До строки присвоения `bar` равен `undefined`. Вызов `undefined()` выбрасывает `TypeError`.
+</Hint>
+
+<Hint title="Подсказка 3">
+`const baz = () => ...` — `const` поднимается, но входит в **Temporal Dead Zone (TDZ)**. Любое обращение к `baz` до строки объявления выбрасывает `ReferenceError`.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+"function declaration"
+TypeError: bar is not a function
+ReferenceError: Cannot access 'baz' before initialization
+```
+
+**Объяснение:**
+
+**Function declaration — полный hoisting:**
+Движок JS в первую фазу (до выполнения) обходит весь код и поднимает function declaration целиком. Функция `foo` полностью доступна с первой строки выполнения. Это позволяет вызывать функции до их написания в коде.
+
+**Function expression с `var` — частичный hoisting:**
+```
+// Что видит движок после hoisting:
+var bar = undefined; // поднято объявление var
+
+try {
+  console.log(bar()); // bar === undefined → TypeError: bar is not a function
+} catch (e) { ... }
+
+bar = function() { return 'function expression'; }; // присвоение остаётся на месте
+```
+`var bar` поднимается, но инициализируется как `undefined`. Сама функция присваивается только при выполнении строки `var bar = function() {...}`.
+
+**Arrow function с `const` — TDZ:**
+`const` и `let` технически тоже поднимаются, но **не инициализируются**. Переменная существует в области видимости (движок знает о ней), но находится в **Temporal Dead Zone** — любой доступ до строки объявления выбрасывает `ReferenceError`.
+
+**Сводная таблица:**
+
+| Синтаксис | Поднимается? | До объявления |
+|---|---|---|
+| `function foo() {}` | Да, целиком | Вызов работает |
+| `var foo = function() {}` | Только `var foo` | `TypeError: foo is not a function` |
+| `var foo = () => {}` | Только `var foo` | `TypeError: foo is not a function` |
+| `let foo = function() {}` | Да, но TDZ | `ReferenceError` |
+| `const foo = () => {}` | Да, но TDZ | `ReferenceError` |
+
+**Практический совет:**
+Полагаться на hoisting для function declaration — нормальная практика (например, объявлять вспомогательные функции внизу файла). Но для function expression и стрелочных функций — всегда объявляйте перед использованием.
+
+</Solution>

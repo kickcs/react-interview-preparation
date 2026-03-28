@@ -1,0 +1,71 @@
+---
+title: "Вложенные setTimeout и Promise внутри таймера"
+order: 4
+---
+
+Многоуровневая вложенность: `setTimeout` внутри `setTimeout`, `Promise` внутри `setTimeout`. Задача проверяет понимание того, как event loop обрабатывает несколько тиков — каждая macrotask создаёт новую итерацию цикла, и после каждой итерации проверяется microtask queue.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('start');
+
+setTimeout(() => {
+  console.log('timeout 1');
+  Promise.resolve().then(() => console.log('promise in timeout 1'));
+}, 0);
+
+setTimeout(() => {
+  console.log('timeout 2');
+}, 0);
+
+Promise.resolve().then(() => console.log('promise 1'));
+
+console.log('end');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+После выполнения каждой macrotask event loop полностью опустошает microtask queue перед взятием следующей macrotask. Значит, `promise in timeout 1` выводится сразу после `timeout 1` — до того, как начнётся выполнение `timeout 2`.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+start
+end
+promise 1
+timeout 1
+promise in timeout 1
+timeout 2
+```
+
+**Объяснение:**
+
+**Тик 0 — синхронный код (call stack):**
+- `console.log('start')` → `start`
+- `setTimeout 1` → колбэк в macrotask queue
+- `setTimeout 2` → колбэк в macrotask queue
+- `Promise.resolve().then(...)` → колбэк в microtask queue
+- `console.log('end')` → `end`
+
+**После тика 0 — microtask queue:**
+- Колбэк промиса → `promise 1`. Microtask queue пуста.
+
+**Тик 1 — macrotask: setTimeout 1:**
+- `console.log('timeout 1')` → `timeout 1`
+- `Promise.resolve().then(...)` → новый колбэк в microtask queue
+
+**После тика 1 — microtask queue:**
+- `promise in timeout 1`. Microtask queue пуста.
+
+**Тик 2 — macrotask: setTimeout 2:**
+- `console.log('timeout 2')` → `timeout 2`
+
+Правило: **microtask queue проверяется после каждой macrotask**, не только в конце всего цикла.
+
+</Solution>

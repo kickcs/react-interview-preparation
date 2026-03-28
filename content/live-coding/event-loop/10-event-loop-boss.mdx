@@ -1,0 +1,101 @@
+---
+title: "Финальный босс: полный хаос event loop"
+order: 10
+---
+
+Максимально сложная задача. Сочетает: синхронный executor в `new Promise`, `async/await` с несколькими `await`, `queueMicrotask`, вложенный `setTimeout` с промисом внутри, `setTimeout` с разными задержками и цепочку промисов. Нужно отследить все три очереди одновременно через несколько тиков event loop.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('1');
+
+setTimeout(() => {
+  console.log('2');
+  Promise.resolve().then(() => console.log('3'));
+}, 0);
+
+setTimeout(() => console.log('4'), 10);
+
+new Promise((resolve) => {
+  console.log('5');
+  resolve();
+}).then(() => console.log('6'));
+
+async function main() {
+  console.log('7');
+  await Promise.resolve();
+  console.log('8');
+  await Promise.resolve();
+  console.log('9');
+}
+
+queueMicrotask(() => console.log('10'));
+
+main();
+
+Promise.resolve()
+  .then(() => console.log('11'))
+  .then(() => console.log('12'));
+
+console.log('13');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+Разбейте решение на фазы. Фаза 1: весь синхронный код (не забудьте, что executor `new Promise` и начало `main()` до первого `await` — синхронные). Составьте microtask queue в конце фазы 1. Фаза 2: опустошение microtask queue — новые микротаски добавляются в конец той же очереди. Фаза 3 и 4: macrotask из `setTimeout(0)` и `setTimeout(10)`, каждый раз с опустошением microtask queue.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+1
+5
+7
+13
+6
+10
+8
+11
+9
+12
+2
+3
+4
+```
+
+**Объяснение:**
+
+**Фаза 1 — синхронный код (call stack):**
+- `console.log('1')` → `1`
+- `setTimeout(..., 0)` → колбэк `[2+3]` в macrotask queue (задержка 0 мс)
+- `setTimeout(..., 10)` → колбэк `[4]` в macrotask queue (задержка 10 мс)
+- `new Promise(executor)` — executor синхронный: `console.log('5')` → `5`, `resolve()` → промис resolved, колбэк `.then('6')` в microtask queue
+- `queueMicrotask(() => log('10'))` → колбэк `[10]` в microtask queue
+- `main()` вызывается синхронно: `console.log('7')` → `7`, `await Promise.resolve()` — колбэк `[8...]` в microtask queue, `main` приостанавливается
+- `Promise.resolve().then(() => log('11')).then(...)` → колбэк `[11]` в microtask queue, `[12]` пока не добавлен
+- `console.log('13')` → `13`. Call stack пуст.
+
+**Microtask queue в начале фазы 2:** `[6, 10, 8+продолжение, 11]`
+
+**Фаза 2 — microtask queue:**
+- `6`: `console.log('6')` → `6`. Очередь: `[10, 8, 11]`
+- `10`: `console.log('10')` → `10`. Очередь: `[8, 11]`
+- `8`: `main` возобновляется → `console.log('8')` → `8`, встречает второй `await Promise.resolve()` → колбэк `[9]` добавляется в конец. Очередь: `[11, 9]`
+- `11`: `console.log('11')` → `11`. Первый `.then` resolved → `[12]` добавляется. Очередь: `[9, 12]`
+- `9`: `main` возобновляется → `console.log('9')` → `9`. Очередь: `[12]`
+- `12`: `console.log('12')` → `12`. Очередь пуста.
+
+**Фаза 3 — macrotask: setTimeout(0) (тик ~0 мс):**
+- `console.log('2')` → `2`
+- `Promise.resolve().then(() => log('3'))` → `[3]` в microtask queue
+- **После macrotask — microtask queue:** `3` → `3`.
+
+**Фаза 4 — macrotask: setTimeout(10) (тик ~10 мс):**
+- `console.log('4')` → `4`.
+
+</Solution>

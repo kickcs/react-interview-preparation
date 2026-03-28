@@ -1,0 +1,48 @@
+---
+title: "Promise vs setTimeout: приоритет очередей"
+order: 2
+---
+
+Задача демонстрирует ключевое правило event loop: **microtask queue** (промисы) всегда обрабатывается полностью перед следующей macrotask. Даже если `setTimeout(0)` зарегистрирован раньше промиса, промис выполнится первым.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('1');
+setTimeout(() => console.log('2'), 0);
+Promise.resolve().then(() => console.log('3'));
+console.log('4');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+После завершения синхронного кода event loop сначала опустошает всю microtask queue (промисы, queueMicrotask), и только потом берёт следующую macrotask из macrotask queue. `Promise.resolve().then(...)` — это микротаска. `setTimeout` — макротаска.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+1
+4
+3
+2
+```
+
+**Объяснение:**
+
+1. **Call stack (синхронный код):** `console.log('1')` → выводит `1`. `setTimeout` регистрирует колбэк в macrotask queue. `Promise.resolve().then(...)` регистрирует колбэк в microtask queue. `console.log('4')` → выводит `4`. Call stack пуст.
+
+2. **Microtask queue (приоритет выше):** Event loop перед взятием следующей macrotask обязан полностью опустошить microtask queue. Колбэк промиса выполняется → выводит `3`. Microtask queue пуста.
+
+3. **Macrotask queue:** Теперь event loop берёт macrotask из `setTimeout` → выводит `2`.
+
+Иерархия приоритетов:
+- **Синхронный код** (call stack) — выполняется первым
+- **Microtask queue** (`Promise.then`, `queueMicrotask`, `MutationObserver`) — после каждой macrotask
+- **Macrotask queue** (`setTimeout`, `setInterval`, I/O события) — по одной за итерацию event loop
+
+</Solution>

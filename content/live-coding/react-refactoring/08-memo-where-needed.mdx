@@ -1,0 +1,137 @@
+---
+title: "Мемоизация там, где нужна"
+order: 8
+---
+
+Компонент перегружен ненужными оптимизациями: `useMemo` на примитивных вычислениях, `useCallback` с пустым массивом deps при использовании state, `React.memo` на компоненте, который всё равно ререндерится из-за нестабильных пропсов. Уберите лишнее и добавьте мемоизацию там, где она реально нужна.
+
+<StarterCode>
+
+```jsx
+import { useState, useMemo, useCallback, memo } from 'react';
+
+// ❌ React.memo бесполезен: items — новый массив на каждом рендере родителя
+const ItemList = memo(function ItemList({ items, onRemove }) {
+  console.log('ItemList render');
+  return (
+    <ul>
+      {items.map(item => (
+        <li key={item.id}>
+          {item.name}
+          <button onClick={() => onRemove(item.id)}>✕</button>
+        </li>
+      ))}
+    </ul>
+  );
+});
+
+// ❌ ExpensiveChart мемоизирован правильно по идее, но посмотрим на родителя
+const ExpensiveChart = memo(function ExpensiveChart({ data }) {
+  // Имитация дорогого рендера
+  const processed = data.reduce((acc, n) => acc + n, 0);
+  return <div>Сумма: {processed}</div>;
+});
+
+export default function Dashboard() {
+  const [items, setItems] = useState([
+    { id: 1, name: 'Товар A' },
+    { id: 2, name: 'Товар B' },
+    { id: 3, name: 'Товар C' },
+  ]);
+  const [count, setCount] = useState(0);
+
+  // ❌ useMemo на примитиве — бессмысленно, count.toString() мгновенный
+  const countLabel = useMemo(() => `Счётчик: ${count}`, [count]);
+
+  // ❌ useMemo на примитивном умножении
+  const doubled = useMemo(() => count * 2, [count]);
+
+  // ❌ useCallback с пустым deps — items устарели после первого рендера (stale closure)
+  const handleRemove = useCallback((id) => {
+    setItems(items.filter(item => item.id !== id));
+  }, []);
+
+  // ❌ chartData — новый массив каждый рендер, убивает React.memo у ExpensiveChart
+  const chartData = [10, 20, 30, count];
+
+  return (
+    <div style={{ padding: 24 }}>
+      <p>{countLabel}</p>
+      <p>Удвоено: {doubled}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+      <ItemList items={items} onRemove={handleRemove} />
+      <ExpensiveChart data={chartData} />
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Уберите `useMemo` с `countLabel` и `doubled` — это простые выражения, мемоизация здесь только добавляет оверхед. `useCallback` у `handleRemove` должен иметь `[setItems]` в deps (или использовать функциональное обновление, тогда deps вообще не нужны).
+</Hint>
+
+<Hint title="Подсказка 2">
+Чтобы `React.memo` на `ItemList` и `ExpensiveChart` имел смысл, стабилизируйте пропсы: `items` — уже стабильный state, передавайте его напрямую. `chartData` — оберните в `useMemo`, чтобы массив не пересоздавался при каждом рендере. `handleRemove` через `useCallback` с правильными deps.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useMemo, useCallback, memo } from 'react';
+
+// ✅ React.memo оправдан: при стабильных items и onRemove ререндер не происходит
+const ItemList = memo(function ItemList({ items, onRemove }) {
+  console.log('ItemList render');
+  return (
+    <ul>
+      {items.map(item => (
+        <li key={item.id}>
+          {item.name}
+          <button onClick={() => onRemove(item.id)}>✕</button>
+        </li>
+      ))}
+    </ul>
+  );
+});
+
+// ✅ React.memo оправдан: data теперь мемоизирован
+const ExpensiveChart = memo(function ExpensiveChart({ data }) {
+  const processed = data.reduce((acc, n) => acc + n, 0);
+  return <div>Сумма: {processed}</div>;
+});
+
+export default function Dashboard() {
+  const [items, setItems] = useState([
+    { id: 1, name: 'Товар A' },
+    { id: 2, name: 'Товар B' },
+    { id: 3, name: 'Товар C' },
+  ]);
+  const [count, setCount] = useState(0);
+
+  // ✅ Примитивы — вычисляем напрямую, без useMemo
+  const countLabel = `Счётчик: ${count}`;
+  const doubled = count * 2;
+
+  // ✅ Функциональное обновление — не нужно читать items, deps пустой
+  const handleRemove = useCallback((id) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  // ✅ useMemo оправдан: стабилизирует ссылку на массив для React.memo
+  const chartData = useMemo(() => [10, 20, 30, count], [count]);
+
+  return (
+    <div style={{ padding: 24 }}>
+      <p>{countLabel}</p>
+      <p>Удвоено: {doubled}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+      <ItemList items={items} onRemove={handleRemove} />
+      <ExpensiveChart data={chartData} />
+    </div>
+  );
+}
+```
+
+</Solution>

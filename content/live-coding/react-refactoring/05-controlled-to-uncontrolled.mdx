@@ -1,0 +1,151 @@
+---
+title: "Заменить множество useState на useReducer"
+order: 5
+---
+
+Форма регистрации использует 10 отдельных `useState` — по одному на каждое поле. Каждое изменение обрабатывается своим хэндлером. Код громоздкий и плохо масштабируется. Рефакторинг: один `useReducer` с единым объектом state и универсальным `handleChange`.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+export default function RegistrationForm() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('RU');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [newsletter, setNewsletter] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      alert('Пароли не совпадают');
+      return;
+    }
+    console.log({ firstName, lastName, email, password, phone, city, country, agreeToTerms, newsletter });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400 }}>
+      <input placeholder="Имя" value={firstName} onChange={e => setFirstName(e.target.value)} />
+      <input placeholder="Фамилия" value={lastName} onChange={e => setLastName(e.target.value)} />
+      <input placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+      <input placeholder="Пароль" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+      <input placeholder="Подтвердите пароль" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+      <input placeholder="Телефон" value={phone} onChange={e => setPhone(e.target.value)} />
+      <input placeholder="Город" value={city} onChange={e => setCity(e.target.value)} />
+      <select value={country} onChange={e => setCountry(e.target.value)}>
+        <option value="RU">Россия</option>
+        <option value="BY">Беларусь</option>
+        <option value="KZ">Казахстан</option>
+      </select>
+      <label>
+        <input type="checkbox" checked={agreeToTerms} onChange={e => setAgreeToTerms(e.target.checked)} />
+        {' '}Согласен с условиями
+      </label>
+      <label>
+        <input type="checkbox" checked={newsletter} onChange={e => setNewsletter(e.target.checked)} />
+        {' '}Подписаться на рассылку
+      </label>
+      <button type="submit" disabled={!agreeToTerms}>Зарегистрироваться</button>
+    </form>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Соберите все начальные значения в один объект `initialState`. Reducer обрабатывает экшен `{ type: 'SET_FIELD', field: 'email', value: '...' }`. Диспетчеризация: `dispatch({ type: 'SET_FIELD', field: name, value })`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте атрибут `name` у каждого инпута — тогда универсальный хэндлер может читать `e.target.name` и `e.target.value` (или `e.target.checked` для чекбоксов) и диспатчить одно и то же действие для всех полей.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useReducer } from 'react';
+
+const initialState = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  phone: '',
+  city: '',
+  country: 'RU',
+  agreeToTerms: false,
+  newsletter: false,
+};
+
+function formReducer(state, action) {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.field]: action.value };
+    case 'RESET':
+      return initialState;
+    default:
+      return state;
+  }
+}
+
+export default function RegistrationForm() {
+  const [state, dispatch] = useReducer(formReducer, initialState);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    dispatch({
+      type: 'SET_FIELD',
+      field: name,
+      value: type === 'checkbox' ? checked : value,
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (state.password !== state.confirmPassword) {
+      alert('Пароли не совпадают');
+      return;
+    }
+    const { confirmPassword, ...data } = state;
+    console.log(data);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 400 }}>
+      <input name="firstName" placeholder="Имя" value={state.firstName} onChange={handleChange} />
+      <input name="lastName" placeholder="Фамилия" value={state.lastName} onChange={handleChange} />
+      <input name="email" placeholder="Email" type="email" value={state.email} onChange={handleChange} />
+      <input name="password" placeholder="Пароль" type="password" value={state.password} onChange={handleChange} />
+      <input name="confirmPassword" placeholder="Подтвердите пароль" type="password" value={state.confirmPassword} onChange={handleChange} />
+      <input name="phone" placeholder="Телефон" value={state.phone} onChange={handleChange} />
+      <input name="city" placeholder="Город" value={state.city} onChange={handleChange} />
+      <select name="country" value={state.country} onChange={handleChange}>
+        <option value="RU">Россия</option>
+        <option value="BY">Беларусь</option>
+        <option value="KZ">Казахстан</option>
+      </select>
+      <label>
+        <input type="checkbox" name="agreeToTerms" checked={state.agreeToTerms} onChange={handleChange} />
+        {' '}Согласен с условиями
+      </label>
+      <label>
+        <input type="checkbox" name="newsletter" checked={state.newsletter} onChange={handleChange} />
+        {' '}Подписаться на рассылку
+      </label>
+      <button type="submit" disabled={!state.agreeToTerms}>Зарегистрироваться</button>
+    </form>
+  );
+}
+```
+
+</Solution>

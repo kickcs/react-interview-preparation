@@ -1,0 +1,143 @@
+---
+title: "Заменить prop drilling на React Context"
+order: 3
+---
+
+Объект `user` передаётся через цепочку `App → Layout → Sidebar → UserInfo`, хотя промежуточные компоненты `Layout` и `Sidebar` сами его не используют — только прокидывают дальше. Устраните prop drilling, создав `UserContext`.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+function UserInfo({ user }) {
+  return (
+    <div style={{ padding: 8, background: '#f0f0f0', borderRadius: 4 }}>
+      <strong>{user.name}</strong>
+      <p style={{ margin: '4px 0', fontSize: 12 }}>{user.email}</p>
+      <span style={{
+        fontSize: 11,
+        color: user.role === 'admin' ? 'crimson' : 'steelblue'
+      }}>
+        {user.role}
+      </span>
+    </div>
+  );
+}
+
+function Sidebar({ user }) {
+  return (
+    <aside style={{ width: 240, borderRight: '1px solid #ddd', padding: 16 }}>
+      <UserInfo user={user} />
+      <nav style={{ marginTop: 16 }}>
+        <a href="/" style={{ display: 'block', padding: '6px 0' }}>Главная</a>
+        <a href="/settings" style={{ display: 'block', padding: '6px 0' }}>Настройки</a>
+      </nav>
+    </aside>
+  );
+}
+
+function Layout({ user, children }) {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar user={user} />
+      <main style={{ flex: 1, padding: 24 }}>{children}</main>
+    </div>
+  );
+}
+
+export default function App() {
+  const [user] = useState({
+    name: 'Анна Петрова',
+    email: 'anna@example.com',
+    role: 'admin',
+  });
+
+  return (
+    <Layout user={user}>
+      <h1>Добро пожаловать, {user.name}!</h1>
+      <p>Ваша роль: {user.role}</p>
+    </Layout>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте контекст через `createContext(null)` и оберните всё дерево в `UserContext.Provider` с `value={{ user }}` внутри `App`. После этого `Layout` и `Sidebar` перестанут принимать `user` через пропсы.
+</Hint>
+
+<Hint title="Подсказка 2">
+Напишите кастомный хук `useUser()`, который вызывает `useContext(UserContext)` и бросает ошибку, если хук вызван вне провайдера. Это упростит использование и добавит защиту от забытого провайдера.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, createContext, useContext } from 'react';
+
+const UserContext = createContext(null);
+
+function useUser() {
+  const ctx = useContext(UserContext);
+  if (!ctx) throw new Error('useUser must be used within UserProvider');
+  return ctx.user;
+}
+
+function UserInfo() {
+  const user = useUser();
+  return (
+    <div style={{ padding: 8, background: '#f0f0f0', borderRadius: 4 }}>
+      <strong>{user.name}</strong>
+      <p style={{ margin: '4px 0', fontSize: 12 }}>{user.email}</p>
+      <span style={{
+        fontSize: 11,
+        color: user.role === 'admin' ? 'crimson' : 'steelblue'
+      }}>
+        {user.role}
+      </span>
+    </div>
+  );
+}
+
+function Sidebar() {
+  return (
+    <aside style={{ width: 240, borderRight: '1px solid #ddd', padding: 16 }}>
+      <UserInfo />
+      <nav style={{ marginTop: 16 }}>
+        <a href="/" style={{ display: 'block', padding: '6px 0' }}>Главная</a>
+        <a href="/settings" style={{ display: 'block', padding: '6px 0' }}>Настройки</a>
+      </nav>
+    </aside>
+  );
+}
+
+function Layout({ children }) {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+      <main style={{ flex: 1, padding: 24 }}>{children}</main>
+    </div>
+  );
+}
+
+export default function App() {
+  const [user] = useState({
+    name: 'Анна Петрова',
+    email: 'anna@example.com',
+    role: 'admin',
+  });
+
+  return (
+    <UserContext.Provider value={{ user }}>
+      <Layout>
+        <h1>Добро пожаловать, {user.name}!</h1>
+        <p>Ваша роль: {user.role}</p>
+      </Layout>
+    </UserContext.Provider>
+  );
+}
+```
+
+</Solution>

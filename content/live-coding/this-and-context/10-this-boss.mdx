@@ -1,0 +1,160 @@
+---
+title: "Финальный босс: все правила this"
+order: 10
+---
+
+Комплексная задача, объединяющая все четыре правила привязки `this` и правило стрелочных функций. Восемь `console.log` — предскажите каждый.
+
+**Предскажите все 8 значений this:**
+
+<StarterCode>
+
+```js
+// === Часть 1: объект с методами ===
+const obj = {
+  name: 'obj',
+  regular() {
+    console.log('1:', this.name);          // ?
+  },
+  arrow: () => {
+    console.log('2:', this);              // ?
+  },
+  nested() {
+    const inner = function() {
+      console.log('3:', this?.name);      // ?
+    };
+    inner();
+  }
+};
+
+obj.regular();
+obj.arrow();
+obj.nested();
+
+// === Часть 2: конструктор ===
+function Person(name) {
+  this.name = name;
+}
+
+const p = new Person('Alice');
+console.log('4:', p.name);              // ?
+
+// === Часть 3: класс ===
+class Animal {
+  constructor(type) {
+    this.type = type;
+  }
+  describe() {
+    console.log('5:', this.type);        // ?
+  }
+}
+
+const dog = new Animal('dog');
+dog.describe();
+
+// === Часть 4: explicit binding ===
+function greet() {
+  console.log('6:', this.id);
+}
+
+const ctx = { id: 42 };
+greet.call(ctx);
+
+// === Часть 5: потеря + исправление ===
+class Timer {
+  seconds = 0;
+  start() {
+    const tick = () => {
+      this.seconds++;
+    };
+    tick();
+    console.log('7:', this.seconds);     // ?
+  }
+}
+
+const t = new Timer();
+t.start();
+
+// === Часть 6: bind + call — кто побеждает? ===
+function show() {
+  console.log('8:', this.val);
+}
+
+const bound = show.bind({ val: 'bound' });
+bound.call({ val: 'call' });
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Логи 1–3: вспомните три правила:
+- Log 1: `obj.regular()` — есть объект перед точкой → implicit binding
+- Log 2: `obj.arrow()` — стрелка в объектном литерале → лексический this из окружения
+- Log 3: `obj.nested()` — вызывает `inner()` без объекта → default binding
+</Hint>
+
+<Hint title="Подсказка 2">
+Логи 4–6:
+- Log 4: `new Person('Alice')` → new binding, `p.name` — просто чтение свойства
+- Log 5: `dog.describe()` → implicit binding, `this === dog`
+- Log 6: `greet.call(ctx)` → explicit binding, `this === ctx`
+</Hint>
+
+<Hint title="Подсказка 3">
+Log 7: внутри `start()` (вызванного как `t.start()`) `this === t`. Стрелочная функция `tick` захватывает этот `this` лексически. `tick()` не создаёт своего `this` → `this.seconds++` работает на `t`.
+
+Log 8: `bind` создаёт новую функцию с зафиксированным `this`. `call` на уже связанной функции **не может** изменить `this` — bind выигрывает.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+1: "obj"          // implicit binding: this === obj
+2: undefined      // стрелка в объектном литерале → this из внешней области → globalThis.name
+3: undefined      // default binding в строгом режиме this === undefined, ?.name → undefined
+4: "Alice"        // new binding создал объект { name: 'Alice' }
+5: "dog"          // implicit binding: this === dog
+6: 42             // explicit binding: this === ctx
+7: 1              // стрелка захватила this === t; t.seconds стало 1
+8: "bound"        // bind зафиксировал this; call не может его изменить
+```
+
+**Полный разбор каждого лога:**
+
+**Log 1 — `obj.regular()` → `"obj"`**
+Правило: **implicit binding**. Перед точкой стоит `obj` → `this === obj` → `this.name === 'obj'`.
+
+**Log 2 — `obj.arrow()` → `undefined`**
+Правило: **лексический this стрелки**. Стрелка `arrow: () => {...}` написана в теле объектного литерала. Объектный литерал НЕ создаёт область видимости. Стрелка захватывает `this` из внешнего контекста — там, где выполняется код: если это глобальный уровень в нестрогом режиме, `this === globalThis`, `globalThis.name` в браузере — пустая строка или специальное значение, в Node.js — `undefined`.
+
+**Log 3 — `inner()` внутри `nested()` → `undefined`**
+Правило: **default binding**. `obj.nested()` задаёт `this === obj` только для `nested`. Внутри создаётся новая функция `inner`. Вызов `inner()` — без объекта перед точкой. В строгом режиме (Node.js ES-модули, классы) или при аккуратном тесте в браузере: `this === undefined` → `this?.name === undefined`.
+
+**Log 4 — `new Person('Alice')`, `p.name` → `"Alice"`**
+Правило: **new binding**. `new` создал объект, `this.name = 'Alice'` установило свойство на нём. `p.name` — просто чтение свойства объекта.
+
+**Log 5 — `dog.describe()` → `"dog"`**
+Правило: **implicit binding**. `dog.describe()` → `this === dog` → `this.type === 'dog'`.
+
+**Log 6 — `greet.call(ctx)` → `42`**
+Правило: **explicit binding**. `call` устанавливает `this === ctx` → `this.id === 42`.
+
+**Log 7 — стрелка `tick` в методе класса → `1`**
+Правило: **лексический this стрелки**. `t.start()` → `this === t` внутри `start`. Стрелочная функция `tick` захватывает этот `this`. `tick()` вызывается без объекта, но стрелке это безразлично — `this` уже зафиксирован как `t`. `t.seconds` становится `1`.
+
+**Log 8 — `bound.call(...)` → `"bound"`**
+Правило: **bind выигрывает у call**. `bind` создаёт жёстко привязанную функцию — её `this` нельзя изменить через `call` или `apply`. Это намеренное поведение: `bind` — это **постоянная** привязка. Приоритет: `new` > `bind` > `call/apply` > `implicit` > `default`.
+
+**Итоговая таблица приоритетов:**
+
+| Правило | Пример | Приоритет |
+|---|---|---|
+| **new binding** | `new Fn()` | Наивысший |
+| **Explicit binding** | `fn.bind(obj)` | Высокий |
+| **Explicit (немедленный)** | `fn.call(obj)`, `fn.apply(obj)` | Высокий |
+| **Implicit binding** | `obj.fn()` | Средний |
+| **Default binding** | `fn()` | Низший |
+| **Стрелочная функция** | `() => this` | Особое правило — лексический this |
+
+</Solution>

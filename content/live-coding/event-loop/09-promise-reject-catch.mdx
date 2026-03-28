@@ -1,0 +1,65 @@
+---
+title: "Promise.reject и цепочка catch/then"
+order: 9
+---
+
+При отклонении промиса `.catch()` перехватывает ошибку и возвращает **новый resolved-промис** (если не выбрасывает исключение снова). Следующий `.then()` в цепочке получает это resolved-значение. Каждый `.catch` и `.then` — отдельная микротаска.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('start');
+
+Promise.reject('error')
+  .catch(err => {
+    console.log('catch:', err);
+    return 'recovered';
+  })
+  .then(val => {
+    console.log('then 1:', val);
+    return 'next';
+  })
+  .then(val => console.log('then 2:', val));
+
+console.log('end');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+`Promise.reject('error')` создаёт уже rejected-промис. `.catch(cb)` — это синтаксический сахар для `.then(undefined, cb)`. Если `catch` не выбрасывает исключение, он возвращает resolved-промис, и следующий `.then` получает возвращённое значение. Вся цепочка — это последовательность микротасок.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+start
+end
+catch: error
+then 1: recovered
+then 2: next
+```
+
+**Объяснение:**
+
+**Call stack (синхронный код):**
+- `console.log('start')` → `start`
+- `Promise.reject('error')` — создаёт rejected-промис. `.catch(cb)` регистрирует обработчик → колбэк `catch` ставится в microtask queue (промис уже rejected).
+- `.then(val => log('then 1', val))` и `.then(val => log('then 2', val))` — эти промисы пока pending, колбэки не добавлены.
+- `console.log('end')` → `end`. Call stack пуст.
+
+**Microtask queue — итерация 1:**
+- Колбэк `catch`: `console.log('catch:', 'error')` → `catch: error`. Возвращает `'recovered'`. `.catch()` разрешается со значением `'recovered'` → колбэк первого `.then` добавляется в microtask queue.
+
+**Microtask queue — итерация 2:**
+- Колбэк `then 1`: `console.log('then 1:', 'recovered')` → `then 1: recovered`. Возвращает `'next'` → колбэк второго `.then` добавляется.
+
+**Microtask queue — итерация 3:**
+- Колбэк `then 2`: `console.log('then 2:', 'next')` → `then 2: next`.
+
+Важно: `.catch()` превращает rejected-промис обратно в resolved. Последующие `.then()` работают нормально. Чтобы ошибка «пробросилась» дальше, нужно явно выбросить: `throw err` или `return Promise.reject(err)`.
+
+</Solution>

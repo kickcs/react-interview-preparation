@@ -1,0 +1,5 @@
+{
+  "title": "this & Контекст",
+  "order": 10,
+  "description": "this, bind/call/apply, стрелочные функции, объявления и hoisting"
+}

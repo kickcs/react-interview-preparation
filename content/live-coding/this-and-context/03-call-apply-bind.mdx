@@ -1,0 +1,112 @@
+---
+title: "call, apply, bind: явная привязка this"
+order: 3
+---
+
+Три метода для явной привязки `this`: `call`, `apply`, `bind`. У каждого свой синтаксис и поведение. Задача — вызвать одну и ту же функцию с нужным контекстом тремя способами.
+
+**Реализуйте три вызова, используя `call`, `apply` и `bind`:**
+
+<StarterCode>
+
+```js
+const user = {
+  firstName: 'Иван',
+  lastName: 'Петров'
+};
+
+function greet(greeting, punctuation) {
+  return `${greeting}, ${this.firstName} ${this.lastName}${punctuation}`;
+}
+
+// Вызовите greet с контекстом user, аргументами 'Привет' и '!'
+// используя call:
+const result1 = /* ваш код */;
+
+// используя apply:
+const result2 = /* ваш код */;
+
+// используя bind (получите функцию, затем вызовите):
+const result3 = /* ваш код */;
+
+console.log(result1); // "Привет, Иван Петров!"
+console.log(result2); // "Привет, Иван Петров!"
+console.log(result3); // "Привет, Иван Петров!"
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`call` вызывает функцию **немедленно**. Первый аргумент — объект `this`, остальные — аргументы функции через запятую: `fn.call(thisArg, arg1, arg2)`.
+</Hint>
+
+<Hint title="Подсказка 2">
+`apply` тоже вызывает функцию **немедленно**, но аргументы передаются **массивом**: `fn.apply(thisArg, [arg1, arg2])`. Запомните: `apply` — **a**pply → **a**rray.
+</Hint>
+
+<Hint title="Подсказка 3">
+`bind` **не вызывает** функцию сразу. Он возвращает **новую функцию** с зафиксированным `this` (и опционально зафиксированными аргументами). Вызывайте результат позже: `const boundFn = fn.bind(thisArg, arg1, arg2); boundFn();`.
+</Hint>
+
+<Solution>
+
+```js
+const user = {
+  firstName: 'Иван',
+  lastName: 'Петров'
+};
+
+function greet(greeting, punctuation) {
+  return `${greeting}, ${this.firstName} ${this.lastName}${punctuation}`;
+}
+
+// call: немедленный вызов, аргументы через запятую
+const result1 = greet.call(user, 'Привет', '!');
+
+// apply: немедленный вызов, аргументы массивом
+const result2 = greet.apply(user, ['Привет', '!']);
+
+// bind: возвращает новую функцию, вызываем её
+const boundGreet = greet.bind(user, 'Привет', '!');
+const result3 = boundGreet();
+
+console.log(result1); // "Привет, Иван Петров!"
+console.log(result2); // "Привет, Иван Петров!"
+console.log(result3); // "Привет, Иван Петров!"
+```
+
+**Объяснение:**
+
+Все три метода реализуют **explicit binding** (явное связывание) — правило привязки `this` с наивысшим приоритетом среди call/apply/bind.
+
+| Метод | Когда вызывает | Аргументы | Возвращает |
+|---|---|---|---|
+| `call` | Немедленно | Через запятую | Результат функции |
+| `apply` | Немедленно | Массивом | Результат функции |
+| `bind` | Позже (сами вызываем) | Через запятую (можно частично) | Новую функцию |
+
+**Практические применения:**
+
+```js
+// apply удобен, когда аргументы уже в массиве
+const args = ['Добрый день', '.'];
+greet.apply(user, args);
+
+// bind удобен для колбэков и обработчиков событий
+const button = document.querySelector('button');
+button.addEventListener('click', greet.bind(user, 'Клик', '!'));
+
+// Частичное применение (partial application) через bind
+const greetWithHello = greet.bind(user, 'Привет');
+greetWithHello('!');   // "Привет, Иван Петров!"
+greetWithHello('...');  // "Привет, Иван Петров..."
+```
+
+**Важно:** стрелочные функции игнорируют `call`/`apply`/`bind` — их `this` нельзя изменить:
+
+```js
+const arrowGreet = (greeting) => `${greeting}, ${this.firstName}`;
+arrowGreet.call(user, 'Привет'); // "Привет, undefined" — this не изменился
+```
+
+</Solution>

@@ -1,0 +1,139 @@
+---
+title: "Поднять state вверх (lift state up)"
+order: 10
+---
+
+Два компонента `TemperatureInput` — для Цельсия и Фаренгейта — хранят независимый `state`. При вводе значения в одно поле второе не обновляется. Поднимите state в родительский компонент `Calculator` и синхронизируйте поля через конвертацию.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+// ❌ Каждый компонент хранит свой state — они не синхронизированы
+function TemperatureInput({ scale }) {
+  const [temperature, setTemperature] = useState('');
+
+  const scaleLabel = scale === 'c' ? 'Цельсий' : 'Фаренгейт';
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', marginBottom: 4 }}>
+        Температура в {scaleLabel}:
+      </label>
+      <input
+        type="number"
+        value={temperature}
+        onChange={e => setTemperature(e.target.value)}
+        style={{ padding: '4px 8px', width: 120 }}
+      />
+    </div>
+  );
+}
+
+function BoilingVerdict({ celsius }) {
+  if (celsius === '' || isNaN(celsius)) return null;
+  return celsius >= 100
+    ? <p style={{ color: 'crimson' }}>Вода кипит!</p>
+    : <p style={{ color: 'steelblue' }}>Вода не кипит.</p>;
+}
+
+export default function Calculator() {
+  return (
+    <div style={{ padding: 24, maxWidth: 320 }}>
+      <h2>Конвертер температур</h2>
+      {/* ❌ Два независимых компонента — не знают друг о друге */}
+      <TemperatureInput scale="c" />
+      <TemperatureInput scale="f" />
+      <BoilingVerdict celsius={''} />
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Уберите `useState` из `TemperatureInput`. Компонент должен принимать `temperature` и `onTemperatureChange` через пропсы — стать «управляемым». Весь state (`temperature`, `scale`) живёт в `Calculator`.
+</Hint>
+
+<Hint title="Подсказка 2">
+В `Calculator` храните `{ value: string, scale: 'c' | 'f' }`. Напишите функции `toCelsius(f)` и `toFahrenheit(c)`. При рендере вычисляйте значение для второго поля: если активна шкала Цельсия, для поля Фаренгейта вычислите `toFahrenheit(value)` и передайте как проп.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+function toCelsius(fahrenheit) {
+  return ((fahrenheit - 32) * 5) / 9;
+}
+
+function toFahrenheit(celsius) {
+  return (celsius * 9) / 5 + 32;
+}
+
+function tryConvert(value, convert) {
+  const input = parseFloat(value);
+  if (isNaN(input)) return '';
+  const result = convert(input);
+  // Округляем до 3 знаков, убираем лишние нули
+  return String(Math.round(result * 1000) / 1000);
+}
+
+// ✅ Управляемый компонент — state снаружи
+function TemperatureInput({ scale, temperature, onTemperatureChange }) {
+  const scaleLabel = scale === 'c' ? 'Цельсий' : 'Фаренгейт';
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', marginBottom: 4 }}>
+        Температура в {scaleLabel}:
+      </label>
+      <input
+        type="number"
+        value={temperature}
+        onChange={e => onTemperatureChange(e.target.value)}
+        style={{ padding: '4px 8px', width: 120 }}
+      />
+    </div>
+  );
+}
+
+function BoilingVerdict({ celsius }) {
+  if (celsius === '' || isNaN(celsius)) return null;
+  return celsius >= 100
+    ? <p style={{ color: 'crimson' }}>Вода кипит!</p>
+    : <p style={{ color: 'steelblue' }}>Вода не кипит.</p>;
+}
+
+// ✅ Единый state, конвертация при рендере
+export default function Calculator() {
+  const [state, setState] = useState({ value: '', scale: 'c' });
+
+  const handleCelsiusChange = (value) => setState({ value, scale: 'c' });
+  const handleFahrenheitChange = (value) => setState({ value, scale: 'f' });
+
+  const celsius = state.scale === 'f' ? tryConvert(state.value, toCelsius) : state.value;
+  const fahrenheit = state.scale === 'c' ? tryConvert(state.value, toFahrenheit) : state.value;
+
+  return (
+    <div style={{ padding: 24, maxWidth: 320 }}>
+      <h2>Конвертер температур</h2>
+      <TemperatureInput
+        scale="c"
+        temperature={celsius}
+        onTemperatureChange={handleCelsiusChange}
+      />
+      <TemperatureInput
+        scale="f"
+        temperature={fahrenheit}
+        onTemperatureChange={handleFahrenheitChange}
+      />
+      <BoilingVerdict celsius={parseFloat(celsius)} />
+    </div>
+  );
+}
+```
+
+</Solution>

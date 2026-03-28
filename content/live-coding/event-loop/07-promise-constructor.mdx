@@ -1,0 +1,58 @@
+---
+title: "Конструктор Promise: executor выполняется синхронно"
+order: 7
+---
+
+Распространённое заблуждение: конструктор `new Promise(executor)` кажется асинхронным, но **executor (функция-аргумент) выполняется синхронно**. Асинхронным является только колбэк `.then()` — он попадает в microtask queue после вызова `resolve()`.
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('1');
+
+new Promise((resolve) => {
+  console.log('2');
+  resolve();
+  console.log('3');
+}).then(() => console.log('4'));
+
+console.log('5');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+Функция `(resolve) => { ... }` — это executor, она передаётся в конструктор Promise и вызывается **немедленно и синхронно**. Только колбэк в `.then(...)` откладывается как микротаска. `resolve()` лишь помечает промис как resolved — колбэк `.then` при этом не выполняется мгновенно.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+1
+2
+3
+5
+4
+```
+
+**Объяснение:**
+
+1. `console.log('1')` → `1` (синхронно)
+
+2. `new Promise(executor)` вызывает executor **синхронно**:
+   - `console.log('2')` → `2`
+   - `resolve()` — помечает промис как resolved, ставит колбэк `.then` в microtask queue
+   - `console.log('3')` → `3` (выполняется несмотря на то, что `resolve()` уже вызван — executor продолжает работу)
+
+3. `.then(() => console.log('4'))` — колбэк уже в microtask queue, но не выполняется сейчас.
+
+4. `console.log('5')` → `5` (синхронный код продолжается). Call stack пуст.
+
+5. **Microtask queue:** Колбэк `.then` → `console.log('4')` → `4`.
+
+Вывод: код после `resolve()` внутри executor продолжает выполняться синхронно. `resolve()` не прерывает работу executor — он лишь переводит промис в состояние resolved.
+
+</Solution>

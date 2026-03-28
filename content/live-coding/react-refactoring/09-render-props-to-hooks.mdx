@@ -1,0 +1,140 @@
+---
+title: "Render props → кастомный хук"
+order: 9
+---
+
+Компонент `MouseTracker` использует render props паттерн: он отслеживает позицию курсора и передаёт координаты через функцию-проп `render`. Это работает, но создаёт лишний уровень вложенности в JSX. Перепишите на кастомный хук `useMousePosition`.
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+// Render prop компонент — устаревший паттерн
+function MouseTracker({ render }) {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMove = (e) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
+
+  return render(position);
+}
+
+// Компонент, следующий за курсором
+function FollowerDot({ x, y }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      left: x - 8,
+      top: y - 8,
+      width: 16,
+      height: 16,
+      borderRadius: '50%',
+      background: 'crimson',
+      pointerEvents: 'none',
+      transition: 'left 0.05s, top 0.05s',
+    }} />
+  );
+}
+
+// Компонент с координатами
+function CoordinateDisplay({ x, y }) {
+  return (
+    <div style={{ position: 'fixed', bottom: 16, right: 16, fontFamily: 'monospace' }}>
+      x: {x}, y: {y}
+    </div>
+  );
+}
+
+// Использование: вложенные render props
+export default function App() {
+  return (
+    <div style={{ minHeight: '100vh', background: '#f9f9f9' }}>
+      <h2 style={{ padding: 24 }}>Двигайте мышью</h2>
+
+      {/* ❌ Render prop — лишняя вложенность */}
+      <MouseTracker render={({ x, y }) => (
+        <>
+          <FollowerDot x={x} y={y} />
+          <CoordinateDisplay x={x} y={y} />
+        </>
+      )} />
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Переместите `useState` и `useEffect` из компонента `MouseTracker` в функцию `useMousePosition()`. Хук должен возвращать объект `{ x, y }`. Компонент `MouseTracker` можно удалить полностью.
+</Hint>
+
+<Hint title="Подсказка 2">
+После рефакторинга `App` вызывает `useMousePosition()` напрямую и передаёт `x` и `y` в `FollowerDot` и `CoordinateDisplay` как обычные пропсы. Вложенность исчезает — JSX становится плоским.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+// ✅ Кастомный хук вместо render prop компонента
+function useMousePosition() {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMove = (e) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMove);
+    return () => window.removeEventListener('mousemove', handleMove);
+  }, []);
+
+  return position;
+}
+
+function FollowerDot({ x, y }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      left: x - 8,
+      top: y - 8,
+      width: 16,
+      height: 16,
+      borderRadius: '50%',
+      background: 'crimson',
+      pointerEvents: 'none',
+      transition: 'left 0.05s, top 0.05s',
+    }} />
+  );
+}
+
+function CoordinateDisplay({ x, y }) {
+  return (
+    <div style={{ position: 'fixed', bottom: 16, right: 16, fontFamily: 'monospace' }}>
+      x: {x}, y: {y}
+    </div>
+  );
+}
+
+// ✅ Плоский JSX, никакого render prop
+export default function App() {
+  const { x, y } = useMousePosition();
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f9f9f9' }}>
+      <h2 style={{ padding: 24 }}>Двигайте мышью</h2>
+      <FollowerDot x={x} y={y} />
+      <CoordinateDisplay x={x} y={y} />
+    </div>
+  );
+}
+```
+
+</Solution>

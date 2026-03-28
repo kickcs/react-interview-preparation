@@ -1,0 +1,115 @@
+---
+title: "Убрать лишний derived state"
+order: 6
+---
+
+Компонент `ProductCard` хранит в `useState` значения, которые можно вычислить напрямую из пропсов: итоговую цену со скидкой, форматированную строку и признак «выгодная цена». При изменении пропсов `useEffect` пересчитывает эти значения. Это антипаттерн — уберите лишний state и вычисляйте значения прямо при рендере.
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function ProductCard({ price, discountPercent, currency }) {
+  const [finalPrice, setFinalPrice] = useState(0);
+  const [formattedPrice, setFormattedPrice] = useState('');
+  const [isGoodDeal, setIsGoodDeal] = useState(false);
+
+  // ❌ Derived state через useEffect — не нужен
+  useEffect(() => {
+    const calculated = price * (1 - discountPercent / 100);
+    setFinalPrice(calculated);
+  }, [price, discountPercent]);
+
+  useEffect(() => {
+    if (finalPrice > 0) {
+      setFormattedPrice(
+        new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format(finalPrice)
+      );
+    }
+  }, [finalPrice, currency]);
+
+  useEffect(() => {
+    setIsGoodDeal(discountPercent >= 20);
+  }, [discountPercent]);
+
+  return (
+    <div style={{ border: '1px solid #ddd', padding: 16, borderRadius: 8, maxWidth: 240 }}>
+      <p style={{ textDecoration: 'line-through', color: '#999', margin: 0 }}>
+        {new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format(price)}
+      </p>
+      <p style={{ fontSize: 24, fontWeight: 'bold', margin: '4px 0', color: isGoodDeal ? 'crimson' : 'inherit' }}>
+        {formattedPrice}
+      </p>
+      <p style={{ margin: 0, color: '#666' }}>Скидка {discountPercent}%</p>
+      {isGoodDeal && <span style={{ background: '#fef3c7', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Выгодно!</span>}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <div style={{ display: 'flex', gap: 16, padding: 24 }}>
+      <ProductCard price={5990} discountPercent={10} currency="RUB" />
+      <ProductCard price={12000} discountPercent={25} currency="RUB" />
+      <ProductCard price={890} discountPercent={5} currency="RUB" />
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Всё, что вычисляется только из пропсов и не зависит от пользовательских действий — не нужно хранить в `state`. Вычислите `finalPrice`, `formattedPrice` и `isGoodDeal` прямо в теле компонента как обычные переменные или `const`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Если вычисление дорогое (например, `Intl.NumberFormat`), оберните его в `useMemo`. Для простых арифметических операций `useMemo` избыточен — пересчёт стоит дешевле, чем оверхед мемоизации.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useMemo } from 'react';
+
+function ProductCard({ price, discountPercent, currency }) {
+  // ✅ Вычисляем напрямую — никакого state
+  const finalPrice = price * (1 - discountPercent / 100);
+  const isGoodDeal = discountPercent >= 20;
+
+  // useMemo оправдан: Intl.NumberFormat — относительно дорогая операция
+  const formatter = useMemo(
+    () => new Intl.NumberFormat('ru-RU', { style: 'currency', currency }),
+    [currency]
+  );
+
+  const formattedOriginal = formatter.format(price);
+  const formattedFinal = formatter.format(finalPrice);
+
+  return (
+    <div style={{ border: '1px solid #ddd', padding: 16, borderRadius: 8, maxWidth: 240 }}>
+      <p style={{ textDecoration: 'line-through', color: '#999', margin: 0 }}>
+        {formattedOriginal}
+      </p>
+      <p style={{ fontSize: 24, fontWeight: 'bold', margin: '4px 0', color: isGoodDeal ? 'crimson' : 'inherit' }}>
+        {formattedFinal}
+      </p>
+      <p style={{ margin: 0, color: '#666' }}>Скидка {discountPercent}%</p>
+      {isGoodDeal && <span style={{ background: '#fef3c7', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Выгодно!</span>}
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <div style={{ display: 'flex', gap: 16, padding: 24 }}>
+      <ProductCard price={5990} discountPercent={10} currency="RUB" />
+      <ProductCard price={12000} discountPercent={25} currency="RUB" />
+      <ProductCard price={890} discountPercent={5} currency="RUB" />
+    </div>
+  );
+}
+```
+
+</Solution>

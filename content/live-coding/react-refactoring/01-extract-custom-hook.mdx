@@ -1,0 +1,134 @@
+---
+title: "Вынести логику в кастомный хук useFetch"
+order: 1
+---
+
+Два компонента — `UserProfile` и `ProductList` — содержат одинаковый паттерн: `useState` для данных, состояния загрузки и ошибки, плюс `useEffect` с `fetch`. Код дублируется полностью. Вынесите общую логику в хук `useFetch(url)`.
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function UserProfile({ userId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch(`/api/users/${userId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        return res.json();
+      })
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [userId]);
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+  return <div>{data?.name}</div>;
+}
+
+function ProductList({ categoryId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetch(`/api/products?category=${categoryId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        return res.json();
+      })
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [categoryId]);
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+  return <ul>{data?.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте функцию `useFetch(url)`, которая содержит три `useState` (data, loading, error) и `useEffect`. Хук должен возвращать объект `{ data, loading, error }`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Не забудьте про отмену запроса при размонтировании или смене URL: используйте `AbortController` внутри `useEffect` и верните cleanup-функцию, которая вызывает `controller.abort()`. Добавьте `url` в массив зависимостей.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+
+    fetch(url, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        return res.json();
+      })
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+function UserProfile({ userId }) {
+  const { data, loading, error } = useFetch(`/api/users/${userId}`);
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+  return <div>{data?.name}</div>;
+}
+
+function ProductList({ categoryId }) {
+  const { data, loading, error } = useFetch(`/api/products?category=${categoryId}`);
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+  return <ul>{data?.map(p => <li key={p.id}>{p.name}</li>)}</ul>;
+}
+```
+
+</Solution>

@@ -1,0 +1,101 @@
+---
+title: "this в конструкторах: new vs обычный вызов"
+order: 4
+---
+
+Функцию-конструктор можно вызвать двумя способами: с `new` и без. Результат кардинально разный. Задача показывает, что происходит с `this` в каждом случае.
+
+**Предскажите вывод и объясните разницу:**
+
+<StarterCode>
+
+```js
+function User(name) {
+  this.name = name;
+  console.log(this);
+}
+
+// Вызов без new
+User('Bob');
+console.log('name в globalThis:', globalThis.name);
+
+// Вызов с new
+const user = new User('Alice');
+console.log('name в объекте:', user.name);
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+При вызове `User('Bob')` без `new` это обычный вызов функции. Применяется правило **default binding**: `this === globalThis` (в браузере — `window`, в Node.js — `global`). Строка `this.name = name` добавляет свойство `name` в глобальный объект.
+</Hint>
+
+<Hint title="Подсказка 2">
+При вызове `new User('Alice')` движок выполняет четыре шага: 1) создаёт новый пустой объект `{}`, 2) устанавливает его прототип на `User.prototype`, 3) выполняет тело функции с `this === новый объект`, 4) возвращает этот объект (если функция не возвращает другой объект явно).
+</Hint>
+
+<Hint title="Подсказка 3">
+В строгом режиме (`'use strict'`) вызов без `new` даст `this === undefined`, и `this.name = name` выбросит `TypeError: Cannot set properties of undefined`. Это считается лучшей практикой — строгий режим защищает от случайного загрязнения глобального объекта.
+</Hint>
+
+<Solution>
+
+Вывод (браузер, нестрогий режим):
+```
+Window { name: 'Bob', ... }       // this === window при вызове без new
+name в globalThis: Bob            // window.name загрязнён
+User { name: 'Alice' }            // this === новый объект при new
+name в объекте: Alice
+```
+
+Вывод (Node.js, нестрогий режим):
+```
+Object [global] { name: 'Bob', ... }  // this === global
+name в globalThis: Bob
+User { name: 'Alice' }
+name в объекте: Alice
+```
+
+**Объяснение:**
+
+**Вызов без `new`:**
+Применяется **default binding** — `this` указывает на глобальный объект. `this.name = 'Bob'` буквально выполняет `globalThis.name = 'Bob'`, загрязняя глобальное пространство имён. Функция возвращает `undefined` (нет явного `return`).
+
+**Вызов с `new`:**
+Оператор `new` запускает четыре шага:
+1. Создаётся новый объект: `const obj = Object.create(User.prototype)`
+2. Функция вызывается с `this === obj`
+3. `this.name = 'Alice'` устанавливает свойство на новом объекте
+4. `new` возвращает `obj` (так как функция не возвращает объект явно)
+
+**Защита от вызова без `new`:**
+
+```js
+// Способ 1: строгий режим
+function User(name) {
+  'use strict';
+  this.name = name; // TypeError, если вызвать без new
+}
+
+// Способ 2: проверка instanceof (старый подход)
+function User(name) {
+  if (!(this instanceof User)) {
+    return new User(name); // автоматически добавляем new
+  }
+  this.name = name;
+}
+
+// Способ 3: классы (class) — всегда требуют new
+class User {
+  constructor(name) {
+    this.name = name;
+  }
+}
+new User('Alice'); // OK
+User('Alice');     // TypeError: Class constructor User cannot be invoked without 'new'
+```
+
+**Итог — правило new binding:**
+При вызове с `new` → `this` всегда указывает на **свежесозданный объект**. Это правило имеет наивысший приоритет из всех четырёх.
+
+</Solution>

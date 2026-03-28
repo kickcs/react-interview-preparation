@@ -1,0 +1,178 @@
+---
+title: "Composition вместо boolean-флагов"
+order: 7
+---
+
+Компонент `Card` принимает пять boolean-пропсов (`isCompact`, `showHeader`, `showFooter`, `isClickable`, `hasBorder`) и внутри разветвляется через `if`-ы. Добавление нового варианта требует нового флага. Рефакторинг: compound components — `Card.Header`, `Card.Body`, `Card.Footer`.
+
+<StarterCode>
+
+```jsx
+function Card({ title, children, footer, isCompact, showHeader, showFooter, isClickable, hasBorder, onClick }) {
+  const padding = isCompact ? 8 : 16;
+  const borderStyle = hasBorder ? '1px solid #ddd' : 'none';
+
+  return (
+    <div
+      style={{
+        border: borderStyle,
+        borderRadius: 8,
+        padding,
+        cursor: isClickable ? 'pointer' : 'default',
+        background: '#fff',
+        boxShadow: isCompact ? 'none' : '0 1px 3px rgba(0,0,0,.1)',
+        maxWidth: 320,
+      }}
+      onClick={isClickable ? onClick : undefined}
+    >
+      {showHeader && (
+        <div style={{
+          borderBottom: hasBorder ? '1px solid #eee' : 'none',
+          paddingBottom: padding / 2,
+          marginBottom: padding / 2,
+          fontWeight: 'bold',
+          fontSize: isCompact ? 14 : 16,
+        }}>
+          {title}
+        </div>
+      )}
+
+      <div style={{ fontSize: isCompact ? 13 : 14 }}>
+        {children}
+      </div>
+
+      {showFooter && footer && (
+        <div style={{
+          borderTop: hasBorder ? '1px solid #eee' : 'none',
+          paddingTop: padding / 2,
+          marginTop: padding / 2,
+          fontSize: 12,
+          color: '#666',
+        }}>
+          {footer}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Использование: запутанный набор флагов
+export default function App() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 24 }}>
+      <Card title="Обычная карточка" showHeader showFooter hasBorder footer="Обновлено вчера">
+        Текст содержимого карточки.
+      </Card>
+      <Card title="Компактная" showHeader isCompact hasBorder>
+        Краткое описание.
+      </Card>
+      <Card isClickable onClick={() => alert('Клик!')} hasBorder>
+        Карточка без заголовка, но кликабельная.
+      </Card>
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте отдельные компоненты `Card.Header`, `Card.Body`, `Card.Footer`. Корневой `Card` — просто контейнер. Вместо флагов потребитель сам решает, какие подкомпоненты включить: `<Card><Card.Header>...</Card.Header><Card.Body>...</Card.Body></Card>`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Чтобы передать `isCompact` и `hasBorder` вглубь без prop drilling, используйте `CardContext`. Все подкомпоненты читают контекст через `useContext` и адаптируют стили. Это сохранит гибкость без лишних пропсов.
+</Hint>
+
+<Solution>
+
+```jsx
+import { createContext, useContext } from 'react';
+
+const CardContext = createContext({ compact: false, bordered: false });
+
+function Card({ children, compact = false, bordered = false, onClick }) {
+  return (
+    <CardContext.Provider value={{ compact, bordered }}>
+      <div
+        style={{
+          border: bordered ? '1px solid #ddd' : 'none',
+          borderRadius: 8,
+          background: '#fff',
+          boxShadow: compact ? 'none' : '0 1px 3px rgba(0,0,0,.1)',
+          cursor: onClick ? 'pointer' : 'default',
+          maxWidth: 320,
+          overflow: 'hidden',
+        }}
+        onClick={onClick}
+      >
+        {children}
+      </div>
+    </CardContext.Provider>
+  );
+}
+
+Card.Header = function CardHeader({ children }) {
+  const { compact, bordered } = useContext(CardContext);
+  return (
+    <div style={{
+      padding: compact ? '8px 8px 4px' : '16px 16px 8px',
+      borderBottom: bordered ? '1px solid #eee' : 'none',
+      fontWeight: 'bold',
+      fontSize: compact ? 14 : 16,
+    }}>
+      {children}
+    </div>
+  );
+};
+
+Card.Body = function CardBody({ children }) {
+  const { compact } = useContext(CardContext);
+  return (
+    <div style={{
+      padding: compact ? 8 : 16,
+      fontSize: compact ? 13 : 14,
+    }}>
+      {children}
+    </div>
+  );
+};
+
+Card.Footer = function CardFooter({ children }) {
+  const { compact, bordered } = useContext(CardContext);
+  return (
+    <div style={{
+      padding: compact ? '4px 8px 8px' : '8px 16px 16px',
+      borderTop: bordered ? '1px solid #eee' : 'none',
+      fontSize: 12,
+      color: '#666',
+    }}>
+      {children}
+    </div>
+  );
+};
+
+// Использование: явная структура вместо флагов
+export default function App() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 24 }}>
+      <Card bordered>
+        <Card.Header>Обычная карточка</Card.Header>
+        <Card.Body>Текст содержимого карточки.</Card.Body>
+        <Card.Footer>Обновлено вчера</Card.Footer>
+      </Card>
+
+      <Card compact bordered>
+        <Card.Header>Компактная</Card.Header>
+        <Card.Body>Краткое описание.</Card.Body>
+      </Card>
+
+      <Card bordered onClick={() => alert('Клик!')}>
+        <Card.Body>Карточка без заголовка, но кликабельная.</Card.Body>
+      </Card>
+    </div>
+  );
+}
+```
+
+</Solution>

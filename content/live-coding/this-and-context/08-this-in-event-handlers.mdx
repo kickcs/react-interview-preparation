@@ -1,0 +1,96 @@
+---
+title: "this в обработчиках DOM-событий"
+order: 8
+---
+
+В обработчиках событий DOM `this` ведёт себя по-разному в зависимости от того, обычная это функция или стрелочная. Это важно знать при работе с классовыми компонентами React и нативным DOM.
+
+**Предскажите, что выведет `console.log(this)` в каждом обработчике:**
+
+<StarterCode>
+
+```js
+const button = document.createElement('button');
+button.textContent = 'Click me';
+document.body.appendChild(button);
+
+// Обработчик 1: обычная функция
+button.addEventListener('click', function() {
+  console.log('обычная функция:', this);
+});
+
+// Обработчик 2: стрелочная функция
+button.addEventListener('click', () => {
+  console.log('стрелочная функция:', this);
+});
+
+// Обработчик 3: обычная функция с bind
+button.addEventListener('click', function() {
+  console.log('с bind:', this);
+}.bind({ custom: true }));
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`addEventListener` при вызове обычной функции-обработчика устанавливает `this` равным **элементу DOM**, на котором произошло событие. Это определено в спецификации HTML. Обычная функция получает `this === button`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Стрелочная функция не имеет собственного `this` — она захватывает его из лексического окружения, то есть из того места, где написан этот код. Если этот код на верхнем уровне скрипта, `this === window` (браузер) или `{}` (Node.js). `addEventListener` не может изменить `this` стрелки.
+</Hint>
+
+<Hint title="Подсказка 3">
+`.bind({ custom: true })` создаёт новую функцию с зафиксированным `this === { custom: true }`. Explicit binding имеет приоритет над правилом `addEventListener`. `this` будет `{ custom: true }`, а не `button`.
+</Hint>
+
+<Solution>
+
+Вывод при клике (браузер):
+```
+обычная функция: <button>Click me</button>   // this === button (DOM-элемент)
+стрелочная функция: Window {}                // this === window (лексический)
+с bind: { custom: true }                     // this === объект из bind
+```
+
+**Объяснение:**
+
+**Обычная функция:**
+`addEventListener` реализован так, что при вызове обработчика устанавливает `this === element` (элемент, на котором зарегистрировано событие). Это специальное поведение браузерного API — по сути, `handler.call(element, event)`.
+
+Это аналогично implicit binding: `element.handler()` → `this === element`.
+
+**Стрелочная функция:**
+`addEventListener` пытается установить `this`, но стрелочные функции игнорируют любую привязку `this`. Стрелка использует `this` из лексического окружения — то есть `this` в том месте, где написан код. На верхнем уровне скрипта в браузере это `window`.
+
+**С `.bind()`:**
+Explicit binding (явное связывание через `bind`) имеет приоритет над поведением `addEventListener`. `this` будет таким, каким задан в `bind`.
+
+**Практическое применение в React (классовые компоненты):**
+
+```jsx
+class MyComponent extends React.Component {
+  constructor(props) {
+    super(props);
+    // Нужен bind, иначе this потеряется при передаче как колбэк
+    this.handleClick = this.handleClick.bind(this);
+  }
+
+  handleClick() {
+    // this === экземпляр компонента (благодаря bind в конструкторе)
+    console.log(this.props);
+  }
+
+  render() {
+    return <button onClick={this.handleClick}>Click</button>;
+    // Без bind: onClick={this.handleClick} → this потеряется
+    // С bind в JSX: onClick={this.handleClick.bind(this)} → новая функция на каждый рендер
+    // Лучше: стрелочное поле класса handleClick = () => { ... }
+  }
+}
+```
+
+**Рекомендация:**
+В современном React с хуками `this` в обработчиках событий не нужен — функциональные компоненты и хуки решают эту проблему.
+
+</Solution>

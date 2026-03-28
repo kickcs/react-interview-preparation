@@ -1,0 +1,118 @@
+---
+title: "Исправить зависимости useEffect"
+order: 4
+---
+
+Три компонента содержат классические баги с `useEffect`: пустой массив зависимостей при использовании пропсов, отсутствующий cleanup у подписки, и бесконечный цикл из-за объекта-литерала в deps. Исправьте все три случая.
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+// Баг 1: пустой массив зависимостей — userId игнорируется при изменении
+function UserGreeting({ userId }) {
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    fetch(`/api/users/${userId}`)
+      .then(r => r.json())
+      .then(data => setName(data.name));
+  }, []); // ❌ userId не в deps — при смене userId эффект не перезапустится
+
+  return <p>Привет, {name || '...'}!</p>;
+}
+
+// Баг 2: нет cleanup — подписка на WebSocket не отменяется при размонтировании
+function LivePrice({ symbol }) {
+  const [price, setPrice] = useState(null);
+
+  useEffect(() => {
+    const ws = new WebSocket(`wss://prices.example.com/${symbol}`);
+    ws.onmessage = (e) => setPrice(JSON.parse(e.data).price);
+    // ❌ ws.close() нигде не вызывается — утечка соединения
+  }, [symbol]);
+
+  return <p>{symbol}: {price ?? 'загрузка...'}</p>;
+}
+
+// Баг 3: объект в deps пересоздаётся на каждом рендере → бесконечный цикл
+function SearchResults({ query, pageSize }) {
+  const [results, setResults] = useState([]);
+
+  const params = { query, pageSize }; // ❌ новый объект на каждом рендере
+
+  useEffect(() => {
+    fetch(`/api/search?q=${params.query}&size=${params.pageSize}`)
+      .then(r => r.json())
+      .then(data => setResults(data.items));
+  }, [params]); // ❌ params всегда новый → бесконечный цикл
+
+  return <ul>{results.map((r, i) => <li key={i}>{r.title}</li>)}</ul>;
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Баг 1: добавьте `userId` в массив зависимостей. Чтобы при смене `userId` старый запрос не записал данные в state, используйте `AbortController` или флаг `cancelled` для игнорирования устаревших ответов.
+</Hint>
+
+<Hint title="Подсказка 2">
+Баг 2: cleanup-функция — это функция, возвращаемая из `useEffect`. Верните `() => ws.close()`. Баг 3: уберите объект `params` из deps — перечислите примитивы `query` и `pageSize` напрямую, либо оберните объект в `useMemo`.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useEffect, useMemo } from 'react';
+
+// Исправление 1: добавлен userId в deps + отмена устаревших запросов
+function UserGreeting({ userId }) {
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/users/${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled) setName(data.name);
+      });
+    return () => { cancelled = true; };
+  }, [userId]); // ✅ правильные зависимости
+
+  return <p>Привет, {name || '...'}!</p>;
+}
+
+// Исправление 2: cleanup закрывает WebSocket
+function LivePrice({ symbol }) {
+  const [price, setPrice] = useState(null);
+
+  useEffect(() => {
+    const ws = new WebSocket(`wss://prices.example.com/${symbol}`);
+    ws.onmessage = (e) => setPrice(JSON.parse(e.data).price);
+    return () => ws.close(); // ✅ cleanup
+  }, [symbol]);
+
+  return <p>{symbol}: {price ?? 'загрузка...'}</p>;
+}
+
+// Исправление 3: примитивы в deps вместо объекта
+function SearchResults({ query, pageSize }) {
+  const [results, setResults] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/search?q=${query}&size=${pageSize}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled) setResults(data.items);
+      });
+    return () => { cancelled = true; };
+  }, [query, pageSize]); // ✅ только примитивы — стабильные значения
+
+  return <ul>{results.map((r, i) => <li key={i}>{r.title}</li>)}</ul>;
+}
+```
+
+</Solution>

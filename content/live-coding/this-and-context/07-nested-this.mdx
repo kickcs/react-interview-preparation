@@ -1,0 +1,102 @@
+---
+title: "Вложенные функции и потеря this"
+order: 7
+---
+
+Обычная функция внутри метода теряет контекст объекта. Это одна из самых распространённых ловушек при работе с `forEach`, `map`, `filter` и другими методами массивов.
+
+**Предскажите, что выведет код, затем исправьте его тремя способами:**
+
+<StarterCode>
+
+```js
+const obj = {
+  prefix: 'item',
+  items: [1, 2, 3],
+
+  process() {
+    this.items.forEach(function(item) {
+      // Что такое this здесь?
+      console.log(this, this.prefix + '-' + item);
+    });
+  }
+};
+
+obj.process();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`obj.process()` — `this === obj` внутри метода `process`. Но внутри колбэка `forEach` появляется **новая функция**. Это не стрелка — это обычная function expression. Вызывает её `forEach` без объекта перед точкой → **default binding** → в строгом режиме `this === undefined`, в нестрогом `this === globalThis`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Один из способов исправления — сохранить ссылку на `this` в переменную до входа в колбэк: `const that = this;`. Тогда в колбэке использовать `that.prefix`.
+</Hint>
+
+<Hint title="Подсказка 3">
+Самый современный способ — заменить обычную функцию стрелочной. Стрелочная функция не создаёт своего `this`, а захватывает его лексически — из метода `process`, где `this === obj`.
+</Hint>
+
+<Solution>
+
+Вывод исходного кода (нестрогий режим):
+```
+Window {}  "undefined-1"
+Window {}  "undefined-2"
+Window {}  "undefined-3"
+// this === globalThis, globalThis.prefix === undefined
+```
+
+В строгом режиме (Node.js ES-модули):
+```
+TypeError: Cannot read properties of undefined (reading 'prefix')
+// this === undefined
+```
+
+**Объяснение:**
+
+`forEach` вызывает колбэк как обычную функцию: `callback(item, index, array)`. Нет объекта перед точкой → default binding. В строгом режиме `this === undefined`, в нестрогом `this === globalThis`.
+
+**Три способа исправления:**
+
+**Способ 1: сохранить this в переменную (старый подход)**
+```js
+process() {
+  const that = this; // сохраняем ссылку на obj
+  this.items.forEach(function(item) {
+    console.log(that.prefix + '-' + item); // используем that
+  });
+}
+// Вывод: "item-1", "item-2", "item-3"
+```
+
+**Способ 2: стрелочная функция (рекомендуется)**
+```js
+process() {
+  // this === obj (метод вызван через obj.process())
+  this.items.forEach((item) => {
+    // стрелка нет своего this → берёт this из process → obj
+    console.log(this.prefix + '-' + item);
+  });
+}
+// Вывод: "item-1", "item-2", "item-3"
+```
+
+**Способ 3: второй аргумент forEach — thisArg**
+```js
+process() {
+  this.items.forEach(function(item) {
+    console.log(this.prefix + '-' + item);
+  }, this); // ← второй аргумент forEach задаёт this для колбэка
+}
+// Вывод: "item-1", "item-2", "item-3"
+```
+
+`forEach`, `map`, `filter`, `find`, `some`, `every` — все принимают необязательный второй аргумент `thisArg`, но с появлением стрелочных функций это используется редко.
+
+**Итог:**
+При работе с методами массивов (`forEach`, `map` и др.) всегда используйте стрелочные функции в качестве колбэков, если внутри нужен `this` из внешнего метода.
+
+</Solution>

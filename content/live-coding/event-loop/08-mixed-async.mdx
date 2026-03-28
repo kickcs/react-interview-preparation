@@ -1,0 +1,75 @@
+---
+title: "Сложный микс: setTimeout, Promise, async/await, queueMicrotask"
+order: 8
+---
+
+Комплексная задача, объединяющая все механизмы event loop: синхронный код, `queueMicrotask`, цепочку промисов, `async/await` и `setTimeout`. Нужно отследить несколько очередей одновременно. `requestAnimationFrame` в браузере ведёт себя как macrotask (выполняется перед следующим рендером, но после microtask queue).
+
+**Предскажите порядок вывода в консоль:**
+
+<StarterCode>
+
+```js
+console.log('A');
+
+setTimeout(() => console.log('B'), 0);
+
+Promise.resolve()
+  .then(() => console.log('C'))
+  .then(() => console.log('D'));
+
+queueMicrotask(() => console.log('E'));
+
+async function run() {
+  console.log('F');
+  await Promise.resolve();
+  console.log('G');
+}
+
+run();
+
+console.log('H');
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+Отследите по очереди: 1) весь синхронный код до конца, 2) microtask queue полностью (учитывая новые микротаски, добавленные во время обработки), 3) первая macrotask. Вызов `run()` — синхронный: он выполняется до первого `await`. `queueMicrotask` и `.then` добавляются в одну очередь, но в разный момент.
+</Hint>
+
+<Solution>
+
+Порядок вывода:
+```
+A
+F
+H
+C
+E
+G
+D
+B
+```
+
+**Объяснение:**
+
+**Фаза 1 — синхронный код (call stack):**
+- `console.log('A')` → `A`
+- `setTimeout(...)` → колбэк в macrotask queue
+- `Promise.resolve().then(() => log('C')).then(...)` → колбэк `C` в microtask queue; колбэк `D` пока не добавлен (промис для второго `.then` ещё pending)
+- `queueMicrotask(() => log('E'))` → колбэк `E` в microtask queue
+- `run()` вызывается синхронно: `console.log('F')` → `F`; `await Promise.resolve()` — колбэк после `await` (`G`) ставится в microtask queue; `run()` приостанавливается
+- `console.log('H')` → `H`. Call stack пуст.
+
+**Microtask queue на момент опустошения:** `[C, E, G]` (в порядке добавления)
+
+**Фаза 2 — microtask queue:**
+- Колбэк `C`: `console.log('C')` → `C`. Промис первого `.then` resolved → колбэк `D` добавляется в microtask queue. Очередь: `[E, G, D]`
+- Колбэк `E`: `console.log('E')` → `E`. Очередь: `[G, D]`
+- Колбэк `G`: `console.log('G')` → `G`. Очередь: `[D]`
+- Колбэк `D`: `console.log('D')` → `D`. Очередь пуста.
+
+**Фаза 3 — macrotask queue:**
+- Колбэк `setTimeout` → `console.log('B')` → `B`.
+
+</Solution>
