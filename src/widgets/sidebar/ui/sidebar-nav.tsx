@@ -1,13 +1,54 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import {
+  ChevronRight,
+  Globe,
+  FishingHook,
+  FlaskConical,
+  Database,
+  Gauge,
+  TestTubes,
+  Wrench,
+  Blocks,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { devicons } from "@/shared/ui/devicons";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
+
+const lucideIcons: Record<string, ComponentType<{ className?: string }>> = {
+  globe: Globe,
+  "fishing-hook": FishingHook,
+  "flask-conical": FlaskConical,
+  database: Database,
+  gauge: Gauge,
+  "test-tubes": TestTubes,
+  wrench: Wrench,
+  blocks: Blocks,
+};
+
+function CategoryIcon({
+  name,
+  className,
+}: {
+  name?: string;
+  className?: string;
+}) {
+  if (!name) return null;
+
+  const DevIcon = devicons[name];
+  if (DevIcon) return <DevIcon className={className} />;
+
+  const LucideIcon = lucideIcons[name];
+  if (LucideIcon) return <LucideIcon className={className} />;
+
+  return null;
+}
 
 interface SidebarNavProps {
   categories: CategoryMeta[];
@@ -70,6 +111,7 @@ export function SidebarNav({
                   !isCollapsed && "rotate-90"
                 )}
               />
+              <CategoryIcon name={category.icon} className="h-3.5 w-3.5 shrink-0" />
               {category.title}
             </button>
 
