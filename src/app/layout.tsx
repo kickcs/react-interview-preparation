@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { getCategories } from "@/entities/category";
 import { getQuestionsByCategory } from "@/entities/question";
+import {
+  getChallengeCategories,
+  getChallengesByCategory as getChallenges,
+} from "@/entities/challenge";
+import type { ChallengeMeta } from "@/entities/challenge";
 import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
 import "./globals.css";
 
@@ -35,6 +40,13 @@ export default async function RootLayout({
     );
   }
 
+  const challengeCategories = await getChallengeCategories();
+
+  const challengesByCategory: Record<string, ChallengeMeta[]> = {};
+  for (const cat of challengeCategories) {
+    challengesByCategory[cat.slug] = await getChallenges(cat.slug);
+  }
+
   return (
     <html
       lang="en"
@@ -46,11 +58,15 @@ export default async function RootLayout({
           <Sidebar
             categories={categories}
             questionsByCategory={questionsByCategory}
+            challengeCategories={challengeCategories}
+            challengesByCategory={challengesByCategory}
           />
           <div className="flex-1 min-w-0">
             <MobileSidebar
               categories={categories}
               questionsByCategory={questionsByCategory}
+              challengeCategories={challengeCategories}
+              challengesByCategory={challengesByCategory}
             />
             <main>{children}</main>
           </div>

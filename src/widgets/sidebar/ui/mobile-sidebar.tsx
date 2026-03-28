@@ -13,18 +13,26 @@ import { ScrollArea } from "@/shared/ui/scroll-area";
 import { SidebarNav, CollapseAllButton } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
+import type { ChallengeCategoryMeta, ChallengeMeta } from "@/entities/challenge";
 
 interface MobileSidebarProps {
   categories: CategoryMeta[];
   questionsByCategory: Record<string, QuestionMeta[]>;
+  challengeCategories: ChallengeCategoryMeta[];
+  challengesByCategory: Record<string, ChallengeMeta[]>;
 }
 
 export function MobileSidebar({
   categories,
   questionsByCategory,
+  challengeCategories,
+  challengesByCategory,
 }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
-  const slugs = categories.map((c) => c.slug);
+  const slugs = [
+    ...categories.map((c) => c.slug),
+    ...challengeCategories.map((c) => `live-coding-${c.slug}`),
+  ];
 
   return (
     <div className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
@@ -46,6 +54,8 @@ export function MobileSidebar({
             <SidebarNav
               categories={categories}
               questionsByCategory={questionsByCategory}
+              challengeCategories={challengeCategories}
+              challengesByCategory={challengesByCategory}
               onNavigate={() => setOpen(false)}
             />
           </ScrollArea>
