@@ -1,0 +1,7 @@
+{
+  "title": "Live Coding",
+  "order": 100,
+  "description": "Практические задачи по программированию",
+  "icon": "code",
+  "type": "live-coding"
+}

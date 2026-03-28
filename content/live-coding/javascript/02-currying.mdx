@@ -1,0 +1,52 @@
+---
+title: "Каррирование"
+order: 2
+---
+
+Реализуйте функцию `curry`, которая превращает обычную функцию в каррированную. Каррированная функция принимает аргументы по одному (или группами) и вызывает оригинал, когда набралось достаточно аргументов.
+
+<StarterCode>
+
+```js
+function curry(fn) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+function sum(a, b, c) {
+  return a + b + c;
+}
+
+const curriedSum = curry(sum);
+console.log(curriedSum(1)(2)(3) === 6);      // true
+console.log(curriedSum(1, 2)(3) === 6);      // true
+console.log(curriedSum(1)(2, 3) === 6);      // true
+console.log(curriedSum(1, 2, 3) === 6);      // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте `fn.length`, чтобы узнать сколько аргументов ожидает оригинальная функция.
+</Hint>
+
+<Hint title="Подсказка 2">
+Верните рекурсивную функцию, которая собирает аргументы. Когда их достаточно — вызывает `fn`.
+</Hint>
+
+<Solution>
+
+```js
+function curry(fn) {
+  return function curried(...args) {
+    if (args.length >= fn.length) {
+      return fn.apply(this, args);
+    }
+    return function (...nextArgs) {
+      return curried.apply(this, [...args, ...nextArgs]);
+    };
+  };
+}
+```
+
+</Solution>

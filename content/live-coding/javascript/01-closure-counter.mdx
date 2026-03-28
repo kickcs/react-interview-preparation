@@ -1,0 +1,51 @@
+---
+title: "Замыкание-счётчик"
+order: 1
+---
+
+Реализуйте функцию `createCounter`, которая принимает начальное значение и возвращает объект с тремя методами:
+- `increment()` — увеличивает счётчик на 1
+- `decrement()` — уменьшает счётчик на 1
+- `getCount()` — возвращает текущее значение
+
+<StarterCode>
+
+```js
+function createCounter(initialValue) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const counter = createCounter(10);
+console.log(counter.getCount() === 10);  // true
+counter.increment();
+counter.increment();
+console.log(counter.getCount() === 12);  // true
+counter.decrement();
+console.log(counter.getCount() === 11);  // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте замыкание — объявите переменную внутри функции, чтобы методы имели к ней доступ.
+</Hint>
+
+<Hint title="Подсказка 2">
+Верните объект с тремя методами. Каждый метод может читать и изменять переменную `count` через замыкание.
+</Hint>
+
+<Solution>
+
+```js
+function createCounter(initialValue) {
+  let count = initialValue;
+  return {
+    increment() { count++; },
+    decrement() { count--; },
+    getCount() { return count; },
+  };
+}
+```
+
+</Solution>

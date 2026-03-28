@@ -1,0 +1,5 @@
+{
+  "title": "JavaScript",
+  "order": 1,
+  "description": "Замыкания, this, прототипы, hoisting, event loop"
+}
