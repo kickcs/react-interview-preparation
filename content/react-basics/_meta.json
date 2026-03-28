@@ -1,5 +1,6 @@
 {
   "title": "React Basics",
   "order": 4,
-  "description": "JSX, компоненты, пропсы, стейт, жизненный цикл"
+  "description": "JSX, компоненты, пропсы, стейт, жизненный цикл",
+  "icon": "react"
 }

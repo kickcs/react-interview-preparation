@@ -1,5 +1,6 @@
 {
   "title": "Advanced React",
   "order": 6,
-  "description": "HOC, Render Props, Compound Components, Context API, Error Boundaries, Portals, Suspense"
+  "description": "HOC, Render Props, Compound Components, Context API, Error Boundaries, Portals, Suspense",
+  "icon": "flask-conical"
 }

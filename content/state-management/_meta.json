@@ -1,5 +1,6 @@
 {
   "title": "State Management",
   "order": 7,
-  "description": "Redux Toolkit, Zustand, Jotai, React Query / TanStack Query, сравнение подходов"
+  "description": "Redux Toolkit, Zustand, Jotai, React Query / TanStack Query, сравнение подходов",
+  "icon": "database"
 }

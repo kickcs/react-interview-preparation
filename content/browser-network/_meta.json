@@ -1,5 +1,6 @@
 {
   "title": "Browser & Network",
   "order": 3,
-  "description": "DOM API, события браузера, HTTP/HTTPS, REST, CORS, cookies, localStorage"
+  "description": "DOM API, события браузера, HTTP/HTTPS, REST, CORS, cookies, localStorage",
+  "icon": "globe"
 }

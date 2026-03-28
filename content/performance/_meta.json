@@ -1,5 +1,6 @@
 {
   "title": "Performance & Optimization",
   "order": 9,
-  "description": "React.memo, виртуализация, code splitting, профайлинг, Web Vitals"
+  "description": "React.memo, виртуализация, code splitting, профайлинг, Web Vitals",
+  "icon": "gauge"
 }

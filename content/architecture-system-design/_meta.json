@@ -1,0 +1,6 @@
+{
+  "title": "Architecture & System Design",
+  "order": 13,
+  "description": "Компонентная архитектура, SOLID, паттерны, масштабируемость, безопасность, i18n",
+  "icon": "blocks"
+}

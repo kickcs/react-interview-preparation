@@ -1,5 +1,6 @@
 {
   "title": "Tooling & Architecture",
   "order": 12,
-  "description": "Webpack/Vite, Git, CI/CD, линтинг, паттерны проектирования, SOLID, FSD"
+  "description": "Webpack/Vite, Git, CI/CD, линтинг, паттерны проектирования, SOLID, FSD",
+  "icon": "wrench"
 }
