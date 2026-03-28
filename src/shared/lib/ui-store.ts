@@ -7,6 +7,7 @@ interface UIState {
   toggleQuestion: (id: string) => void;
   collapsedCategories: Record<string, boolean>;
   toggleCategory: (slug: string) => void;
+  toggleAllCategories: (slugs: string[], collapse: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -28,6 +29,13 @@ export const useUIStore = create<UIState>()(
             [slug]: !state.collapsedCategories[slug],
           },
         })),
+      toggleAllCategories: (slugs, collapse) =>
+        set(() => {
+          if (!collapse) return { collapsedCategories: {} };
+          const next: Record<string, boolean> = {};
+          for (const s of slugs) next[s] = true;
+          return { collapsedCategories: next };
+        }),
     }),
     {
       name: "ui-store",

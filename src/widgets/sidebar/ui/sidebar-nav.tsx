@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Globe,
   FishingHook,
   FlaskConical,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
+import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { devicons } from "@/shared/ui/devicons";
 import type { CategoryMeta } from "@/entities/category";
@@ -65,6 +68,7 @@ export function SidebarNav({
   const hydrated = useHydrated();
   const collapsedCategories = useUIStore((s) => s.collapsedCategories);
   const toggleCategory = useUIStore((s) => s.toggleCategory);
+  const toggleAllCategories = useUIStore((s) => s.toggleAllCategories);
 
   if (!hydrated) {
     return (
@@ -85,9 +89,27 @@ export function SidebarNav({
   }
 
   const activeCategory = pathname.split("/")[1];
+  const slugs = categories.map((c) => c.slug);
+  const allCollapsed = slugs.every((s) => collapsedCategories[s]);
+  const toggleLabel = allCollapsed ? "Развернуть все" : "Свернуть все";
 
   return (
     <nav className="space-y-1 p-3">
+      <div className="flex justify-end px-3 pb-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => toggleAllCategories(slugs, !allCollapsed)}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+        >
+          {allCollapsed ? (
+            <ChevronsUpDown className="h-4 w-4" />
+          ) : (
+            <ChevronsDownUp className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
       {categories.map((category) => {
         const isCollapsed = !!collapsedCategories[category.slug];
         const questions = questionsByCategory[category.slug] ?? [];
