@@ -1,0 +1,47 @@
+---
+title: "Максимальная сумма подмассива"
+order: 6
+---
+
+Дан массив целых чисел (может содержать отрицательные). Реализуйте функцию `maxSubarraySum(arr)`, которая возвращает максимальную сумму непрерывного подмассива. Подмассив должен содержать хотя бы один элемент.
+
+<StarterCode>
+
+```js
+function maxSubarraySum(arr) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(maxSubarraySum([-2, 1, -3, 4, -1, 2, 1, -5, 4]) === 6);  // true
+console.log(maxSubarraySum([1]) === 1);                                 // true
+console.log(maxSubarraySum([-1, -2, -3]) === -1);                      // true
+console.log(maxSubarraySum([5, 4, -1, 7, 8]) === 23);                  // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Наивное решение — перебрать все возможные подмассивы за O(n²). Но существует алгоритм Кадане (Kadane's algorithm), решающий задачу за O(n) за один проход.
+</Hint>
+
+<Hint title="Подсказка 2">
+Суть алгоритма Кадане: ведите текущую сумму `currentSum`. На каждом шаге выбирайте максимум из `arr[i]` (начать новый подмассив) и `currentSum + arr[i]` (расширить текущий). Одновременно обновляйте `maxSum`.
+</Hint>
+
+<Solution>
+
+```js
+function maxSubarraySum(arr) {
+  let maxSum = arr[0];
+  let currentSum = arr[0];
+
+  for (let i = 1; i < arr.length; i++) {
+    currentSum = Math.max(arr[i], currentSum + arr[i]);
+    maxSum = Math.max(maxSum, currentSum);
+  }
+  return maxSum;
+}
+```
+
+</Solution>

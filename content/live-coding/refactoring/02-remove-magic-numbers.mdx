@@ -1,0 +1,88 @@
+---
+title: "Магические числа"
+order: 2
+---
+
+В коде разбросаны числа без каких-либо пояснений: `86400`, `3.14159`, `0.18`, `1024`. Попробуйте понять, что они значат. Замените каждое именованной константой так, чтобы код стал самодокументирующимся. Результаты вычислений должны остаться прежними.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function secondsToDays(seconds) {
+  return seconds / 86400;
+}
+
+function circleArea(radius) {
+  return 3.14159 * radius * radius;
+}
+
+function addVAT(price) {
+  return price * (1 + 0.18);
+}
+
+function bytesToMegabytes(bytes) {
+  return bytes / 1048576;
+}
+
+function isExpired(createdAtMs) {
+  const thirtyDaysMs = 30 * 86400 * 1000;
+  return Date.now() - createdAtMs > thirtyDaysMs;
+}
+
+// ✅ Проверка
+console.log(secondsToDays(86400) === 1);           // true
+console.log(circleArea(1).toFixed(5) === '3.14159'); // true
+console.log(addVAT(100) === 118);                   // true
+console.log(bytesToMegabytes(1048576) === 1);       // true
+console.log(typeof isExpired(Date.now()) === 'boolean'); // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Объявите константы с говорящими именами в верхней части файла: `SECONDS_PER_DAY`, `PI`, `VAT_RATE`, `BYTES_PER_MB`.
+</Hint>
+
+<Hint title="Подсказка 2">
+`1048576` — это `1024 * 1024`. Выразите его через промежуточную константу `BYTES_PER_KB = 1024`, тогда `BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB`.
+</Hint>
+
+<Hint title="Подсказка 3">
+В `isExpired` число `30` тоже стоит оформить как `SESSION_EXPIRY_DAYS`, чтобы было сразу понятно бизнес-смысл.
+</Hint>
+
+<Solution>
+
+```js
+const SECONDS_PER_DAY = 86400;
+const PI = 3.14159;
+const VAT_RATE = 0.18;
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
+const SESSION_EXPIRY_DAYS = 30;
+const MS_PER_DAY = SECONDS_PER_DAY * 1000;
+
+function secondsToDays(seconds) {
+  return seconds / SECONDS_PER_DAY;
+}
+
+function circleArea(radius) {
+  return PI * radius * radius;
+}
+
+function addVAT(price) {
+  return price * (1 + VAT_RATE);
+}
+
+function bytesToMegabytes(bytes) {
+  return bytes / BYTES_PER_MB;
+}
+
+function isExpired(createdAtMs) {
+  const expiryMs = SESSION_EXPIRY_DAYS * MS_PER_DAY;
+  return Date.now() - createdAtMs > expiryMs;
+}
+```
+
+</Solution>

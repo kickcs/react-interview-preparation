@@ -1,0 +1,90 @@
+---
+title: "retry(fn, retries)"
+order: 4
+---
+
+Реализуйте функцию `retry(fn, retries)`, которая вызывает async-функцию `fn`. Если `fn` бросает ошибку, повторяет вызов — но не более `retries` раз суммарно. Если все попытки исчерпаны, отклоняет промис последней ошибкой.
+
+<StarterCode>
+
+```js
+function retry(fn, retries) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  // fn фейлится первые 2 раза, потом успевает
+  let attempts = 0;
+  const flaky = async () => {
+    attempts++;
+    if (attempts < 3) throw new Error(`attempt ${attempts} failed`);
+    return 'success';
+  };
+
+  const result = await retry(flaky, 3);
+  console.log(result);   // "success"
+  console.log(attempts); // 3
+
+  // fn фейлится всегда — retries исчерпаны
+  let calls = 0;
+  const alwaysFails = async () => { calls++; throw new Error('always fails'); };
+  try {
+    await retry(alwaysFails, 3);
+  } catch (e) {
+    console.log(e.message); // "always fails"
+    console.log(calls);     // 3
+  }
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте цикл с попыткой вызова `fn()` в `try/catch`. Если попытка удалась — верните результат. Если нет — продолжайте цикл. После исчерпания попыток — пробросьте последнюю ошибку.
+</Hint>
+
+<Hint title="Подсказка 2">
+Параметр `retries` — это максимальное количество **вызовов** (не повторов). Цикл `for (let i = 0; i < retries; i++)` внутри `try/catch` подходит. Сохраняйте ошибку в переменную, чтобы после цикла сделать `throw lastError`.
+</Hint>
+
+<Solution>
+
+```js
+async function retry(fn, retries) {
+  let lastError;
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+// Проверки
+(async () => {
+  let attempts = 0;
+  const flaky = async () => {
+    attempts++;
+    if (attempts < 3) throw new Error(`attempt ${attempts} failed`);
+    return 'success';
+  };
+
+  const result = await retry(flaky, 3);
+  console.log(result);   // "success"
+  console.log(attempts); // 3
+
+  let calls = 0;
+  const alwaysFails = async () => { calls++; throw new Error('always fails'); };
+  try {
+    await retry(alwaysFails, 3);
+  } catch (e) {
+    console.log(e.message); // "always fails"
+    console.log(calls);     // 3
+  }
+})();
+```
+
+</Solution>

@@ -1,0 +1,61 @@
+---
+title: "CSSProperty через template literal types"
+order: 9
+---
+
+Реализуйте тип `CSSProperty`, который описывает все комбинации CSS-свойств вида `'margin-top'`, `'padding-left'` и т. д. Используйте template literal types для автоматической генерации всех 8 вариантов из двух union-типов.
+
+<StarterCode>
+
+```ts
+type CSSProperty = // Ваш тип
+// Ожидается: 'margin-top' | 'margin-bottom' | 'margin-left' | 'margin-right'
+//           | 'padding-top' | 'padding-bottom' | 'padding-left' | 'padding-right'
+
+// ✅ Проверки — все должны компилироваться
+const p1: CSSProperty = "margin-top";
+const p2: CSSProperty = "padding-left";
+const p3: CSSProperty = "margin-right";
+const p4: CSSProperty = "padding-bottom";
+
+// @ts-expect-error — такого свойства нет
+const bad1: CSSProperty = "border-top";
+
+// @ts-expect-error — неполное значение
+const bad2: CSSProperty = "margin";
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Template literal types строятся аналогично шаблонным строкам: `` `${A}-${B}` ``, где `A` и `B` — union-типы. TypeScript автоматически генерирует все комбинации.
+</Hint>
+
+<Hint title="Подсказка 2">
+Определите два вспомогательных типа: `type Side = "top" | "bottom" | "left" | "right"` и `type Box = "margin" | "padding"`. Затем скомбинируйте их: `` type CSSProperty = `${Box}-${Side}` ``.
+</Hint>
+
+<Solution>
+
+```ts
+type Side = "top" | "bottom" | "left" | "right";
+type Box  = "margin" | "padding";
+
+type CSSProperty = `${Box}-${Side}`;
+// Результат: "margin-top" | "margin-bottom" | "margin-left" | "margin-right"
+//           | "padding-top" | "padding-bottom" | "padding-left" | "padding-right"
+
+// ✅ Проверки
+const p1: CSSProperty = "margin-top";
+const p2: CSSProperty = "padding-left";
+const p3: CSSProperty = "margin-right";
+const p4: CSSProperty = "padding-bottom";
+
+// @ts-expect-error — такого свойства нет
+const bad1: CSSProperty = "border-top";
+
+// @ts-expect-error — неполное значение
+const bad2: CSSProperty = "margin";
+```
+
+</Solution>

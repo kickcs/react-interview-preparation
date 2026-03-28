@@ -1,0 +1,67 @@
+---
+title: "Truthy и Falsy значения"
+order: 10
+---
+
+В условных выражениях JS приводит значения к булевому типу. Большинство значений «truthy» (правдивые), но есть ровно 8 «falsy» (ложных) значений. Задача проверяет, знаете ли вы все ловушки.
+
+**Предскажите, что выведет каждый `console.log`:**
+
+<StarterCode>
+
+```js
+console.log(Boolean([]));
+console.log(Boolean(""));
+console.log(Boolean(0));
+console.log(Boolean(null));
+console.log(Boolean(undefined));
+console.log(Boolean({}));
+console.log(Boolean(NaN));
+console.log(Boolean("0"));
+console.log(Boolean([]  == false));
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+Falsy значения в JS: `false`, `0`, `-0`, `0n`, `""`, `null`, `undefined`, `NaN`. Все остальные значения truthy — включая пустые массивы `[]` и пустые объекты `{}`. Последняя строка — это не `Boolean([])`, а `Boolean([] == false)`. Будьте внимательны.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+true
+false
+false
+false
+false
+true
+false
+true
+true
+```
+
+**Объяснение:**
+
+- `Boolean([])` → `true`: пустой массив — **truthy**! Это частая ловушка. Любой объект (включая пустые `[]` и `{}`) является truthy, потому что это ссылка на объект в памяти.
+
+- `Boolean("")` → `false`: пустая строка — falsy.
+
+- `Boolean(0)` → `false`: ноль — falsy. Также falsy: `-0` и `0n` (BigInt ноль).
+
+- `Boolean(null)` → `false`: null — falsy.
+
+- `Boolean(undefined)` → `false`: undefined — falsy.
+
+- `Boolean({})` → `true`: пустой объект — **truthy**! Аналогично `[]`.
+
+- `Boolean(NaN)` → `false`: NaN — falsy.
+
+- `Boolean("0")` → `true`: строка `"0"` — **truthy**! Любая непустая строка truthy, даже если она содержит `"0"`, `"false"` или `"null"`. Это отличается от PHP, где `"0"` falsy.
+
+- `Boolean([] == false)`: сначала вычисляется `[] == false`. `false` → `0`, `[]` → `""` → `0`, `0 == 0` → `true`. Затем `Boolean(true)` → `true`. Итого: `[] == false` даёт `true`, но `if([])` тоже даёт `true`. Это потому что `if` использует `ToBoolean`, а `==` использует другой алгоритм приведения.
+
+**Полный список falsy значений:** `false`, `0`, `-0`, `0n`, `""`, `null`, `undefined`, `NaN`.
+
+</Solution>

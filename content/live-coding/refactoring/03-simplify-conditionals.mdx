@@ -1,0 +1,80 @@
+---
+title: "Упрощение условий"
+order: 3
+---
+
+Функция `getShippingCost` содержит 5 уровней вложенных `if/else`. Читать её мучительно — нужно держать в голове сразу все условия. Упростите код с помощью ранних выходов (early return / guard clauses). Результаты для всех комбинаций аргументов должны совпадать.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function getShippingCost(user, cart, address) {
+  if (user) {
+    if (user.isPremium) {
+      return 0;
+    } else {
+      if (cart && cart.total >= 3000) {
+        return 0;
+      } else {
+        if (address) {
+          if (address.country === 'RU') {
+            return 250;
+          } else {
+            if (address.country === 'KZ' || address.country === 'BY') {
+              return 500;
+            } else {
+              return 1200;
+            }
+          }
+        } else {
+          return null;
+        }
+      }
+    }
+  } else {
+    return null;
+  }
+}
+
+// ✅ Проверка
+console.log(getShippingCost(null, null, null) === null);                          // true
+console.log(getShippingCost({ isPremium: true }, {}, {}) === 0);                  // true
+console.log(getShippingCost({ isPremium: false }, { total: 3000 }, {}) === 0);    // true
+console.log(getShippingCost({ isPremium: false }, { total: 100 }, { country: 'RU' }) === 250);  // true
+console.log(getShippingCost({ isPremium: false }, { total: 100 }, { country: 'KZ' }) === 500);  // true
+console.log(getShippingCost({ isPremium: false }, { total: 100 }, { country: 'US' }) === 1200); // true
+console.log(getShippingCost({ isPremium: false }, { total: 100 }, null) === null);  // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Начните с «отсечения» невалидных случаев в самом начале функции. Если `user` отсутствует или `address` отсутствует — немедленно возвращайте `null`.
+</Hint>
+
+<Hint title="Подсказка 2">
+После guard clauses добавьте позитивные ранние выходы: сначала проверьте `user.isPremium`, затем `cart.total >= 3000`. В обоих случаях сразу `return 0`.
+</Hint>
+
+<Hint title="Подсказка 3">
+В конце останется только логика для обычной доставки — без всякой вложенности. Можно вынести цены по странам в объект-маппинг.
+</Hint>
+
+<Solution>
+
+```js
+const SHIPPING_COSTS = { RU: 250, KZ: 500, BY: 500 };
+const DEFAULT_SHIPPING_COST = 1200;
+
+function getShippingCost(user, cart, address) {
+  if (!user) return null;
+  if (!address) return null;
+  if (user.isPremium) return 0;
+  if (cart && cart.total >= 3000) return 0;
+
+  return SHIPPING_COSTS[address.country] ?? DEFAULT_SHIPPING_COST;
+}
+```
+
+</Solution>

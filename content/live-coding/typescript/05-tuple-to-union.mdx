@@ -1,0 +1,51 @@
+---
+title: "TupleToUnion<T>"
+order: 5
+---
+
+Реализуйте тип `TupleToUnion<T>`, который преобразует тип кортежа в union-тип из всех его элементов. Например: `[string, number, boolean]` → `string | number | boolean`. Используйте indexed access type.
+
+<StarterCode>
+
+```ts
+type TupleToUnion<T> = // Ваш тип
+
+// ✅ Проверки
+type T1 = TupleToUnion<[string, number, boolean]>;
+// Ожидается: string | number | boolean
+
+type T2 = TupleToUnion<["a", "b", "c"]>;
+// Ожидается: "a" | "b" | "c"
+
+type T3 = TupleToUnion<[1, 2, 3]>;
+// Ожидается: 1 | 2 | 3
+
+declare const t1: T1;
+const x: string | number | boolean = t1; // OK
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Indexed access type `T[K]` позволяет получить тип по ключу. Для массивов и кортежей `T[number]` возвращает union всех элементов по числовым индексам.
+</Hint>
+
+<Hint title="Подсказка 2">
+Достаточно одной строки: `T extends readonly unknown[] ? T[number] : never`. Условие гарантирует, что `T` — массив или кортеж, после чего `T[number]` автоматически даёт union всех элементов.
+</Hint>
+
+<Solution>
+
+```ts
+type TupleToUnion<T extends readonly unknown[]> = T[number];
+
+// ✅ Проверки
+type T1 = TupleToUnion<[string, number, boolean]>; // string | number | boolean
+type T2 = TupleToUnion<["a", "b", "c"]>;           // "a" | "b" | "c"
+type T3 = TupleToUnion<[1, 2, 3]>;                 // 1 | 2 | 3
+
+declare const t1: T1;
+const x: string | number | boolean = t1; // OK
+```
+
+</Solution>

@@ -1,0 +1,48 @@
+---
+title: "Палиндром"
+order: 3
+---
+
+Реализуйте функцию `isPalindrome(str)`, которая проверяет, является ли строка палиндромом. Игнорируйте регистр и все символы, кроме букв и цифр.
+
+<StarterCode>
+
+```js
+function isPalindrome(str) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(isPalindrome('racecar') === true);                          // true
+console.log(isPalindrome('A man a plan a canal Panama') === true);      // true
+console.log(isPalindrome('hello') === false);                           // true
+console.log(isPalindrome('') === true);                                 // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Сначала «очистите» строку: приведите к нижнему регистру и удалите все символы, кроме букв и цифр. Регулярное выражение `/[^a-z0-9]/g` поможет отфильтровать лишнее.
+</Hint>
+
+<Hint title="Подсказка 2">
+После очистки сравните строку с её разворотом: `cleaned === cleaned.split('').reverse().join('')`. Или используйте два указателя для сравнения без создания копии.
+</Hint>
+
+<Solution>
+
+```js
+function isPalindrome(str) {
+  const cleaned = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  let left = 0;
+  let right = cleaned.length - 1;
+  while (left < right) {
+    if (cleaned[left] !== cleaned[right]) return false;
+    left++;
+    right--;
+  }
+  return true;
+}
+```
+
+</Solution>

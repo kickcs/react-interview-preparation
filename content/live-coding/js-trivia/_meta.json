@@ -1,0 +1,5 @@
+{
+  "title": "JS Trivia",
+  "order": 4,
+  "description": "typeof null, NaN === NaN, приведение типов, WTF JS"
+}

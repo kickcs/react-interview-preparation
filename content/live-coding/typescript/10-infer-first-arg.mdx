@@ -1,0 +1,66 @@
+---
+title: "FirstArg<T> через infer"
+order: 10
+---
+
+Реализуйте утилитарный тип `FirstArg<T>`, который извлекает тип первого аргумента функции. Используйте `infer` в conditional type. Если `T` не является функцией или функция не принимает аргументов, тип должен быть `never`.
+
+<StarterCode>
+
+```ts
+type FirstArg<T> = // Ваш тип
+
+// ✅ Проверки
+type F1 = FirstArg<(a: string, b: number) => void>;
+// Ожидается: string
+
+type F2 = FirstArg<(x: boolean) => string>;
+// Ожидается: boolean
+
+type F3 = FirstArg<(items: number[]) => void>;
+// Ожидается: number[]
+
+type F4 = FirstArg<() => void>;
+// Ожидается: never
+
+type F5 = FirstArg<string>;
+// Ожидается: never
+
+// Проверка через присваивание
+declare const f1: F1;
+const s: string = f1;   // OK
+
+declare const f2: F2;
+const b: boolean = f2;  // OK
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Для извлечения типов аргументов используйте rest-параметр с `infer`: `T extends (first: infer F, ...args: any[]) => any ? F : never`. Так TypeScript выделит тип первого аргумента в переменную `F`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Если функция не принимает аргументов `() => void`, паттерн `(first: infer F, ...args: any[]) => any` не совпадёт, и условие вернёт `never`. Для нефункциональных типов тоже вернётся `never` — это правильное поведение.
+</Hint>
+
+<Solution>
+
+```ts
+type FirstArg<T> = T extends (first: infer F, ...args: any[]) => any ? F : never;
+
+// ✅ Проверки
+type F1 = FirstArg<(a: string, b: number) => void>; // string
+type F2 = FirstArg<(x: boolean) => string>;          // boolean
+type F3 = FirstArg<(items: number[]) => void>;       // number[]
+type F4 = FirstArg<() => void>;                      // never
+type F5 = FirstArg<string>;                          // never
+
+declare const f1: F1;
+const s: string = f1;  // OK
+
+declare const f2: F2;
+const b: boolean = f2; // OK
+```
+
+</Solution>

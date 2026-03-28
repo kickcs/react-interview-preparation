@@ -1,0 +1,52 @@
+---
+title: "Hoisting: var vs let"
+order: 3
+---
+
+Поднятие (hoisting) — механизм, при котором объявления переменных обрабатываются до выполнения кода. Задача показывает разницу между `var` (поднимается с инициализацией `undefined`) и `let` (поднимается, но входит в «мёртвую зону»).
+
+**Предскажите, что выведет каждый `console.log`:**
+
+<StarterCode>
+
+```js
+console.log(a);
+var a = 5;
+console.log(a);
+
+try {
+  console.log(b);
+} catch (e) {
+  console.log(e.constructor.name + ': ' + e.message);
+}
+let b = 10;
+console.log(b);
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+`var` поднимается и инициализируется как `undefined` до выполнения кода. `let` тоже поднимается, но находится в Temporal Dead Zone (TDZ) — любое обращение к переменной до её объявления выбрасывает `ReferenceError`.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+undefined
+5
+ReferenceError: Cannot access 'b' before initialization
+10
+```
+
+**Объяснение:**
+
+- `console.log(a)` до `var a = 5` — JS поднимает объявление `var a` в начало области видимости и инициализирует её как `undefined`. Присвоение `= 5` остаётся на месте. Поэтому первый лог выводит `undefined`.
+
+- После `var a = 5` переменная получает значение, поэтому второй лог выводит `5`.
+
+- `console.log(b)` до `let b = 10` — переменная `b` существует в области видимости (движок знает о ней), но находится в **Temporal Dead Zone (TDZ)** с начала блока и до строки объявления. Обращение к ней в TDZ выбрасывает `ReferenceError: Cannot access 'b' before initialization`. Это сделано намеренно, чтобы предотвратить запутанный код с `var`.
+
+- После `let b = 10` переменная инициализирована, лог выводит `10`.
+
+</Solution>

@@ -1,0 +1,55 @@
+---
+title: "Получение значения по пути"
+order: 10
+---
+
+Реализуйте функцию `get(obj, path, defaultValue)`, которая возвращает значение из вложенного объекта по строковому пути (например, `'a.b.c'`). Если по пути ничего нет или встречается `undefined` — возвращается `defaultValue`.
+
+<StarterCode>
+
+```js
+function get(obj, path, defaultValue) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const data = {
+  user: {
+    profile: {
+      name: 'Боб',
+      scores: [10, 20, 30],
+    },
+  },
+};
+
+console.log(get(data, 'user.profile.name') === 'Боб');           // true
+console.log(get(data, 'user.profile.scores') !== undefined);     // true
+console.log(get(data, 'user.age', 0) === 0);                     // true — путь не найден
+console.log(get(data, 'user.profile.city', 'н/д') === 'н/д');   // true — путь не найден
+console.log(get(null, 'a.b', 42) === 42);                        // true — объект null
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Разбейте строку пути на массив ключей через `split('.')`. Затем последовательно «углубляйтесь» в объект, используя каждый ключ по очереди.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте `reduce` по массиву ключей: начальное значение — `obj`, на каждом шаге берёте `acc[key]`. Если `acc` равно `null` или `undefined` — верните `undefined`, чтобы не получить ошибку. В конце сравните результат с `undefined` и при необходимости верните `defaultValue`.
+</Hint>
+
+<Solution>
+
+```js
+function get(obj, path, defaultValue) {
+  const keys = path.split('.');
+  const result = keys.reduce((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    return acc[key];
+  }, obj);
+  return result === undefined ? defaultValue : result;
+}
+```
+
+</Solution>

@@ -1,0 +1,48 @@
+---
+title: "Разворот строки"
+order: 2
+---
+
+Реализуйте функцию `reverseString(str)`, которая возвращает строку в обратном порядке. Использовать встроенный метод `.reverse()` запрещено.
+
+<StarterCode>
+
+```js
+function reverseString(str) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(reverseString('hello') === 'olleh');  // true
+console.log(reverseString('ab') === 'ba');         // true
+console.log(reverseString('') === '');             // true
+console.log(reverseString('a') === 'a');           // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Попробуйте технику двух указателей: один с начала строки, другой с конца. Меняйте символы местами и сдвигайте указатели навстречу друг другу.
+</Hint>
+
+<Hint title="Подсказка 2">
+Строки в JavaScript неизменяемы, поэтому сначала преобразуйте строку в массив символов через `split('')`, выполните обмен, а затем соберите обратно через `join('')`.
+</Hint>
+
+<Solution>
+
+```js
+function reverseString(str) {
+  const chars = str.split('');
+  let left = 0;
+  let right = chars.length - 1;
+  while (left < right) {
+    [chars[left], chars[right]] = [chars[right], chars[left]];
+    left++;
+    right--;
+  }
+  return chars.join('');
+}
+```
+
+</Solution>

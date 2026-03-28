@@ -1,0 +1,44 @@
+---
+title: "Generic identity-функция"
+order: 1
+---
+
+Типизируйте функцию `identity` с помощью дженерика. Функция принимает значение любого типа и возвращает его без изменений. Типизация должна сохранять конкретный тип аргумента — то есть `identity(42)` должна возвращать `number`, а не `unknown`.
+
+<StarterCode>
+
+```ts
+function identity(arg) {
+  return arg;
+}
+
+// ✅ Проверка
+const num = identity(42);
+const str = identity("hello");
+console.log(typeof num === "number", typeof str === "string"); // true true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Дженерик объявляется в угловых скобках перед списком параметров функции: `function fn<T>(...)`. Параметр типа `T` затем используется и в типе аргумента, и в возвращаемом типе.
+</Hint>
+
+<Hint title="Подсказка 2">
+Сигнатура выглядит так: `function identity<T>(arg: T): T`. TypeScript автоматически выведет `T` из переданного аргумента — явно указывать тип при вызове не нужно.
+</Hint>
+
+<Solution>
+
+```ts
+function identity<T>(arg: T): T {
+  return arg;
+}
+
+// ✅ Проверка
+const num = identity(42);       // тип: number
+const str = identity("hello");  // тип: string
+console.log(typeof num === "number", typeof str === "string"); // true true
+```
+
+</Solution>

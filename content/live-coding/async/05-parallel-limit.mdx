@@ -1,0 +1,100 @@
+---
+title: "parallelLimit(tasks, limit)"
+order: 5
+---
+
+Реализуйте функцию `parallelLimit(tasks, limit)`, которая выполняет массив async-задач параллельно, но в любой момент времени активных задач не более `limit`. Возвращает промис с массивом результатов **в исходном порядке**.
+
+<StarterCode>
+
+```js
+function parallelLimit(tasks, limit) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const running = { max: 0, current: 0 };
+
+  const makeTask = (id, ms) => async () => {
+    running.current++;
+    running.max = Math.max(running.max, running.current);
+    await delay(ms);
+    running.current--;
+    return id;
+  };
+
+  const tasks = [
+    makeTask(0, 50),
+    makeTask(1, 30),
+    makeTask(2, 40),
+    makeTask(3, 20),
+    makeTask(4, 10),
+  ];
+
+  const results = await parallelLimit(tasks, 2);
+
+  console.log(JSON.stringify(results)); // [0,1,2,3,4]  — порядок сохранён
+  console.log(running.max <= 2);        // true  — лимит соблюдён
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте пул: запустите первые `limit` задач, и каждый раз когда одна завершается — запускайте следующую из очереди. Удобно хранить индекс следующей задачи и запускать рекурсивно или через промис-цепочку.
+</Hint>
+
+<Hint title="Подсказка 2">
+Один из подходов: заполните массив `results` нужного размера, затем создайте `limit` «воркеров» — каждый воркер берёт следующую задачу по индексу (через общий счётчик `next`), выполняет её, сохраняет результат и рекурсивно вызывает себя. `Promise.all` на воркерах даст финальный промис.
+</Hint>
+
+<Solution>
+
+```js
+async function parallelLimit(tasks, limit) {
+  const results = new Array(tasks.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < tasks.length) {
+      const index = next++;
+      results[index] = await tasks[index]();
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const running = { max: 0, current: 0 };
+
+  const makeTask = (id, ms) => async () => {
+    running.current++;
+    running.max = Math.max(running.max, running.current);
+    await delay(ms);
+    running.current--;
+    return id;
+  };
+
+  const tasks = [
+    makeTask(0, 50),
+    makeTask(1, 30),
+    makeTask(2, 40),
+    makeTask(3, 20),
+    makeTask(4, 10),
+  ];
+
+  const results = await parallelLimit(tasks, 2);
+
+  console.log(JSON.stringify(results)); // [0,1,2,3,4]
+  console.log(running.max <= 2);        // true
+})();
+```
+
+</Solution>

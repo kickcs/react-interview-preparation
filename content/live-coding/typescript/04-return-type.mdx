@@ -1,0 +1,58 @@
+---
+title: "Реализация MyReturnType<T>"
+order: 4
+---
+
+Реализуйте утилитарный тип `MyReturnType<T>` — аналог встроенного `ReturnType<T>`. Тип должен извлекать тип возвращаемого значения функции. Используйте ключевое слово `infer` в conditional type. Встроенный `ReturnType` использовать нельзя.
+
+<StarterCode>
+
+```ts
+type MyReturnType<T> = // Ваш тип
+
+// ✅ Проверки
+type R1 = MyReturnType<() => string>;
+// Ожидается: string
+
+type R2 = MyReturnType<(x: number, y: number) => boolean>;
+// Ожидается: boolean
+
+type R3 = MyReturnType<() => { id: number; name: string }>;
+// Ожидается: { id: number; name: string }
+
+// Проверка через присваивание
+declare const r1: R1;
+const s: string = r1; // OK
+
+declare const r2: R2;
+const b: boolean = r2; // OK
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Conditional type позволяет «поймать» тип с помощью `infer`. Структура: `T extends (...args: any[]) => infer R ? R : never`. Если `T` — функция, `R` будет её возвращаемым типом.
+</Hint>
+
+<Hint title="Подсказка 2">
+`infer R` работает как объявление переменной типа внутри условия: TypeScript сам подставит нужный тип. Для аргументов используйте `...args: any[]` — это позволяет матчить функции с любым количеством параметров.
+</Hint>
+
+<Solution>
+
+```ts
+type MyReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
+
+// ✅ Проверки
+type R1 = MyReturnType<() => string>;               // string
+type R2 = MyReturnType<(x: number, y: number) => boolean>; // boolean
+type R3 = MyReturnType<() => { id: number; name: string }>; // { id: number; name: string }
+
+declare const r1: R1;
+const s: string = r1; // OK
+
+declare const r2: R2;
+const b: boolean = r2; // OK
+```
+
+</Solution>

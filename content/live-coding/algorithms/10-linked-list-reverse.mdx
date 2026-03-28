@@ -1,0 +1,65 @@
+---
+title: "Разворот связного списка"
+order: 10
+---
+
+Дана структура односвязного списка: каждый узел имеет свойства `value` и `next`. Реализуйте функцию `reverseList(head)`, которая разворачивает список и возвращает новую голову.
+
+<StarterCode>
+
+```js
+function reverseList(head) {
+  // Ваш код здесь
+}
+
+// Вспомогательная функция для создания списка из массива
+function fromArray(arr) {
+  let head = null;
+  for (let i = arr.length - 1; i >= 0; i--) {
+    head = { value: arr[i], next: head };
+  }
+  return head;
+}
+
+// Вспомогательная функция для перевода списка в массив
+function toArray(head) {
+  const result = [];
+  while (head) { result.push(head.value); head = head.next; }
+  return result;
+}
+
+// ✅ Проверка
+console.log(JSON.stringify(toArray(reverseList(fromArray([1, 2, 3])))) === '[3,2,1]');      // true
+console.log(JSON.stringify(toArray(reverseList(fromArray([1, 2, 3, 4, 5])))) === '[5,4,3,2,1]'); // true
+console.log(reverseList(null) === null);                                                     // true
+console.log(JSON.stringify(toArray(reverseList(fromArray([1])))) === '[1]');                // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте итеративный подход с тремя переменными: `prev = null`, `current = head`. На каждом шаге сохраняйте следующий узел, разворачивайте ссылку и сдвигайте указатели вперёд.
+</Hint>
+
+<Hint title="Подсказка 2">
+Порядок действий внутри цикла: 1) сохранить `next = current.next`; 2) развернуть ссылку `current.next = prev`; 3) сдвинуть `prev = current`; 4) сдвинуть `current = next`. По окончании цикла `prev` — новая голова списка.
+</Hint>
+
+<Solution>
+
+```js
+function reverseList(head) {
+  let prev = null;
+  let current = head;
+
+  while (current !== null) {
+    const next = current.next;
+    current.next = prev;
+    prev = current;
+    current = next;
+  }
+  return prev;
+}
+```
+
+</Solution>

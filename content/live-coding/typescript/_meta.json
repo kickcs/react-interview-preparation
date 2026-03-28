@@ -1,0 +1,5 @@
+{
+  "title": "TypeScript",
+  "order": 2,
+  "description": "Дженерики, utility types, type narrowing, infer"
+}

@@ -1,0 +1,93 @@
+---
+title: "Promise-цепочка → async/await"
+order: 7
+---
+
+Функция `loadUserDashboard` написана через длинную цепочку `.then()`. С каждым шагом вложенность растёт, обработка ошибок размазана по коду. Перепишите её с использованием `async/await`. Результат (разрешённое значение промиса) должен быть идентичен.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+
+// Вспомогательные функции (не изменять)
+function fetchUser(userId) {
+  return Promise.resolve({ id: userId, name: 'Алиса', roleId: 42 });
+}
+function fetchRole(roleId) {
+  return Promise.resolve({ id: roleId, title: 'Редактор', permissions: ['read', 'write'] });
+}
+function fetchPosts(userId) {
+  return Promise.resolve([{ id: 1, title: 'Первый пост' }, { id: 2, title: 'Второй пост' }]);
+}
+function formatDashboard(user, role, posts) {
+  return { user: user.name, role: role.title, postCount: posts.length, permissions: role.permissions };
+}
+
+function loadUserDashboard(userId) {
+  return fetchUser(userId)
+    .then(function(user) {
+      return fetchRole(user.roleId)
+        .then(function(role) {
+          return fetchPosts(user.id)
+            .then(function(posts) {
+              return formatDashboard(user, role, posts);
+            })
+            .catch(function(err) {
+              console.error('Ошибка загрузки постов:', err);
+              throw err;
+            });
+        })
+        .catch(function(err) {
+          console.error('Ошибка загрузки роли:', err);
+          throw err;
+        });
+    })
+    .catch(function(err) {
+      console.error('Ошибка загрузки пользователя:', err);
+      throw err;
+    });
+}
+
+// ✅ Проверка
+loadUserDashboard(1).then(result => {
+  console.log(result.user === 'Алиса');            // true
+  console.log(result.role === 'Редактор');         // true
+  console.log(result.postCount === 2);             // true
+  console.log(result.permissions.includes('write')); // true
+});
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Объявите функцию с ключевым словом `async`. Каждый `.then(fn)` превращается в `const x = await ...`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Когда переменные `user`, `role` и `posts` нужны одновременно для `formatDashboard`, подумайте — можно ли загрузить `role` и `posts` параллельно через `Promise.all`, а не последовательно?
+</Hint>
+
+<Hint title="Подсказка 3">
+Единый блок `try/catch` заменяет все вложенные `.catch`. Сообщение об ошибке можно сделать более информативным, добавив контекст.
+</Hint>
+
+<Solution>
+
+```js
+async function loadUserDashboard(userId) {
+  try {
+    const user = await fetchUser(userId);
+    const [role, posts] = await Promise.all([
+      fetchRole(user.roleId),
+      fetchPosts(user.id),
+    ]);
+    return formatDashboard(user, role, posts);
+  } catch (err) {
+    console.error('Ошибка загрузки дашборда:', err);
+    throw err;
+  }
+}
+```
+
+</Solution>

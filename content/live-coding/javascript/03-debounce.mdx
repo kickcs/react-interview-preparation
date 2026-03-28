@@ -1,0 +1,54 @@
+---
+title: "Debounce"
+order: 3
+---
+
+Реализуйте функцию `debounce(fn, delay)`, которая возвращает «откладывающую» версию функции `fn`. Обёрнутая функция откладывает вызов `fn` на `delay` миллисекунд после последнего вызова. Если за это время поступит новый вызов — таймер сбрасывается заново.
+
+<StarterCode>
+
+```js
+function debounce(fn, delay) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+let callCount = 0;
+const debouncedFn = debounce(() => { callCount++; }, 100);
+
+debouncedFn();
+debouncedFn();
+debouncedFn();
+
+console.log(callCount === 0);  // true — ещё не вызвана
+
+setTimeout(() => {
+  console.log(callCount === 1);  // true — вызвана ровно 1 раз
+}, 200);
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Объявите переменную-таймер в замыкании. При каждом вызове обёртки сбрасывайте предыдущий таймер через `clearTimeout`.
+</Hint>
+
+<Hint title="Подсказка 2">
+После `clearTimeout` запустите новый `setTimeout`, который вызовет `fn` с нужными аргументами через `delay`. Не забудьте сохранить `this` и `arguments`, используя стрелочную функцию или `apply`.
+</Hint>
+
+<Solution>
+
+```js
+function debounce(fn, delay) {
+  let timerId;
+  return function (...args) {
+    clearTimeout(timerId);
+    timerId = setTimeout(() => {
+      fn.apply(this, args);
+    }, delay);
+  };
+}
+```
+
+</Solution>

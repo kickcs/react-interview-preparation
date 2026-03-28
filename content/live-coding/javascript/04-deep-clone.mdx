@@ -1,0 +1,54 @@
+---
+title: "Глубокое клонирование"
+order: 4
+---
+
+Реализуйте функцию `deepClone(obj)`, которая создаёт полную глубокую копию переданного значения. Функция должна корректно обрабатывать объекты, массивы и примитивы. Использовать `JSON.parse(JSON.stringify(...))` запрещено.
+
+<StarterCode>
+
+```js
+function deepClone(obj) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const original = { a: 1, b: { c: 2, d: [3, 4] } };
+const clone = deepClone(original);
+
+console.log(clone.b.c === 2);               // true
+console.log(clone.b.d[1] === 4);            // true
+console.log(clone !== original);            // true — разные объекты
+console.log(clone.b !== original.b);        // true — вложенный объект тоже скопирован
+console.log(clone.b.d !== original.b.d);    // true — массив тоже скопирован
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Проверьте базовые случаи: если значение не является объектом (или равно `null`) — верните его как есть. Это обработает все примитивы и `null`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Если значение — массив, создайте новый массив через `[]` и рекурсивно скопируйте каждый элемент. Если объект — создайте `{}` и рекурсивно скопируйте каждое свойство через `Object.keys`.
+</Hint>
+
+<Solution>
+
+```js
+function deepClone(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => deepClone(item));
+  }
+  const cloned = {};
+  for (const key of Object.keys(obj)) {
+    cloned[key] = deepClone(obj[key]);
+  }
+  return cloned;
+}
+```
+
+</Solution>

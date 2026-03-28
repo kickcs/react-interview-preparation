@@ -1,0 +1,61 @@
+---
+title: "Хуки внутри условий — найди и исправь"
+order: 3
+---
+
+Компонент ниже нарушает правила хуков: `useState` вызывается внутри условного блока. React выбросит ошибку `Rendered more hooks than during the previous render`. Найдите проблему и перепишите компонент, сохранив ту же логику.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+// ❌ Этот код сломан — не запускайте как есть
+export default function UserCard({ isLoggedIn }) {
+  if (isLoggedIn) {
+    const [likes, setLikes] = useState(0); // ← нарушение правил хуков
+    return (
+      <div>
+        <p>Лайки: {likes}</p>
+        <button onClick={() => setLikes(l => l + 1)}>👍</button>
+      </div>
+    );
+  }
+
+  return <p>Войдите, чтобы оставить лайк</p>;
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Правило хуков: хуки должны вызываться **на верхнем уровне** компонента — всегда, в одинаковом порядке, вне условий, циклов и вложенных функций.
+</Hint>
+
+<Hint title="Подсказка 2">
+Перенесите `useState` наверх компонента, до любых `if`. Условный рендеринг (`if / тернарный оператор`) оставьте в JSX или после объявления всех хуков.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+// ✅ Хук всегда на верхнем уровне
+export default function UserCard({ isLoggedIn }) {
+  const [likes, setLikes] = useState(0);
+
+  if (!isLoggedIn) {
+    return <p>Войдите, чтобы оставить лайк</p>;
+  }
+
+  return (
+    <div>
+      <p>Лайки: {likes}</p>
+      <button onClick={() => setLikes(l => l + 1)}>👍</button>
+    </div>
+  );
+}
+```
+
+</Solution>

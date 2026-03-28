@@ -1,0 +1,50 @@
+---
+title: "Полифил bind"
+order: 8
+---
+
+Реализуйте функцию `myBind(fn, context, ...partialArgs)` — аналог `Function.prototype.bind`. Она должна возвращать новую функцию, которая при вызове использует `context` как `this` и объединяет `partialArgs` с новыми аргументами.
+
+<StarterCode>
+
+```js
+function myBind(fn, context, ...partialArgs) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const user = { name: 'Алиса' };
+
+function greet(greeting, punctuation) {
+  return `${greeting}, ${this.name}${punctuation}`;
+}
+
+const greetAlice = myBind(greet, user, 'Привет');
+console.log(greetAlice('!') === 'Привет, Алиса!');        // true
+console.log(greetAlice('?') === 'Привет, Алиса?');        // true
+
+const greetAliceFull = myBind(greet, user, 'Привет', '!');
+console.log(greetAliceFull() === 'Привет, Алиса!');       // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Верните функцию-замыкание, которая имеет доступ к `fn`, `context` и `partialArgs`. При вызове эта функция должна вызывать оригинальный `fn` с нужным контекстом.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте `fn.apply(context, [...partialArgs, ...newArgs])` внутри возвращаемой функции, где `newArgs` — аргументы, переданные при вызове самой обёртки.
+</Hint>
+
+<Solution>
+
+```js
+function myBind(fn, context, ...partialArgs) {
+  return function (...args) {
+    return fn.apply(context, [...partialArgs, ...args]);
+  };
+}
+```
+
+</Solution>

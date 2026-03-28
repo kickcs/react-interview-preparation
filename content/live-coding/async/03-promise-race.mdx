@@ -1,0 +1,82 @@
+---
+title: "myRace(promises)"
+order: 3
+---
+
+Реализуйте функцию `myRace(promises)` — аналог `Promise.race`. Она принимает массив промисов и возвращает новый промис, который разрешается или отклоняется со значением первого завершившегося промиса.
+
+<StarterCode>
+
+```js
+function myRace(promises) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: первый быстрый resolve
+  const result1 = await myRace([
+    delay(100).then(() => 'slow'),
+    delay(10).then(() => 'fast'),
+  ]);
+  console.log(result1); // "fast"
+
+  // Тест 2: первый reject
+  try {
+    await myRace([
+      delay(100).then(() => 'slow'),
+      delay(10).then(() => { throw new Error('fail'); }),
+    ]);
+  } catch (e) {
+    console.log(e.message); // "fail"
+  }
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Верните `new Promise((resolve, reject) => ...)`. Переберите массив промисов и для каждого повесьте `.then(resolve, reject)`.
+</Hint>
+
+<Hint title="Подсказка 2">
+После того как один промис вызвал `resolve` или `reject`, повторные вызовы этих функций игнорируются — промис уже зафиксирован. Поэтому достаточно просто привязать каждый промис: `promises.forEach(p => p.then(resolve, reject))`.
+</Hint>
+
+<Solution>
+
+```js
+function myRace(promises) {
+  return new Promise((resolve, reject) => {
+    for (const p of promises) {
+      Promise.resolve(p).then(resolve, reject);
+    }
+  });
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: первый быстрый resolve
+  const result1 = await myRace([
+    delay(100).then(() => 'slow'),
+    delay(10).then(() => 'fast'),
+  ]);
+  console.log(result1); // "fast"
+
+  // Тест 2: первый reject
+  try {
+    await myRace([
+      delay(100).then(() => 'slow'),
+      delay(10).then(() => { throw new Error('fail'); }),
+    ]);
+  } catch (e) {
+    console.log(e.message); // "fail"
+  }
+})();
+```
+
+</Solution>

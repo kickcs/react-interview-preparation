@@ -1,0 +1,72 @@
+---
+title: "DeepReadonly<T>"
+order: 2
+---
+
+Реализуйте тип `DeepReadonly<T>`, который рекурсивно делает все свойства объекта (включая вложенные) доступными только для чтения. Встроенный `Readonly<T>` работает только на первом уровне — нужна глубокая версия.
+
+<StarterCode>
+
+```ts
+type DeepReadonly<T> = // Ваш тип
+
+// Проверка типов
+type Config = {
+  server: {
+    host: string;
+    port: number;
+  };
+  debug: boolean;
+};
+
+declare const config: DeepReadonly<Config>;
+
+// @ts-expect-error — нельзя изменить вложенное свойство
+config.server.host = "localhost";
+
+// @ts-expect-error — нельзя изменить свойство верхнего уровня
+config.debug = true;
+
+// ✅ Чтение разрешено
+console.log(config.server.port); // OK
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте mapped type с модификатором `readonly`. Для рекурсии проверьте, является ли значение объектом с помощью conditional type: `T[K] extends object ? ... : T[K]`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Структура: `{ readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K] }`. Mapped type перебирает все ключи, добавляет `readonly`, а для объектных значений рекурсивно применяет тот же тип.
+</Hint>
+
+<Solution>
+
+```ts
+type DeepReadonly<T> = {
+  readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K];
+};
+
+// Проверка типов
+type Config = {
+  server: {
+    host: string;
+    port: number;
+  };
+  debug: boolean;
+};
+
+declare const config: DeepReadonly<Config>;
+
+// @ts-expect-error — нельзя изменить вложенное свойство
+config.server.host = "localhost";
+
+// @ts-expect-error — нельзя изменить свойство верхнего уровня
+config.debug = true;
+
+// ✅ Чтение разрешено
+console.log(config.server.port); // OK
+```
+
+</Solution>

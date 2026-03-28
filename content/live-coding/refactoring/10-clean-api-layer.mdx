@@ -1,0 +1,138 @@
+---
+title: "Чистый API-слой"
+order: 10
+---
+
+В коде три функции, каждая делает `fetch` с одинаковыми заголовками, одинаковой обработкой ошибок и одинаковым парсингом JSON. Это нарушение DRY: при смене токена или базового URL нужно исправить три места. Вынесите общую логику в переиспользуемый API-клиент. Результаты запросов должны совпадать.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+
+// Вспомогательный mock-fetch (не изменять)
+function fetch(url, options) {
+  const responses = {
+    '/api/users/1':         { id: 1, name: 'Алиса', role: 'admin' },
+    '/api/posts?userId=1':  [{ id: 101, title: 'Первый пост' }],
+    '/api/settings':        { theme: 'dark', language: 'ru' },
+  };
+  const body = responses[url];
+  if (!body) return Promise.reject(new Error(`404: ${url} не найден`));
+  return Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(body),
+  });
+}
+
+const AUTH_TOKEN = 'Bearer secret-token-123';
+const BASE_URL = 'https://api.example.com';
+
+async function getUser(userId) {
+  const response = await fetch(`/api/users/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка запроса: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function getUserPosts(userId) {
+  const response = await fetch(`/api/posts?userId=${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка запроса: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function getSettings() {
+  const response = await fetch('/api/settings', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': AUTH_TOKEN,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка запроса: ${response.status}`);
+  }
+  return response.json();
+}
+
+// ✅ Проверка
+Promise.all([getUser(1), getUserPosts(1), getSettings()]).then(([user, posts, settings]) => {
+  console.log(user.name === 'Алиса');          // true
+  console.log(posts[0].title === 'Первый пост'); // true
+  console.log(settings.theme === 'dark');       // true
+});
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте функцию `createApiClient(baseUrl, token)`, которая возвращает объект с методом `get(path)`. Внутри — общая логика: заголовки, вызов `fetch`, проверка `response.ok`, возврат `json`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Функции `getUser`, `getUserPosts`, `getSettings` становятся тонкими обёртками, которые просто вызывают `api.get('/api/...')`. Токен и заголовки задаются один раз при создании клиента.
+</Hint>
+
+<Hint title="Подсказка 3">
+При необходимости расширьте клиент методами `post(path, body)`, `put(path, body)`, `delete(path)` — они все будут переиспользовать тот же внутренний метод `request(path, options)`.
+</Hint>
+
+<Solution>
+
+```js
+function createApiClient(token) {
+  async function request(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token,
+        ...options.headers,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Ошибка запроса: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  return {
+    get: (path) => request(path),
+    post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+    put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
+    delete: (path) => request(path, { method: 'DELETE' }),
+  };
+}
+
+const api = createApiClient('Bearer secret-token-123');
+
+function getUser(userId) {
+  return api.get(`/api/users/${userId}`);
+}
+
+function getUserPosts(userId) {
+  return api.get(`/api/posts?userId=${userId}`);
+}
+
+function getSettings() {
+  return api.get('/api/settings');
+}
+```
+
+</Solution>

@@ -1,0 +1,74 @@
+---
+title: "EventEmitter"
+order: 6
+---
+
+Реализуйте класс `EventEmitter` с тремя методами:
+- `on(event, callback)` — подписывается на событие
+- `off(event, callback)` — отписывается от события
+- `emit(event, ...args)` — вызывает всех подписчиков события, передавая им аргументы
+
+<StarterCode>
+
+```js
+class EventEmitter {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const emitter = new EventEmitter();
+const results = [];
+
+const handler = (x) => results.push(x);
+emitter.on('data', handler);
+emitter.emit('data', 1);
+emitter.emit('data', 2);
+console.log(results.length === 2);          // true
+console.log(results[0] === 1);              // true
+
+emitter.off('data', handler);
+emitter.emit('data', 3);
+console.log(results.length === 2);          // true — после отписки вызова не было
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Храните подписчиков в `Map`, где ключ — имя события, значение — массив коллбеков. Инициализируйте `Map` в конструкторе.
+</Hint>
+
+<Hint title="Подсказка 2">
+В `on` добавляйте коллбек в массив для нужного события (создайте массив, если его ещё нет). В `off` фильтруйте массив, убирая переданный коллбек. В `emit` вызывайте каждый коллбек из массива через `.forEach`.
+</Hint>
+
+<Solution>
+
+```js
+class EventEmitter {
+  constructor() {
+    this.events = new Map();
+  }
+
+  on(event, callback) {
+    if (!this.events.has(event)) {
+      this.events.set(event, []);
+    }
+    this.events.get(event).push(callback);
+  }
+
+  off(event, callback) {
+    if (!this.events.has(event)) return;
+    this.events.set(
+      event,
+      this.events.get(event).filter(cb => cb !== callback)
+    );
+  }
+
+  emit(event, ...args) {
+    if (!this.events.has(event)) return;
+    this.events.get(event).forEach(cb => cb(...args));
+  }
+}
+```
+
+</Solution>

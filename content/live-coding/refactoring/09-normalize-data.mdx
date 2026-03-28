@@ -1,0 +1,132 @@
+---
+title: "Нормализация данных"
+order: 9
+---
+
+Данные приходят в виде глубоко вложенной структуры: `users[].posts[].comments[]`. Каждый раз, чтобы найти комментарий, нужно перебирать всех пользователей и все посты. Нормализуйте данные в плоские словари (`usersById`, `postsById`, `commentsById`) с id-ссылками. После нормализации доступ к любой сущности должен быть O(1).
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+const nestedData = {
+  users: [
+    {
+      id: 1,
+      name: 'Алиса',
+      posts: [
+        {
+          id: 101,
+          title: 'Первый пост',
+          comments: [
+            { id: 1001, text: 'Отличная статья!', authorId: 2 },
+            { id: 1002, text: 'Согласен полностью', authorId: 3 },
+          ],
+        },
+        {
+          id: 102,
+          title: 'Второй пост',
+          comments: [
+            { id: 1003, text: 'Интересно', authorId: 2 },
+          ],
+        },
+      ],
+    },
+    {
+      id: 2,
+      name: 'Боб',
+      posts: [
+        {
+          id: 103,
+          title: 'Пост Боба',
+          comments: [
+            { id: 1004, text: 'Круто!', authorId: 1 },
+          ],
+        },
+      ],
+    },
+    {
+      id: 3,
+      name: 'Карина',
+      posts: [],
+    },
+  ],
+};
+
+// Поиск комментария по id — O(n²), очень неэффективно
+function findComment(data, commentId) {
+  for (const user of data.users) {
+    for (const post of user.posts) {
+      const comment = post.comments.find(c => c.id === commentId);
+      if (comment) return comment;
+    }
+  }
+  return null;
+}
+
+// ✅ Проверка
+console.log(findComment(nestedData, 1003).text === 'Интересно');  // true
+console.log(findComment(nestedData, 9999) === null);               // true
+const user1Posts = nestedData.users.find(u => u.id === 1).posts;
+console.log(user1Posts.length === 2);                              // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте функцию `normalizeData(data)`, которая возвращает объект `{ usersById, postsById, commentsById }`. Ключи в каждом словаре — id сущности, значение — объект без вложенных массивов.
+</Hint>
+
+<Hint title="Подсказка 2">
+В нормализованной форме `user` содержит массив `postIds: [101, 102]` вместо объектов. `post` содержит `authorId` и `commentIds: [1001, 1002]`. `comment` остаётся как есть.
+</Hint>
+
+<Hint title="Подсказка 3">
+После нормализации `findComment` превращается в `commentsById[commentId] ?? null` — одна строка. Доступ к постам пользователя: `usersById[1].postIds.map(id => postsById[id])`.
+</Hint>
+
+<Solution>
+
+```js
+function normalizeData(data) {
+  const usersById = {};
+  const postsById = {};
+  const commentsById = {};
+
+  for (const user of data.users) {
+    const postIds = [];
+
+    for (const post of user.posts) {
+      const commentIds = [];
+
+      for (const comment of post.comments) {
+        commentsById[comment.id] = comment;
+        commentIds.push(comment.id);
+      }
+
+      postsById[post.id] = { id: post.id, title: post.title, authorId: user.id, commentIds };
+      postIds.push(post.id);
+    }
+
+    usersById[user.id] = { id: user.id, name: user.name, postIds };
+  }
+
+  return { usersById, postsById, commentsById };
+}
+
+const normalized = normalizeData(nestedData);
+const { usersById, postsById, commentsById } = normalized;
+
+// O(1) доступ вместо O(n²)
+function findComment(data, commentId) {
+  return commentsById[commentId] ?? null;
+}
+
+// ✅ Проверка после нормализации
+console.log(commentsById[1003].text === 'Интересно');                   // true
+console.log(commentsById[9999] ?? null === null);                        // true
+console.log(usersById[1].postIds.length === 2);                          // true
+console.log(postsById[101].commentIds.length === 2);                     // true
+```
+
+</Solution>

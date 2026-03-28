@@ -1,0 +1,50 @@
+---
+title: "Бинарный поиск"
+order: 7
+---
+
+Реализуйте функцию `binarySearch(arr, target)`, которая ищет `target` в **отсортированном** массиве и возвращает его индекс. Если элемент не найден — вернуть `-1`. Сложность должна быть O(log n).
+
+<StarterCode>
+
+```js
+function binarySearch(arr, target) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(binarySearch([1, 3, 5, 7, 9], 5) === 2);   // true
+console.log(binarySearch([1, 3, 5, 7, 9], 4) === -1);  // true
+console.log(binarySearch([1, 3, 5, 7, 9], 1) === 0);   // true
+console.log(binarySearch([1, 3, 5, 7, 9], 9) === 4);   // true
+console.log(binarySearch([], 1) === -1);                // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Держите два указателя: `left = 0` и `right = arr.length - 1`. На каждой итерации вычисляйте средний индекс `mid` и сравнивайте `arr[mid]` с `target`, сужая диапазон поиска вдвое.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте `Math.floor((left + right) / 2)` для вычисления `mid`. Если `arr[mid] < target` — сдвиньте `left = mid + 1`, если `arr[mid] > target` — `right = mid - 1`. Цикл продолжается пока `left <= right`.
+</Hint>
+
+<Solution>
+
+```js
+function binarySearch(arr, target) {
+  let left = 0;
+  let right = arr.length - 1;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    if (arr[mid] === target) return mid;
+    if (arr[mid] < target) left = mid + 1;
+    else right = mid - 1;
+  }
+  return -1;
+}
+```
+
+</Solution>

@@ -1,0 +1,87 @@
+---
+title: "Кастомный хук useDebounce"
+order: 5
+---
+
+Напишите хук `useDebounce(value, delay)`, который возвращает дебаунсированное значение: оно обновляется только спустя `delay` миллисекунд после последнего изменения `value`. Используйте хук для отложенного поиска в инпуте.
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function useDebounce(value, delay) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка — запустите в своём React-проекте
+export default function App() {
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 500);
+
+  useEffect(() => {
+    if (debouncedQuery) {
+      console.log('Поиск:', debouncedQuery); // Срабатывает через 500 мс после остановки ввода
+    }
+  }, [debouncedQuery]);
+
+  return (
+    <input
+      value={query}
+      onChange={e => setQuery(e.target.value)}
+      placeholder="Введите запрос..."
+    />
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Внутри хука используйте `useState` для хранения дебаунсированного значения и `useEffect` для обновления — с зависимостью от `value` и `delay`.
+</Hint>
+
+<Hint title="Подсказка 2">
+В `useEffect` установите `setTimeout`, который обновит состояние через `delay`. Верните функцию очистки, которая вызывает `clearTimeout` — это сбросит таймер при каждом изменении `value`.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+export default function App() {
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 500);
+
+  useEffect(() => {
+    if (debouncedQuery) {
+      console.log('Поиск:', debouncedQuery);
+    }
+  }, [debouncedQuery]);
+
+  return (
+    <input
+      value={query}
+      onChange={e => setQuery(e.target.value)}
+      placeholder="Введите запрос..."
+    />
+  );
+}
+```
+
+</Solution>

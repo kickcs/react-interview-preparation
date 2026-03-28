@@ -1,0 +1,56 @@
+---
+title: "delay(ms)"
+order: 1
+---
+
+Реализуйте функцию `delay(ms)`, которая возвращает промис, разрешающийся через указанное количество миллисекунд.
+
+<StarterCode>
+
+```js
+function delay(ms) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const start = Date.now();
+  await delay(100);
+  console.log(Date.now() - start >= 100); // true
+
+  const start2 = Date.now();
+  await delay(200);
+  console.log(Date.now() - start2 >= 200); // true
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`setTimeout` принимает колбэк и задержку в миллисекундах. Промис можно создать через `new Promise(resolve => ...)`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Передайте `resolve` напрямую как колбэк в `setTimeout`: `setTimeout(resolve, ms)`. Дополнительных аргументов не нужно.
+</Hint>
+
+<Solution>
+
+```js
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Проверки
+(async () => {
+  const start = Date.now();
+  await delay(100);
+  console.log(Date.now() - start >= 100); // true
+
+  const start2 = Date.now();
+  await delay(200);
+  console.log(Date.now() - start2 >= 200); // true
+})();
+```
+
+</Solution>

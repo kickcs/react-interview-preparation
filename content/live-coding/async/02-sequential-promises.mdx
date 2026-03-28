@@ -1,0 +1,70 @@
+---
+title: "sequential(tasks)"
+order: 2
+---
+
+Реализуйте функцию `sequential(tasks)`, которая принимает массив async-функций (каждая без аргументов) и выполняет их **последовательно** — следующая начинается только после завершения предыдущей. Возвращает промис с массивом всех результатов в том же порядке.
+
+<StarterCode>
+
+```js
+function sequential(tasks) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const log = [];
+
+  const tasks = [
+    async () => { log.push(1); return 'a'; },
+    async () => { log.push(2); return 'b'; },
+    async () => { log.push(3); return 'c'; },
+  ];
+
+  const results = await sequential(tasks);
+
+  console.log(JSON.stringify(log));     // [1,2,3]  — порядок выполнения
+  console.log(JSON.stringify(results)); // ["a","b","c"]  — массив результатов
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Нельзя использовать `Promise.all` — он запускает всё одновременно. Нужно ждать каждый промис перед запуском следующего.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте цикл `for...of` с `await` внутри, накапливая результаты в массив. Либо `Array.prototype.reduce` с начальным значением `Promise.resolve([])`, где каждый шаг делает `acc.then(async results => [...results, await task()])`.
+</Hint>
+
+<Solution>
+
+```js
+async function sequential(tasks) {
+  const results = [];
+  for (const task of tasks) {
+    results.push(await task());
+  }
+  return results;
+}
+
+// Проверки
+(async () => {
+  const log = [];
+
+  const tasks = [
+    async () => { log.push(1); return 'a'; },
+    async () => { log.push(2); return 'b'; },
+    async () => { log.push(3); return 'c'; },
+  ];
+
+  const results = await sequential(tasks);
+
+  console.log(JSON.stringify(log));     // [1,2,3]
+  console.log(JSON.stringify(results)); // ["a","b","c"]
+})();
+```
+
+</Solution>

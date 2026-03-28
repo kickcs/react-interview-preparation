@@ -1,0 +1,79 @@
+---
+title: "withTimeout(promise, ms)"
+order: 8
+---
+
+Реализуйте функцию `withTimeout(promise, ms)`, которая возвращает новый промис. Если переданный промис разрешится до истечения `ms` миллисекунд — результат передаётся дальше. Если нет — промис отклоняется с ошибкой `"Timeout"`.
+
+<StarterCode>
+
+```js
+function withTimeout(promise, ms) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: быстрый промис — получаем результат
+  const result = await withTimeout(
+    delay(20).then(() => 'fast'),
+    100
+  );
+  console.log(result); // "fast"
+
+  // Тест 2: медленный промис — получаем ошибку таймаута
+  try {
+    await withTimeout(delay(500).then(() => 'slow'), 50);
+  } catch (e) {
+    console.log(e.message); // "Timeout"
+  }
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте «гонку» между оригинальным промисом и промисом-таймером. Промис-таймер реджектится через `ms` миллисекунд. Используйте `Promise.race`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Таймер-промис: `new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))`. Передайте его вместе с оригинальным промисом в `Promise.race([promise, timer])`. Не забудьте очистить таймер если оригинал победил — иначе процесс Node.js не завершится.
+</Hint>
+
+<Solution>
+
+```js
+function withTimeout(promise, ms) {
+  let timerId;
+  const timeout = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error('Timeout')), ms);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    clearTimeout(timerId);
+  });
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: быстрый промис — получаем результат
+  const result = await withTimeout(
+    delay(20).then(() => 'fast'),
+    100
+  );
+  console.log(result); // "fast"
+
+  // Тест 2: медленный промис — получаем ошибку таймаута
+  try {
+    await withTimeout(delay(500).then(() => 'slow'), 50);
+  } catch (e) {
+    console.log(e.message); // "Timeout"
+  }
+})();
+```
+
+</Solution>

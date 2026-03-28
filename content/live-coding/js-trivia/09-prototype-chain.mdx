@@ -1,0 +1,53 @@
+---
+title: "instanceof и цепочка прототипов"
+order: 9
+---
+
+Оператор `instanceof` проверяет, находится ли `prototype` конструктора в цепочке прототипов объекта. Задача показывает, как всё в JS наследуется от `Object`, и особый случай с `null`.
+
+**Предскажите, что выведет каждый `console.log`:**
+
+<StarterCode>
+
+```js
+console.log([] instanceof Array);
+console.log([] instanceof Object);
+console.log(({}) instanceof Object);
+console.log(null instanceof Object);
+console.log(function(){} instanceof Function);
+console.log(function(){} instanceof Object);
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+`instanceof` идёт по цепочке прототипов объекта и ищет `Constructor.prototype`. Цепочка массива: `[] → Array.prototype → Object.prototype → null`. Поэтому массив одновременно является и `Array`, и `Object`. Но `null` не является объектом — `typeof null === "object"` — исторический баг, но `null instanceof Object` даёт другой результат.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+true
+true
+true
+false
+true
+true
+```
+
+**Объяснение:**
+
+- `[] instanceof Array` → `true`: `Array.prototype` находится в цепочке прототипов `[]`.
+
+- `[] instanceof Object` → `true`: цепочка прототипов массива: `[] → Array.prototype → Object.prototype → null`. `Object.prototype` есть в этой цепочке, поэтому `true`. Всё в JS (кроме примитивов и `null`/`undefined`) является экземпляром `Object`.
+
+- `({}) instanceof Object` → `true`: цепочка объекта: `{} → Object.prototype → null`. `Object.prototype` есть.
+
+- `null instanceof Object` → `false`: `instanceof` проверяет цепочку прототипов. У `null` нет прототипов — это пустое значение. Оператор возвращает `false`. Несмотря на `typeof null === "object"`, `null` не является объектом в смысле `instanceof`.
+
+- `function(){} instanceof Function` → `true`: функции — экземпляры `Function`.
+
+- `function(){} instanceof Object` → `true`: цепочка функции: `fn → Function.prototype → Object.prototype → null`. Функции тоже наследуются от `Object`.
+
+</Solution>

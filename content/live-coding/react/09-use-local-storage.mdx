@@ -1,0 +1,87 @@
+---
+title: "Кастомный хук useLocalStorage"
+order: 9
+---
+
+Напишите хук `useLocalStorage(key, initialValue)`, который работает как `useState`, но синхронизирует значение с `localStorage`. При перезагрузке страницы значение должно восстанавливаться из хранилища.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+function useLocalStorage(key, initialValue) {
+  // Ваш код здесь
+  // API: [storedValue, setValue] — как useState
+}
+
+// ✅ Проверка — измените тему и перезагрузите страницу
+export default function App() {
+  const [theme, setTheme] = useLocalStorage('theme', 'light');
+
+  return (
+    <div style={{ background: theme === 'dark' ? '#222' : '#fff', color: theme === 'dark' ? '#fff' : '#222', padding: 20 }}>
+      <p>Текущая тема: {theme}</p>
+      <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+        Переключить тему
+      </button>
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Инициализируйте `useState` с функцией-ленивым инициализатором: попробуйте прочитать значение из `localStorage.getItem(key)` и разобрать его через `JSON.parse`. Если значения нет или произошла ошибка — используйте `initialValue`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Оберните сеттер: при вызове записывайте новое значение через `localStorage.setItem(key, JSON.stringify(value))`. Не забудьте поддержать функциональные обновления — если передана функция, вычислите новое значение из предыдущего.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      const item = localStorage.getItem(key);
+      return item !== null ? JSON.parse(item) : initialValue;
+    } catch {
+      return initialValue;
+    }
+  });
+
+  const setValue = (value) => {
+    setStoredValue(prev => {
+      const newValue = typeof value === 'function' ? value(prev) : value;
+      try {
+        localStorage.setItem(key, JSON.stringify(newValue));
+      } catch {
+        console.warn('useLocalStorage: ошибка записи в localStorage');
+      }
+      return newValue;
+    });
+  };
+
+  return [storedValue, setValue];
+}
+
+export default function App() {
+  const [theme, setTheme] = useLocalStorage('theme', 'light');
+
+  return (
+    <div style={{ background: theme === 'dark' ? '#222' : '#fff', color: theme === 'dark' ? '#fff' : '#222', padding: 20 }}>
+      <p>Текущая тема: {theme}</p>
+      <button onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>
+        Переключить тему
+      </button>
+    </div>
+  );
+}
+```
+
+</Solution>

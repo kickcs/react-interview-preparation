@@ -1,0 +1,96 @@
+---
+title: "Switch → объект-маппинг"
+order: 4
+---
+
+Функции `getPlanName` и `getPlanPrice` содержат большие `switch`-операторы с 6 кейсами каждый. Добавление нового тарифа требует правок в двух местах. Замените оба `switch` одним объектом-словарём, где каждый ключ — тип плана, а значение содержит и название, и цену.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function getPlanName(planType) {
+  switch (planType) {
+    case 'free':    return 'Бесплатный';
+    case 'basic':   return 'Базовый';
+    case 'pro':     return 'Профессиональный';
+    case 'team':    return 'Командный';
+    case 'business':return 'Бизнес';
+    case 'enterprise': return 'Корпоративный';
+    default:        return 'Неизвестный';
+  }
+}
+
+function getPlanPrice(planType) {
+  switch (planType) {
+    case 'free':    return 0;
+    case 'basic':   return 299;
+    case 'pro':     return 799;
+    case 'team':    return 1499;
+    case 'business':return 3999;
+    case 'enterprise': return 9999;
+    default:        return null;
+  }
+}
+
+function getPlanLabel(planType) {
+  const name = getPlanName(planType);
+  const price = getPlanPrice(planType);
+  if (price === 0) return `${name} (бесплатно)`;
+  if (price === null) return name;
+  return `${name} — ${price} ₽/мес`;
+}
+
+// ✅ Проверка
+console.log(getPlanName('pro') === 'Профессиональный');    // true
+console.log(getPlanPrice('basic') === 299);                // true
+console.log(getPlanName('unknown') === 'Неизвестный');     // true
+console.log(getPlanPrice('unknown') === null);             // true
+console.log(getPlanLabel('free') === 'Бесплатный (бесплатно)'); // true
+console.log(getPlanLabel('team') === 'Командный — 1499 ₽/мес'); // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте объект `PLANS`, где каждый ключ — это `planType`, а значение — объект `{ name, price }`. Все данные об одном тарифе хранятся в одном месте.
+</Hint>
+
+<Hint title="Подсказка 2">
+Функции превращаются в простые геттеры: `PLANS[planType]?.name ?? 'Неизвестный'`. Обратите внимание на разные значения по умолчанию для `name` и `price`.
+</Hint>
+
+<Hint title="Подсказка 3">
+После рефакторинга добавление нового тарифа — это одна запись в объект `PLANS`. Никаких правок в нескольких функциях.
+</Hint>
+
+<Solution>
+
+```js
+const PLANS = {
+  free:       { name: 'Бесплатный',      price: 0 },
+  basic:      { name: 'Базовый',          price: 299 },
+  pro:        { name: 'Профессиональный', price: 799 },
+  team:       { name: 'Командный',        price: 1499 },
+  business:   { name: 'Бизнес',           price: 3999 },
+  enterprise: { name: 'Корпоративный',    price: 9999 },
+};
+
+function getPlanName(planType) {
+  return PLANS[planType]?.name ?? 'Неизвестный';
+}
+
+function getPlanPrice(planType) {
+  return PLANS[planType]?.price ?? null;
+}
+
+function getPlanLabel(planType) {
+  const name = getPlanName(planType);
+  const price = getPlanPrice(planType);
+  if (price === 0) return `${name} (бесплатно)`;
+  if (price === null) return name;
+  return `${name} — ${price} ₽/мес`;
+}
+```
+
+</Solution>

@@ -1,0 +1,81 @@
+---
+title: "AsyncQueue"
+order: 6
+---
+
+Реализуйте класс `AsyncQueue` с двумя методами:
+
+- `add(task)` — добавляет async-задачу в очередь. Задачи выполняются строго по одной (следующая стартует только после завершения текущей). Возвращает промис с результатом этой задачи.
+- `waitForAll()` — возвращает промис, который разрешается когда все добавленные задачи завершены.
+
+<StarterCode>
+
+```js
+class AsyncQueue {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const log = [];
+  const queue = new AsyncQueue();
+
+  queue.add(async () => { await delay(30); log.push(1); return 'a'; });
+  queue.add(async () => { await delay(10); log.push(2); return 'b'; });
+  const p3 = queue.add(async () => { log.push(3); return 'c'; });
+
+  await queue.waitForAll();
+
+  console.log(JSON.stringify(log)); // [1,2,3]  — строго последовательно
+  console.log(await p3);            // "c"
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Храните текущий «хвост» цепочки промисов — `this.chain`. Каждый `add(task)` делает `this.chain = this.chain.then(() => task())`. Тогда задачи автоматически выстраиваются в очередь.
+</Hint>
+
+<Hint title="Подсказка 2">
+Чтобы ошибка одной задачи не ломала всю цепочку, добавьте `.catch(() => {})` при обновлении `this.chain`, но не при возврате промиса наружу — так вызывающий код всё равно получит reject своего промиса. `waitForAll()` просто возвращает текущий `this.chain`.
+</Hint>
+
+<Solution>
+
+```js
+class AsyncQueue {
+  constructor() {
+    this.chain = Promise.resolve();
+  }
+
+  add(task) {
+    const result = this.chain.then(() => task());
+    this.chain = result.catch(() => {});
+    return result;
+  }
+
+  waitForAll() {
+    return this.chain;
+  }
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const log = [];
+  const queue = new AsyncQueue();
+
+  queue.add(async () => { await delay(30); log.push(1); return 'a'; });
+  queue.add(async () => { await delay(10); log.push(2); return 'b'; });
+  const p3 = queue.add(async () => { log.push(3); return 'c'; });
+
+  await queue.waitForAll();
+
+  console.log(JSON.stringify(log)); // [1,2,3]
+  console.log(await p3);            // "c"
+})();
+```
+
+</Solution>

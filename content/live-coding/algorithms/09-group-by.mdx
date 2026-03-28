@@ -1,0 +1,48 @@
+---
+title: "Группировка массива"
+order: 9
+---
+
+Реализуйте функцию `groupBy(arr, fn)`, которая группирует элементы массива по ключу, возвращаемому функцией `fn`. Результат — объект, где ключи — результаты `fn`, значения — массивы элементов.
+
+<StarterCode>
+
+```js
+function groupBy(arr, fn) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const byParity = groupBy([1, 2, 3, 4, 5], n => n % 2 === 0 ? 'even' : 'odd');
+console.log(JSON.stringify(byParity.odd) === '[1,3,5]');   // true
+console.log(JSON.stringify(byParity.even) === '[2,4]');    // true
+
+const byLength = groupBy(['one', 'two', 'three', 'hi'], s => s.length);
+console.log(JSON.stringify(byLength[3]) === '["one","two"]'); // true
+console.log(JSON.stringify(byLength[2]) === '["hi"]');        // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Задача идеально решается через `Array.prototype.reduce`. Аккумулятор — пустой объект `{}`, на каждой итерации вычисляйте ключ группы через `fn(item)`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Если ключ уже есть в аккумуляторе — добавьте элемент в существующий массив. Если нет — создайте новый массив с этим элементом. Короткая запись: `acc[key] = [...(acc[key] ?? []), item]`.
+</Hint>
+
+<Solution>
+
+```js
+function groupBy(arr, fn) {
+  return arr.reduce((acc, item) => {
+    const key = fn(item);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+}
+```
+
+</Solution>

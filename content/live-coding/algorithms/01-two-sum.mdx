@@ -1,0 +1,47 @@
+---
+title: "Two Sum"
+order: 1
+---
+
+Дан массив чисел `nums` и число `target`. Найдите два индекса, сумма элементов которых равна `target`. Каждый входной набор имеет ровно одно решение, один элемент нельзя использовать дважды. Верните индексы в любом порядке.
+
+<StarterCode>
+
+```js
+function twoSum(nums, target) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(JSON.stringify(twoSum([2, 7, 11, 15], 9)) === '[0,1]');  // true
+console.log(JSON.stringify(twoSum([3, 2, 4], 6)) === '[1,2]');        // true
+console.log(JSON.stringify(twoSum([3, 3], 6)) === '[0,1]');           // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Наивное решение за O(n²) — двойной цикл. Но можно сделать за O(n): для каждого элемента ищите его «дополнение» `target - nums[i]` в уже просмотренных числах.
+</Hint>
+
+<Hint title="Подсказка 2">
+Используйте `Map`, где ключ — значение элемента, а значение — его индекс. Для каждого `nums[i]` проверяйте, есть ли `target - nums[i]` в Map, прежде чем добавить сам элемент.
+</Hint>
+
+<Solution>
+
+```js
+function twoSum(nums, target) {
+  const seen = new Map(); // value → index
+  for (let i = 0; i < nums.length; i++) {
+    const complement = target - nums[i];
+    if (seen.has(complement)) {
+      return [seen.get(complement), i];
+    }
+    seen.set(nums[i], i);
+  }
+  return [];
+}
+```
+
+</Solution>

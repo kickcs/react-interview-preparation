@@ -1,0 +1,121 @@
+---
+title: "Выделение валидации"
+order: 6
+---
+
+Функция `submitForm` перемешивает валидацию (проверку email, пароля, возраста) с бизнес-логикой (сохранением пользователя). Это нарушает принцип единственной ответственности и делает функцию сложной для тестирования. Вынесите каждую проверку в отдельную функцию-валидатор. Результаты для валидных и невалидных данных должны совпадать.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function submitForm(data) {
+  const errors = [];
+
+  if (!data.email || !data.email.includes('@') || !data.email.includes('.')) {
+    errors.push('Некорректный email');
+  }
+
+  if (!data.password || data.password.length < 8) {
+    errors.push('Пароль должен быть не менее 8 символов');
+  }
+  if (data.password && !/[A-Z]/.test(data.password)) {
+    errors.push('Пароль должен содержать хотя бы одну заглавную букву');
+  }
+  if (data.password && !/[0-9]/.test(data.password)) {
+    errors.push('Пароль должен содержать хотя бы одну цифру');
+  }
+
+  if (data.age === undefined || data.age === null) {
+    errors.push('Возраст обязателен');
+  } else if (data.age < 18) {
+    errors.push('Возраст должен быть не менее 18 лет');
+  } else if (data.age > 120) {
+    errors.push('Некорректный возраст');
+  }
+
+  if (errors.length > 0) {
+    return { success: false, errors };
+  }
+
+  // бизнес-логика: сохранение пользователя
+  const user = { id: Math.random().toString(36).slice(2), ...data, createdAt: new Date().toISOString() };
+  return { success: true, user };
+}
+
+// ✅ Проверка
+const badResult = submitForm({ email: 'bad', password: 'weak', age: 15 });
+console.log(badResult.success === false);      // true
+console.log(badResult.errors.length >= 3);     // true — несколько ошибок
+
+const goodResult = submitForm({ email: 'user@example.com', password: 'Secure123', age: 25 });
+console.log(goodResult.success === true);      // true
+console.log(typeof goodResult.user.id === 'string'); // true
+
+const noAge = submitForm({ email: 'a@b.com', password: 'Pass1234' });
+console.log(noAge.errors.includes('Возраст обязателен')); // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте функции `validateEmail(email)`, `validatePassword(password)` и `validateAge(age)`. Каждая возвращает массив строк с ошибками (пустой массив — если всё в порядке).
+</Hint>
+
+<Hint title="Подсказка 2">
+В `submitForm` соберите ошибки через `[...validateEmail(...), ...validatePassword(...), ...validateAge(...)]`. Бизнес-логика (создание пользователя) остаётся в конце функции без изменений.
+</Hint>
+
+<Hint title="Подсказка 3">
+Отдельные валидаторы теперь можно тестировать независимо. Вы можете также создать `validateForm(data)`, которая агрегирует все ошибки, а `submitForm` станет ещё тоньше.
+</Hint>
+
+<Solution>
+
+```js
+function validateEmail(email) {
+  if (!email || !email.includes('@') || !email.includes('.')) {
+    return ['Некорректный email'];
+  }
+  return [];
+}
+
+function validatePassword(password) {
+  const errors = [];
+  if (!password || password.length < 8) {
+    errors.push('Пароль должен быть не менее 8 символов');
+  }
+  if (password && !/[A-Z]/.test(password)) {
+    errors.push('Пароль должен содержать хотя бы одну заглавную букву');
+  }
+  if (password && !/[0-9]/.test(password)) {
+    errors.push('Пароль должен содержать хотя бы одну цифру');
+  }
+  return errors;
+}
+
+function validateAge(age) {
+  if (age === undefined || age === null) return ['Возраст обязателен'];
+  if (age < 18) return ['Возраст должен быть не менее 18 лет'];
+  if (age > 120) return ['Некорректный возраст'];
+  return [];
+}
+
+function validateForm(data) {
+  return [
+    ...validateEmail(data.email),
+    ...validatePassword(data.password),
+    ...validateAge(data.age),
+  ];
+}
+
+function submitForm(data) {
+  const errors = validateForm(data);
+  if (errors.length > 0) return { success: false, errors };
+
+  const user = { id: Math.random().toString(36).slice(2), ...data, createdAt: new Date().toISOString() };
+  return { success: true, user };
+}
+```
+
+</Solution>

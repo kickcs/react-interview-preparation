@@ -1,0 +1,56 @@
+---
+title: "Реализация MyPick<T, K>"
+order: 3
+---
+
+Реализуйте утилитарный тип `MyPick<T, K>` — аналог встроенного `Pick<T, K>`. Тип должен брать из объекта `T` только те свойства, ключи которых перечислены в `K`. Использовать встроенный `Pick` нельзя.
+
+<StarterCode>
+
+```ts
+type MyPick<T, K> = // Ваш тип
+
+// ✅ Проверка
+type Source = { a: number; b: string; c: boolean };
+
+type Result = MyPick<Source, "a" | "b">;
+// Ожидается: { a: number; b: string }
+
+declare const r: Result;
+console.log(r.a, r.b); // OK
+
+// @ts-expect-error — свойство c не должно существовать
+console.log(r.c);
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте mapped type: `{ [P in K]: T[P] }`. Параметр `K` должен быть ограничен — он может содержать только ключи из `T`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Добавьте ограничение `K extends keyof T`, чтобы TypeScript не позволял указывать несуществующие ключи. Итоговая запись: `type MyPick<T, K extends keyof T> = { [P in K]: T[P] }`.
+</Hint>
+
+<Solution>
+
+```ts
+type MyPick<T, K extends keyof T> = {
+  [P in K]: T[P];
+};
+
+// ✅ Проверка
+type Source = { a: number; b: string; c: boolean };
+
+type Result = MyPick<Source, "a" | "b">;
+// Результат: { a: number; b: string }
+
+declare const r: Result;
+console.log(r.a, r.b); // OK
+
+// @ts-expect-error — свойство c не должно существовать
+console.log(r.c);
+```
+
+</Solution>

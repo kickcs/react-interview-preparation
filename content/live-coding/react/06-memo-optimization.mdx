@@ -1,0 +1,76 @@
+---
+title: "Оптимизация React.memo и useCallback"
+order: 6
+---
+
+Дочерний компонент `Child` ререндерится при каждом нажатии на кнопку в родителе, хотя его пропсы не меняются. Откройте консоль и убедитесь в этом. Оптимизируйте компонент с помощью `React.memo` и `useCallback`.
+
+<StarterCode>
+
+```jsx
+import { useState, useCallback, memo } from 'react';
+
+// ❌ Child ререндерится при каждом обновлении Parent
+function Child({ onClick }) {
+  console.log('Child render'); // Должно выводиться только при реальном изменении
+  return <button onClick={onClick}>Дочерняя кнопка</button>;
+}
+
+export default function Parent() {
+  const [count, setCount] = useState(0);
+
+  // Эта функция создаётся заново при каждом рендере Parent
+  const handleClick = () => {
+    console.log('Клик по дочерней кнопке');
+  };
+
+  return (
+    <div>
+      <p>Счётчик: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1 в Parent</button>
+      <Child onClick={handleClick} />
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+`React.memo` оборачивает компонент и пропускает ре-рендер, если пропсы не изменились (shallow comparison). Оберните `Child` в `memo`.
+</Hint>
+
+<Hint title="Подсказка 2">
+`memo` не поможет, если пропс-функция создаётся заново при каждом рендере — ссылка на неё всегда новая. Оберните `handleClick` в `useCallback`, чтобы функция сохранялась между рендерами.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useCallback, memo } from 'react';
+
+// ✅ memo — пропускает ре-рендер при тех же пропсах
+const Child = memo(function Child({ onClick }) {
+  console.log('Child render'); // Теперь выводится только при изменении onClick
+  return <button onClick={onClick}>Дочерняя кнопка</button>;
+});
+
+export default function Parent() {
+  const [count, setCount] = useState(0);
+
+  // ✅ useCallback — стабильная ссылка на функцию
+  const handleClick = useCallback(() => {
+    console.log('Клик по дочерней кнопке');
+  }, []);
+
+  return (
+    <div>
+      <p>Счётчик: {count}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1 в Parent</button>
+      <Child onClick={handleClick} />
+    </div>
+  );
+}
+```
+
+</Solution>

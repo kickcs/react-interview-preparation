@@ -1,0 +1,71 @@
+---
+title: "Перегрузки функции createElement"
+order: 7
+---
+
+Напишите перегрузки для функции `createElement(tag: string)`, чтобы TypeScript возвращал точный тип DOM-элемента в зависимости от тега: `'div'` → `HTMLDivElement`, `'a'` → `HTMLAnchorElement`, `'input'` → `HTMLInputElement`, любая другая строка → `HTMLElement`.
+
+<StarterCode>
+
+```ts
+// Объявите перегрузки здесь
+function createElement(tag: "div"): HTMLDivElement;
+// ... остальные перегрузки
+
+function createElement(tag: string): HTMLElement {
+  return document.createElement(tag);
+}
+
+// ✅ Проверки
+const div   = createElement("div");
+const a     = createElement("a");
+const input = createElement("input");
+const span  = createElement("span");
+
+// div должен иметь тип HTMLDivElement
+div.style.display = "flex"; // OK для HTMLDivElement
+
+// a должен иметь тип HTMLAnchorElement
+a.href = "https://example.com"; // OK для HTMLAnchorElement
+
+// input должен иметь тип HTMLInputElement
+input.value = "text"; // OK для HTMLInputElement
+
+// span — общий HTMLElement
+span.id = "my-span"; // OK для HTMLElement
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Перегрузки функции — это несколько сигнатур перед реализацией. Каждая сигнатура описывает отдельный случай вызова. Реализация должна быть совместима со всеми перегрузками, поэтому её параметры и возвращаемый тип делают более общими.
+</Hint>
+
+<Hint title="Подсказка 2">
+Запишите три перегрузки с конкретными тегами перед реализацией, а реализацию — с типом `(tag: string): HTMLElement`. TypeScript будет использовать первую подходящую перегрузку при вызове, поэтому порядок важен: специфичные идут раньше общей.
+</Hint>
+
+<Solution>
+
+```ts
+function createElement(tag: "div"):   HTMLDivElement;
+function createElement(tag: "a"):     HTMLAnchorElement;
+function createElement(tag: "input"): HTMLInputElement;
+function createElement(tag: string):  HTMLElement;
+function createElement(tag: string):  HTMLElement {
+  return document.createElement(tag);
+}
+
+// ✅ Проверки
+const div   = createElement("div");   // HTMLDivElement
+const a     = createElement("a");     // HTMLAnchorElement
+const input = createElement("input"); // HTMLInputElement
+const span  = createElement("span");  // HTMLElement
+
+div.style.display = "flex";
+a.href = "https://example.com";
+input.value = "text";
+span.id = "my-span";
+```
+
+</Solution>

@@ -1,0 +1,124 @@
+---
+title: "Класс → функциональный стиль"
+order: 8
+---
+
+Класс `ShoppingCart` хранит список товаров и предоставляет методы для работы с корзиной. Перепишите его в функциональном стиле: используйте замыкание (фабричную функцию) или набор чистых функций. Публичный API (`addItem`, `removeItem`, `getTotal`, `getItems`, `clear`) и все результаты должны остаться прежними.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+class ShoppingCart {
+  constructor() {
+    this._items = [];
+  }
+
+  addItem(product, quantity = 1) {
+    const existing = this._items.find(i => i.product.id === product.id);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      this._items.push({ product, quantity });
+    }
+    return this;
+  }
+
+  removeItem(productId) {
+    this._items = this._items.filter(i => i.product.id !== productId);
+    return this;
+  }
+
+  getTotal() {
+    return this._items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  }
+
+  getItems() {
+    return [...this._items];
+  }
+
+  clear() {
+    this._items = [];
+    return this;
+  }
+}
+
+// ✅ Проверка
+const cart = new ShoppingCart();
+const apple = { id: 1, name: 'Яблоко', price: 50 };
+const bread = { id: 2, name: 'Хлеб', price: 80 };
+
+cart.addItem(apple, 3).addItem(bread);
+console.log(cart.getTotal() === 230);       // true: 50×3 + 80×1
+console.log(cart.getItems().length === 2);  // true
+
+cart.addItem(apple, 2);
+console.log(cart.getTotal() === 330);       // true: 50×5 + 80×1
+
+cart.removeItem(2);
+console.log(cart.getTotal() === 250);       // true: 50×5
+console.log(cart.getItems().length === 1);  // true
+
+cart.clear();
+console.log(cart.getTotal() === 0);         // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте фабричную функцию `createShoppingCart()`, которая объявляет переменную `let items = []` и возвращает объект с методами — точно как в задаче о замыкании-счётчике.
+</Hint>
+
+<Hint title="Подсказка 2">
+Методы обращаются к `items` через замыкание. Чтобы сохранить цепочку `.addItem(...).removeItem(...)`, каждый метод должен возвращать объект корзины (`return cart`).
+</Hint>
+
+<Hint title="Подсказка 3">
+В `getItems()` возвращайте копию массива (`[...items]`), а не сам массив — иначе внешний код сможет мутировать внутреннее состояние корзины.
+</Hint>
+
+<Solution>
+
+```js
+function createShoppingCart() {
+  let items = [];
+
+  const cart = {
+    addItem(product, quantity = 1) {
+      const existing = items.find(i => i.product.id === product.id);
+      if (existing) {
+        existing.quantity += quantity;
+      } else {
+        items.push({ product, quantity });
+      }
+      return cart;
+    },
+
+    removeItem(productId) {
+      items = items.filter(i => i.product.id !== productId);
+      return cart;
+    },
+
+    getTotal() {
+      return items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+    },
+
+    getItems() {
+      return [...items];
+    },
+
+    clear() {
+      items = [];
+      return cart;
+    },
+  };
+
+  return cart;
+}
+
+// Для совместимости с проверкой через `new` можно обернуть,
+// но стандартный способ использования — createShoppingCart()
+const cart = createShoppingCart();
+```
+
+</Solution>

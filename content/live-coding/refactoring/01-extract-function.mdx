@@ -1,0 +1,107 @@
+---
+title: "Выделение функций"
+order: 1
+---
+
+Функция `processOrder` делает слишком много: вычисляет скидку, считает налог, форматирует итоговую сумму и собирает строку-резюме заказа — всё в одном месте. Разбейте её на небольшие чистые функции с говорящими именами. Поведение должно остаться прежним.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function processOrder(price, quantity, customerType, country) {
+  let discount = 0;
+  if (customerType === 'vip') {
+    discount = 0.2;
+  } else if (customerType === 'regular') {
+    discount = 0.1;
+  } else {
+    discount = 0;
+  }
+
+  const subtotal = price * quantity;
+  const discountAmount = subtotal * discount;
+  const afterDiscount = subtotal - discountAmount;
+
+  let taxRate = 0;
+  if (country === 'RU') {
+    taxRate = 0.20;
+  } else if (country === 'DE') {
+    taxRate = 0.19;
+  } else if (country === 'US') {
+    taxRate = 0.08;
+  } else {
+    taxRate = 0.15;
+  }
+
+  const taxAmount = afterDiscount * taxRate;
+  const total = afterDiscount + taxAmount;
+
+  const formatted = new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 2,
+  }).format(total);
+
+  return `Заказ: ${quantity} шт. × ${price} ₽ | скидка ${discount * 100}% | налог ${taxRate * 100}% | итого: ${formatted}`;
+}
+
+// ✅ Проверка
+console.log(processOrder(1000, 3, 'vip', 'RU') === processOrder(1000, 3, 'vip', 'RU')); // true
+const result = processOrder(500, 2, 'regular', 'DE');
+console.log(typeof result === 'string');          // true
+console.log(result.includes('10%'));              // true — скидка 10%
+console.log(result.includes('19%'));              // true — налог 19%
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Начните с самого очевидного: выделите функцию `getDiscount(customerType)`, которая просто возвращает число от 0 до 1.
+</Hint>
+
+<Hint title="Подсказка 2">
+Аналогично выделите `getTaxRate(country)`. Обе функции — чистые: никаких побочных эффектов, только аргумент → возвращаемое значение.
+</Hint>
+
+<Hint title="Подсказка 3">
+Выделите `calculateTotal(price, quantity, discount, taxRate)` и `formatCurrency(amount)`. Тогда `processOrder` превратится в тонкий оркестратор, который вызывает эти функции последовательно.
+</Hint>
+
+<Solution>
+
+```js
+function getDiscount(customerType) {
+  const discounts = { vip: 0.2, regular: 0.1 };
+  return discounts[customerType] ?? 0;
+}
+
+function getTaxRate(country) {
+  const taxRates = { RU: 0.20, DE: 0.19, US: 0.08 };
+  return taxRates[country] ?? 0.15;
+}
+
+function calculateTotal(price, quantity, discount, taxRate) {
+  const subtotal = price * quantity;
+  const afterDiscount = subtotal * (1 - discount);
+  return afterDiscount * (1 + taxRate);
+}
+
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+function processOrder(price, quantity, customerType, country) {
+  const discount = getDiscount(customerType);
+  const taxRate = getTaxRate(country);
+  const total = calculateTotal(price, quantity, discount, taxRate);
+  const formatted = formatCurrency(total);
+  return `Заказ: ${quantity} шт. × ${price} ₽ | скидка ${discount * 100}% | налог ${taxRate * 100}% | итого: ${formatted}`;
+}
+```
+
+</Solution>

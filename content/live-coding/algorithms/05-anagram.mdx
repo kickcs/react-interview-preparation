@@ -1,0 +1,52 @@
+---
+title: "Анаграмма"
+order: 5
+---
+
+Реализуйте функцию `isAnagram(str1, str2)`, которая проверяет, являются ли две строки анаграммами друг друга. Анаграмма — это слово, образованное перестановкой букв другого слова. Регистр игнорировать, пробелы не учитывать.
+
+<StarterCode>
+
+```js
+function isAnagram(str1, str2) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+console.log(isAnagram('listen', 'silent') === true);    // true
+console.log(isAnagram('hello', 'world') === false);     // true
+console.log(isAnagram('Astronomer', 'Moon starer') === true); // true
+console.log(isAnagram('abc', 'ab') === false);          // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Простой способ — отсортировать символы обеих строк и сравнить результаты. Не забудьте предварительно привести к нижнему регистру и удалить пробелы.
+</Hint>
+
+<Hint title="Подсказка 2">
+Более эффективный способ — Map частот символов: подсчитайте количество каждой буквы в первой строке, затем уменьшайте счётчики, обходя вторую строку. Если все счётчики равны нулю — анаграмма.
+</Hint>
+
+<Solution>
+
+```js
+function isAnagram(str1, str2) {
+  const normalize = (s) => s.toLowerCase().replace(/\s/g, '');
+  const a = normalize(str1);
+  const b = normalize(str2);
+  if (a.length !== b.length) return false;
+
+  const freq = new Map();
+  for (const ch of a) freq.set(ch, (freq.get(ch) ?? 0) + 1);
+  for (const ch of b) {
+    if (!freq.has(ch)) return false;
+    freq.set(ch, freq.get(ch) - 1);
+    if (freq.get(ch) === 0) freq.delete(ch);
+  }
+  return freq.size === 0;
+}
+```
+
+</Solution>

@@ -1,0 +1,101 @@
+---
+title: "Кастомный хук useFetch"
+order: 7
+---
+
+Напишите хук `useFetch(url)`, который возвращает объект `{ data, loading, error }`. Хук должен обрабатывать состояние загрузки, ошибки и отменять запрос при размонтировании компонента (или при смене URL).
+
+<StarterCode>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function useFetch(url) {
+  // Ваш код здесь
+  // Верните: { data, loading, error }
+}
+
+// ✅ Проверка — запустите в своём React-проекте
+export default function App() {
+  const { data, loading, error } = useFetch(
+    'https://jsonplaceholder.typicode.com/posts/1'
+  );
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+
+  return (
+    <div>
+      <h2>{data?.title}</h2>
+      <p>{data?.body}</p>
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте три `useState`: для `data`, `loading` (начальное `true`) и `error`. В `useEffect` с зависимостью `[url]` выполните `fetch`, обновите состояние в `.then` и `.catch`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Для отмены запроса при смонтировании используйте `AbortController`. Создайте его в `useEffect`, передайте `signal` в `fetch`, а в функции очистки вызовите `controller.abort()`. Проверяйте `error.name === 'AbortError'`, чтобы не записывать ошибку отмены в стейт.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState, useEffect } from 'react';
+
+function useFetch(url) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    setLoading(true);
+    setError(null);
+
+    fetch(url, { signal: controller.signal })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+export default function App() {
+  const { data, loading, error } = useFetch(
+    'https://jsonplaceholder.typicode.com/posts/1'
+  );
+
+  if (loading) return <p>Загрузка...</p>;
+  if (error) return <p>Ошибка: {error}</p>;
+
+  return (
+    <div>
+      <h2>{data?.title}</h2>
+      <p>{data?.body}</p>
+    </div>
+  );
+}
+```
+
+</Solution>

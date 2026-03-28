@@ -1,0 +1,67 @@
+---
+title: "Promise.all полифил"
+order: 9
+---
+
+Реализуйте функцию `promiseAll(promises)` — аналог `Promise.all`. Функция принимает массив промисов и возвращает новый промис, который:
+- разрешается массивом результатов, когда все промисы выполнились (порядок результатов соответствует порядку промисов)
+- отклоняется с ошибкой первого отклонённого промиса
+
+<StarterCode>
+
+```js
+function promiseAll(promises) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const p1 = Promise.resolve(1);
+const p2 = Promise.resolve(2);
+const p3 = Promise.resolve(3);
+
+promiseAll([p1, p2, p3]).then(results => {
+  console.log(results.length === 3);                          // true
+  console.log(JSON.stringify(results) === '[1,2,3]');        // true
+});
+
+promiseAll([Promise.resolve('ok'), Promise.reject('err')])
+  .catch(err => {
+    console.log(err === 'err');                               // true
+  });
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Верните `new Promise((resolve, reject) => {...})`. Внутри нужно отслеживать, сколько промисов уже выполнились. Заведите счётчик и массив для результатов.
+</Hint>
+
+<Hint title="Подсказка 2">
+Пройдитесь по массиву через `forEach`. Для каждого промиса вызывайте `.then(value => ...)` — сохраняйте результат по индексу и увеличивайте счётчик. Когда счётчик равен длине массива — вызывайте `resolve`. В `.catch` сразу вызывайте `reject`. Не забудьте обработать случай пустого массива.
+</Hint>
+
+<Solution>
+
+```js
+function promiseAll(promises) {
+  return new Promise((resolve, reject) => {
+    if (promises.length === 0) {
+      resolve([]);
+      return;
+    }
+    const results = new Array(promises.length);
+    let resolved = 0;
+    promises.forEach((promise, index) => {
+      Promise.resolve(promise).then(value => {
+        results[index] = value;
+        resolved++;
+        if (resolved === promises.length) {
+          resolve(results);
+        }
+      }).catch(reject);
+    });
+  });
+}
+```
+
+</Solution>

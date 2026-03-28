@@ -1,0 +1,96 @@
+---
+title: "debounceAsync(fn, delay)"
+order: 10
+---
+
+Реализуйте функцию `debounceAsync(fn, delay)`, которая возвращает debounced версию async-функции `fn`. При серии быстрых вызовов реальный вызов `fn` происходит только один раз — через `delay` мс после **последнего** вызова. Каждый вызов debounced-функции возвращает промис, который разрешается результатом этого единственного реального вызова.
+
+<StarterCode>
+
+```js
+function debounceAsync(fn, delay) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  let callCount = 0;
+  const expensive = async (x) => {
+    callCount++;
+    return x * 10;
+  };
+
+  const debounced = debounceAsync(expensive, 50);
+
+  // Быстрые вызовы подряд
+  const p1 = debounced(1);
+  const p2 = debounced(2);
+  const p3 = debounced(3);
+
+  const results = await Promise.all([p1, p2, p3]);
+
+  console.log(callCount);              // 1  — fn вызвана только один раз
+  console.log(JSON.stringify(results));// [30,30,30]  — все получают результат последнего вызова
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Классический debounce: сбрасывайте таймер при каждом вызове через `clearTimeout` + `setTimeout`. Для async-версии нужно также хранить `resolve`/`reject` всех ожидающих промисов, чтобы разрешить их все когда `fn` наконец выполнится.
+</Hint>
+
+<Hint title="Подсказка 2">
+Храните массив `pending` — массив объектов `{ resolve, reject }`. При каждом вызове debounced-функции создавайте новый `Promise`, добавляйте его обработчики в `pending`, сбрасывайте таймер. По истечению таймера вызовите `fn` с аргументами **последнего** вызова, и по результату вызовите `resolve` или `reject` для всех элементов `pending`.
+</Hint>
+
+<Solution>
+
+```js
+function debounceAsync(fn, delay) {
+  let timer = null;
+  let pending = [];
+  let lastArgs;
+
+  return function (...args) {
+    lastArgs = args;
+    return new Promise((resolve, reject) => {
+      pending.push({ resolve, reject });
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const currentPending = pending;
+        pending = [];
+        timer = null;
+        try {
+          const result = await fn(...lastArgs);
+          currentPending.forEach(({ resolve }) => resolve(result));
+        } catch (err) {
+          currentPending.forEach(({ reject }) => reject(err));
+        }
+      }, delay);
+    });
+  };
+}
+
+// Проверки
+(async () => {
+  let callCount = 0;
+  const expensive = async (x) => {
+    callCount++;
+    return x * 10;
+  };
+
+  const debounced = debounceAsync(expensive, 50);
+
+  const p1 = debounced(1);
+  const p2 = debounced(2);
+  const p3 = debounced(3);
+
+  const results = await Promise.all([p1, p2, p3]);
+
+  console.log(callCount);               // 1
+  console.log(JSON.stringify(results)); // [30,30,30]
+})();
+```
+
+</Solution>

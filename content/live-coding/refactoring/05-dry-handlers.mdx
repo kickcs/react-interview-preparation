@@ -1,0 +1,85 @@
+---
+title: "DRY: обработчики формы"
+order: 5
+---
+
+Компонент формы содержит четыре почти идентичных обработчика `onChange` — `handleNameChange`, `handleEmailChange`, `handlePhoneChange`, `handleCityChange`. Они отличаются только именем поля в `setState`. Устраните дублирование, создав один универсальный обработчик. Поведение должно сохраниться полностью.
+
+<StarterCode>
+
+```js
+// "Плохой" код — нужно отрефакторить
+function createFormHandlers(state, setState) {
+  function handleNameChange(e) {
+    setState({ ...state, name: e.target.value });
+  }
+
+  function handleEmailChange(e) {
+    setState({ ...state, email: e.target.value });
+  }
+
+  function handlePhoneChange(e) {
+    setState({ ...state, phone: e.target.value });
+  }
+
+  function handleCityChange(e) {
+    setState({ ...state, city: e.target.value });
+  }
+
+  return { handleNameChange, handleEmailChange, handlePhoneChange, handleCityChange };
+}
+
+// ✅ Проверка
+let formState = { name: '', email: '', phone: '', city: '' };
+let setState = (next) => { formState = next; };
+
+let handlers = createFormHandlers(formState, setState);
+
+handlers.handleNameChange({ target: { value: 'Иван' } });
+console.log(formState.name === 'Иван');   // true
+
+handlers = createFormHandlers(formState, setState);
+handlers.handleEmailChange({ target: { value: 'ivan@example.com' } });
+console.log(formState.email === 'ivan@example.com'); // true
+
+handlers = createFormHandlers(formState, setState);
+handlers.handlePhoneChange({ target: { value: '+79001234567' } });
+console.log(formState.phone === '+79001234567');      // true
+
+handlers = createFormHandlers(formState, setState);
+handlers.handleCityChange({ target: { value: 'Москва' } });
+console.log(formState.city === 'Москва');             // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте функцию `handleChange(field)`, которая возвращает обработчик для конкретного поля. Это паттерн «фабрика обработчиков» (handler factory).
+</Hint>
+
+<Hint title="Подсказка 2">
+Внутри `handleChange(field)` верните `(e) => setState({ ...state, [field]: e.target.value })`. Квадратные скобки позволяют использовать переменную как ключ объекта (computed property name).
+</Hint>
+
+<Hint title="Подсказка 3">
+Имена `handleNameChange` и т.д. можно сохранить для обратной совместимости, просто присвоив им `handleChange('name')` и т.д. Или вернуть сам `handleChange` — и вызывать его с именем поля напрямую.
+</Hint>
+
+<Solution>
+
+```js
+function createFormHandlers(state, setState) {
+  function handleChange(field) {
+    return (e) => setState({ ...state, [field]: e.target.value });
+  }
+
+  return {
+    handleNameChange:  handleChange('name'),
+    handleEmailChange: handleChange('email'),
+    handlePhoneChange: handleChange('phone'),
+    handleCityChange:  handleChange('city'),
+  };
+}
+```
+
+</Solution>

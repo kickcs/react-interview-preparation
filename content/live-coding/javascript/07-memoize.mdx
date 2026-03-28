@@ -1,0 +1,57 @@
+---
+title: "Мемоизация"
+order: 7
+---
+
+Реализуйте функцию `memoize(fn)`, которая возвращает кэширующую обёртку над функцией `fn`. При повторном вызове с теми же аргументами обёртка должна возвращать сохранённый результат, не вызывая `fn` снова.
+
+<StarterCode>
+
+```js
+function memoize(fn) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+let callCount = 0;
+function expensiveAdd(a, b) {
+  callCount++;
+  return a + b;
+}
+
+const memoized = memoize(expensiveAdd);
+
+console.log(memoized(2, 3) === 5);   // true
+console.log(memoized(2, 3) === 5);   // true — из кэша
+console.log(memoized(1, 4) === 5);   // true — новые аргументы
+console.log(callCount === 2);        // true — fn вызвана только 2 раза
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте `Map` в замыкании для хранения кэша. Ключом должно быть что-то, однозначно идентифицирующее набор аргументов.
+</Hint>
+
+<Hint title="Подсказка 2">
+Преобразуйте массив аргументов в строку через `JSON.stringify(args)` — это подойдёт для примитивных аргументов. Проверяйте наличие ключа в `Map` через `cache.has(key)`. Если есть — возвращайте `cache.get(key)`, иначе вычисляйте, сохраняйте и возвращайте результат.
+</Hint>
+
+<Solution>
+
+```js
+function memoize(fn) {
+  const cache = new Map();
+  return function (...args) {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    const result = fn.apply(this, args);
+    cache.set(key, result);
+    return result;
+  };
+}
+```
+
+</Solution>

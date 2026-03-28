@@ -1,0 +1,79 @@
+---
+title: "cancellable(promise)"
+order: 7
+---
+
+Реализуйте функцию `cancellable(promise)`, которая оборачивает переданный промис и возвращает объект `{ promise, cancel }`. Вызов `cancel()` должен немедленно отклонить `promise` с ошибкой `"Cancelled"`, даже если оригинальный промис ещё не завершился.
+
+<StarterCode>
+
+```js
+function cancellable(promise) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: нормальное завершение работает
+  const { promise: p1 } = cancellable(delay(10).then(() => 'done'));
+  console.log(await p1); // "done"
+
+  // Тест 2: cancel реджектит промис
+  const { promise: p2, cancel } = cancellable(delay(1000).then(() => 'slow'));
+  setTimeout(cancel, 50);
+  try {
+    await p2;
+  } catch (e) {
+    console.log(e.message); // "Cancelled"
+  }
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Создайте новый промис вручную через `new Promise((resolve, reject) => ...)`. Функция `cancel` должна вызывать `reject`. Параллельно привяжите оригинальный промис к `resolve/reject` через `.then(resolve, reject)`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Гонки нет — кто первый вызовет `resolve` или `reject`, тот и определит итог промиса. Если `cancel` вызван до того, как оригинальный промис завершится, он победит. Если оригинал завершится первым — `cancel` после этого уже ничего не изменит.
+</Hint>
+
+<Solution>
+
+```js
+function cancellable(promise) {
+  let reject;
+  const wrapped = new Promise((res, rej) => {
+    reject = rej;
+    Promise.resolve(promise).then(res, rej);
+  });
+
+  return {
+    promise: wrapped,
+    cancel: () => reject(new Error('Cancelled')),
+  };
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Тест 1: нормальное завершение работает
+  const { promise: p1 } = cancellable(delay(10).then(() => 'done'));
+  console.log(await p1); // "done"
+
+  // Тест 2: cancel реджектит промис
+  const { promise: p2, cancel } = cancellable(delay(1000).then(() => 'slow'));
+  setTimeout(cancel, 50);
+  try {
+    await p2;
+  } catch (e) {
+    console.log(e.message); // "Cancelled"
+  }
+})();
+```
+
+</Solution>

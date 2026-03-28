@@ -1,0 +1,99 @@
+---
+title: "Лишние ре-рендеры из-за Context"
+order: 10
+---
+
+Компонент `Display` подписан на весь контекст и ре-рендерится при каждом обновлении `counter`, хотя использует только `theme`. Откройте консоль и убедитесь в этом. Найдите причину и исправьте.
+
+<StarterCode>
+
+```jsx
+import { createContext, useContext, useState, useRef } from 'react';
+
+// ❌ Один большой контекст — все потребители ре-рендерятся при любом изменении
+const AppContext = createContext();
+
+function useRenderCount(label) {
+  const count = useRef(0);
+  count.current++;
+  console.log(`${label} renders: ${count.current}`);
+}
+
+function Display() {
+  const { theme } = useContext(AppContext); // подписан на весь контекст
+  useRenderCount('Display');
+  return <p>Тема: {theme}</p>;
+}
+
+function Counter() {
+  const { counter, increment } = useContext(AppContext);
+  useRenderCount('Counter');
+  return <button onClick={increment}>Счётчик: {counter}</button>;
+}
+
+export default function App() {
+  const [theme] = useState('light');
+  const [counter, setCounter] = useState(0);
+
+  return (
+    <AppContext.Provider value={{ theme, counter, increment: () => setCounter(c => c + 1) }}>
+      <Display />
+      <Counter />
+    </AppContext.Provider>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Когда значение `Provider` меняется (даже если `theme` не изменился), все компоненты, использующие `useContext(AppContext)`, ре-рендерятся. Разделите контекст на несколько независимых — по зонам ответственности.
+</Hint>
+
+<Hint title="Подсказка 2">
+Создайте отдельные `ThemeContext` и `CounterContext`. `Display` подписывается только на `ThemeContext`, `Counter` — только на `CounterContext`. Теперь изменение счётчика не затрагивает `Display`. Проверьте по логам в консоли.
+</Hint>
+
+<Solution>
+
+```jsx
+import { createContext, useContext, useState, useRef } from 'react';
+
+// ✅ Разделённые контексты — каждый ре-рендерится только при своих изменениях
+const ThemeContext = createContext();
+const CounterContext = createContext();
+
+function useRenderCount(label) {
+  const count = useRef(0);
+  count.current++;
+  console.log(`${label} renders: ${count.current}`);
+}
+
+function Display() {
+  const theme = useContext(ThemeContext);
+  useRenderCount('Display'); // больше не растёт при кликах по кнопке
+  return <p>Тема: {theme}</p>;
+}
+
+function Counter() {
+  const { counter, increment } = useContext(CounterContext);
+  useRenderCount('Counter');
+  return <button onClick={increment}>Счётчик: {counter}</button>;
+}
+
+export default function App() {
+  const [theme] = useState('light');
+  const [counter, setCounter] = useState(0);
+
+  return (
+    <ThemeContext.Provider value={theme}>
+      <CounterContext.Provider value={{ counter, increment: () => setCounter(c => c + 1) }}>
+        <Display />
+        <Counter />
+      </CounterContext.Provider>
+    </ThemeContext.Provider>
+  );
+}
+```
+
+</Solution>

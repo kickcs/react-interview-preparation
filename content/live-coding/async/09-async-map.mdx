@@ -1,0 +1,89 @@
+---
+title: "asyncMap(items, fn, concurrency)"
+order: 9
+---
+
+Реализуйте функцию `asyncMap(items, fn, concurrency)`, которая применяет async-функцию `fn` к каждому элементу массива `items`, но выполняет не более `concurrency` вызовов одновременно. Возвращает промис с массивом результатов **в исходном порядке**.
+
+<StarterCode>
+
+```js
+function asyncMap(items, fn, concurrency) {
+  // ваш код
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let activeCount = 0;
+  let maxActive = 0;
+
+  const process = async (item) => {
+    activeCount++;
+    maxActive = Math.max(maxActive, activeCount);
+    await delay(20);
+    activeCount--;
+    return item * 2;
+  };
+
+  const results = await asyncMap([1, 2, 3, 4, 5], process, 2);
+
+  console.log(JSON.stringify(results)); // [2,4,6,8,10]  — правильный порядок
+  console.log(maxActive <= 2);          // true  — concurrency соблюдается
+})();
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Задача аналогична `parallelLimit`, но вместо готовых задач нужно самим создавать вызовы `fn(item)`. Подход с воркерами: каждый воркер в цикле берёт следующий индекс, вызывает `fn(items[index])`, сохраняет результат и переходит к следующему.
+</Hint>
+
+<Hint title="Подсказка 2">
+Создайте `Math.min(concurrency, items.length)` воркеров. Используйте общую переменную `next = 0`, которую воркеры инкрементируют атомарно (JS однопоточен, гонки нет). `Promise.all` воркеров финализирует всё. Массив `results` заполняйте по индексу: `results[index] = await fn(items[index])`.
+</Hint>
+
+<Solution>
+
+```js
+async function asyncMap(items, fn, concurrency) {
+  const results = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    worker
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+// Проверки
+(async () => {
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let activeCount = 0;
+  let maxActive = 0;
+
+  const process = async (item) => {
+    activeCount++;
+    maxActive = Math.max(maxActive, activeCount);
+    await delay(20);
+    activeCount--;
+    return item * 2;
+  };
+
+  const results = await asyncMap([1, 2, 3, 4, 5], process, 2);
+
+  console.log(JSON.stringify(results)); // [2,4,6,8,10]
+  console.log(maxActive <= 2);          // true
+})();
+```
+
+</Solution>

@@ -1,0 +1,49 @@
+---
+title: "FizzBuzz"
+order: 4
+---
+
+Реализуйте функцию `fizzBuzz(n)`, которая возвращает массив строк от 1 до `n` (включительно). Для чисел, кратных 3, используйте `"Fizz"`, кратных 5 — `"Buzz"`, кратных и 3, и 5 — `"FizzBuzz"`. Остальные числа — в виде строки.
+
+<StarterCode>
+
+```js
+function fizzBuzz(n) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const result = fizzBuzz(15);
+console.log(result[2] === 'Fizz');     // true (индекс 2 → число 3)
+console.log(result[4] === 'Buzz');     // true (индекс 4 → число 5)
+console.log(result[14] === 'FizzBuzz'); // true (индекс 14 → число 15)
+console.log(result[0] === '1');        // true
+console.log(result.length === 15);     // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Порядок условий имеет значение. Сначала проверяйте делимость на 15 (или на 3 и 5 одновременно), затем на 3, затем на 5. Иначе `"FizzBuzz"` никогда не появится.
+</Hint>
+
+<Hint title="Подсказка 2">
+Можно построить строку конкатенацией: начать с пустой строки, добавить `"Fizz"` если делится на 3, добавить `"Buzz"` если делится на 5. Если строка осталась пустой — использовать `String(i)`.
+</Hint>
+
+<Solution>
+
+```js
+function fizzBuzz(n) {
+  const result = [];
+  for (let i = 1; i <= n; i++) {
+    let value = '';
+    if (i % 3 === 0) value += 'Fizz';
+    if (i % 5 === 0) value += 'Buzz';
+    result.push(value || String(i));
+  }
+  return result;
+}
+```
+
+</Solution>

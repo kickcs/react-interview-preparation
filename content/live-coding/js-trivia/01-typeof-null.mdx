@@ -1,0 +1,53 @@
+---
+title: "typeof: неожиданные результаты"
+order: 1
+---
+
+Оператор `typeof` кажется простым, но возвращает несколько неочевидных значений. Задача проверяет знание всех «особых случаев» `typeof`.
+
+**Предскажите, что выведет каждый `console.log`:**
+
+<StarterCode>
+
+```js
+console.log(typeof null);
+console.log(typeof undefined);
+console.log(typeof NaN);
+console.log(typeof []);
+console.log(typeof {});
+console.log(typeof function(){});
+```
+
+</StarterCode>
+
+<Hint title="Подсказка">
+`typeof` возвращает строку. Вспомните, что `null` — это примитив, но исторически в JS он хранился как объект. Массивы в JS тоже являются объектами.
+</Hint>
+
+<Solution>
+
+Вывод:
+```
+"object"
+"undefined"
+"number"
+"object"
+"object"
+"function"
+```
+
+**Объяснение:**
+
+- `typeof null === "object"` — знаменитый баг JavaScript, существующий с 1995 года. В первой реализации JS значения хранились как теги типа + данные. Тег для объектов был `000`, а `null` представлялся как нулевой указатель (`0x00`). Поэтому `typeof null` читал тег `000` и возвращал `"object"`. Это было ошибкой, но исправить её уже невозможно — сломается слишком много кода.
+
+- `typeof undefined === "undefined"` — всё ожидаемо.
+
+- `typeof NaN === "number"` — NaN (Not a Number) парадоксально имеет тип `"number"`. NaN — это особое числовое значение стандарта IEEE 754, обозначающее результат некорректной числовой операции.
+
+- `typeof [] === "object"` — массивы являются объектами в JS. Чтобы проверить массив, используйте `Array.isArray([])`.
+
+- `typeof {} === "object"` — обычный объект.
+
+- `typeof function(){} === "function"` — функции технически тоже объекты (`instanceof Object` вернёт `true`), но `typeof` для них делает исключение и возвращает `"function"`.
+
+</Solution>

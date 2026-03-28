@@ -1,0 +1,61 @@
+---
+title: "Выпрямление объекта"
+order: 8
+---
+
+Реализуйте функцию `flattenObject(obj)`, которая «выпрямляет» вложенный объект: ключи вложенных свойств объединяются через точку. Массивы трогать не нужно — они остаются как значения.
+
+<StarterCode>
+
+```js
+function flattenObject(obj) {
+  // Ваш код здесь
+}
+
+// ✅ Проверка
+const input = { a: { b: { c: 1 } }, d: 2, e: { f: [1, 2, 3] } };
+const flat = flattenObject(input);
+console.log(flat['a.b.c'] === 1);              // true
+console.log(flat['d'] === 2);                  // true
+console.log(Array.isArray(flat['e.f']));       // true
+console.log(Object.keys(flat).length === 3);   // true
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Используйте рекурсию. Для каждого ключа объекта проверяйте: если значение — объект (и не массив и не null) — рекурсивно обходите его, передавая накопленный префикс.
+</Hint>
+
+<Hint title="Подсказка 2">
+Сигнатура вспомогательной функции: `function flatten(current, prefix, result)`. Ключ результата формируется как `prefix ? prefix + '.' + key : key`. Проверка на объект: `typeof val === 'object' && val !== null && !Array.isArray(val)`.
+</Hint>
+
+<Solution>
+
+```js
+function flattenObject(obj) {
+  const result = {};
+
+  function flatten(current, prefix) {
+    for (const key of Object.keys(current)) {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      const value = current[key];
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        flatten(value, fullKey);
+      } else {
+        result[fullKey] = value;
+      }
+    }
+  }
+
+  flatten(obj, '');
+  return result;
+}
+```
+
+</Solution>

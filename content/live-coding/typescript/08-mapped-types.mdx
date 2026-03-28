@@ -1,0 +1,67 @@
+---
+title: "Optional<T> через mapped types"
+order: 8
+---
+
+Реализуйте утилитарный тип `Optional<T>` через mapped types — он должен делать все свойства объекта опциональными. Это аналог встроенного `Partial<T>`, но реализованный самостоятельно. Использовать `Partial` нельзя.
+
+<StarterCode>
+
+```ts
+type Optional<T> = // Ваш тип
+
+// ✅ Проверки
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+type PartialUser = Optional<User>;
+// Ожидается: { id?: number; name?: string; email?: string }
+
+// Все варианты должны компилироваться без ошибок
+const u1: PartialUser = {};
+const u2: PartialUser = { id: 1 };
+const u3: PartialUser = { id: 1, name: "Alice" };
+const u4: PartialUser = { id: 1, name: "Alice", email: "alice@example.com" };
+
+console.log(u1, u2, u3, u4); // OK
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Mapped type перебирает все ключи типа: `{ [K in keyof T]: T[K] }`. Чтобы сделать свойство опциональным, добавьте `?` после имени ключа.
+</Hint>
+
+<Hint title="Подсказка 2">
+Синтаксис: `{ [K in keyof T]?: T[K] }`. Знак `?` после `K` — это модификатор опциональности. Аналогично `readonly` делает свойство доступным только для чтения.
+</Hint>
+
+<Solution>
+
+```ts
+type Optional<T> = {
+  [K in keyof T]?: T[K];
+};
+
+// ✅ Проверки
+type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+type PartialUser = Optional<User>;
+// Результат: { id?: number; name?: string; email?: string }
+
+const u1: PartialUser = {};
+const u2: PartialUser = { id: 1 };
+const u3: PartialUser = { id: 1, name: "Alice" };
+const u4: PartialUser = { id: 1, name: "Alice", email: "alice@example.com" };
+
+console.log(u1, u2, u3, u4); // OK
+```
+
+</Solution>

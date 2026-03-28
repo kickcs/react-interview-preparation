@@ -1,0 +1,91 @@
+---
+title: "Uncontrolled → Controlled форма"
+order: 8
+---
+
+Дана форма с неконтролируемыми инпутами: значения читаются через `ref` при сабмите. Превратите её в контролируемую форму — каждый инпут управляется через `useState`. При сабмите выведите данные через `console.log`.
+
+<StarterCode>
+
+```jsx
+import { useRef } from 'react';
+
+// ❌ Uncontrolled — значения читаются через ref только при сабмите
+export default function LoginForm() {
+  const nameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log({
+      name: nameRef.current.value,
+      email: emailRef.current.value,
+      password: passwordRef.current.value,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={nameRef} type="text" placeholder="Имя" />
+      <input ref={emailRef} type="email" placeholder="Email" />
+      <input ref={passwordRef} type="password" placeholder="Пароль" />
+      <button type="submit">Войти</button>
+    </form>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Контролируемый инпут — это инпут, у которого `value` привязан к переменной состояния React, а `onChange` обновляет эту переменную. React становится единственным источником истины для значения.
+</Hint>
+
+<Hint title="Подсказка 2">
+Замените `useRef` на три `useState`. Добавьте `value={...}` и `onChange={e => setState(e.target.value)}` каждому инпуту. Уберите рефы — при сабмите данные уже доступны из состояния.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+// ✅ Controlled — состояние React управляет значениями
+export default function LoginForm() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log({ name, email, password });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        placeholder="Имя"
+        value={name}
+        onChange={e => setName(e.target.value)}
+      />
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Пароль"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+      />
+      <button type="submit">Войти</button>
+    </form>
+  );
+}
+```
+
+</Solution>
