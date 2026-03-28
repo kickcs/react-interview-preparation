@@ -8,6 +8,10 @@ interface UIState {
   collapsedCategories: Record<string, boolean>;
   toggleCategory: (slug: string) => void;
   toggleAllCategories: (slugs: string[], collapse: boolean) => void;
+  revealedHints: Record<string, boolean>;
+  toggleHint: (id: string) => void;
+  revealedSolutions: Record<string, boolean>;
+  toggleSolution: (id: string) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -36,6 +40,22 @@ export const useUIStore = create<UIState>()(
           for (const s of slugs) next[s] = true;
           return { collapsedCategories: next };
         }),
+      revealedHints: {},
+      toggleHint: (id) =>
+        set((state) => ({
+          revealedHints: {
+            ...state.revealedHints,
+            [id]: !state.revealedHints[id],
+          },
+        })),
+      revealedSolutions: {},
+      toggleSolution: (id) =>
+        set((state) => ({
+          revealedSolutions: {
+            ...state.revealedSolutions,
+            [id]: !state.revealedSolutions[id],
+          },
+        })),
     }),
     {
       name: "ui-store",
