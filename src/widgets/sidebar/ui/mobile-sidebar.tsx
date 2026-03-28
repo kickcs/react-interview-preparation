@@ -33,7 +33,7 @@ export function MobileSidebar({
           <Menu className="h-5 w-5" />
         </SheetTrigger>
         <SheetContent side="left" className="w-[280px] p-0">
-          <SheetTitle className="flex items-center justify-between border-b border-border px-5 py-4">
+          <SheetTitle className="flex items-center justify-between border-b border-border py-4 pl-5 pr-12">
             <div>
               <div className="text-lg font-bold">React Interview</div>
               <div className="mt-1 text-xs font-normal text-muted-foreground">
