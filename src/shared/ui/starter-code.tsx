@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 
@@ -9,10 +9,11 @@ interface StarterCodeProps {
 }
 
 export function StarterCode({ children }: StarterCodeProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    const codeEl = document.querySelector("[data-starter-code] pre code");
+    const codeEl = containerRef.current?.querySelector("pre code");
     if (codeEl) {
       navigator.clipboard.writeText(codeEl.textContent ?? "");
       setCopied(true);
@@ -21,7 +22,7 @@ export function StarterCode({ children }: StarterCodeProps) {
   }
 
   return (
-    <div className="my-6" data-starter-code>
+    <div className="my-6" ref={containerRef}>
       <div className="flex items-center justify-between rounded-t-lg border border-b-0 border-border bg-emerald-500/10 px-4 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
           Стартовый код

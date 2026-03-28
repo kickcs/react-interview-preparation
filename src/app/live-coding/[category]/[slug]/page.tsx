@@ -62,7 +62,7 @@ export default async function ChallengePage({ params }: PageProps) {
       content={challenge.content}
       adjacent={adjacent}
       categoryTitle={categoryMeta?.title ?? category}
-      categoryFirstSlug={challenges[0]?.slug ?? slug}
+      categoryHref={`/live-coding/${category}/${challenges[0]?.slug ?? slug}`}
       challengeIndex={challengeIndex}
       totalChallenges={challenges.length}
     />

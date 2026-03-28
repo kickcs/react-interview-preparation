@@ -3,14 +3,9 @@ import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import { CONTENT_DIR } from "@/shared/config/constants";
+import { fileNameToSlug } from "@/shared/lib/content-utils";
 import { getCategories } from "@/entities/category/lib/get-categories";
 import type { QuestionMeta, QuestionFull, AdjacentQuestions } from "../model/types";
-
-function fileNameToSlug(fileName: string): string {
-  return fileName
-    .replace(/\.mdx$/, "")
-    .replace(/^\d+-/, "");
-}
 
 export const getQuestionsByCategory = cache(async (
   categorySlug: string

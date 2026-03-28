@@ -5,14 +5,14 @@ import { Solution } from "@/shared/ui/solution";
 import { ChallengeNavigation } from "./challenge-navigation";
 import type { ChallengeMeta, AdjacentChallenges } from "@/entities/challenge";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import rehypePrettyCode from "rehype-pretty-code";
+import { rehypePlugins } from "@/shared/config/mdx";
 
 interface ChallengeViewProps {
   meta: ChallengeMeta;
   content: string;
   adjacent: AdjacentChallenges;
   categoryTitle: string;
-  categoryFirstSlug: string;
+  categoryHref: string;
   challengeIndex: number;
   totalChallenges: number;
 }
@@ -22,7 +22,7 @@ export async function ChallengeView({
   content,
   adjacent,
   categoryTitle,
-  categoryFirstSlug,
+  categoryHref,
   challengeIndex,
   totalChallenges,
 }: ChallengeViewProps) {
@@ -44,7 +44,7 @@ export async function ChallengeView({
     <article className="mx-auto max-w-[900px] px-4 py-6 md:px-12 md:py-10">
       <div className="mb-4 text-sm text-muted-foreground">
         <Link
-          href={`/live-coding/${meta.category}/${categoryFirstSlug}`}
+          href={categoryHref}
           className="transition-colors hover:text-foreground"
         >
           {categoryTitle}
@@ -60,17 +60,7 @@ export async function ChallengeView({
           source={content}
           components={mdxComponents}
           options={{
-            mdxOptions: {
-              rehypePlugins: [
-                [
-                  rehypePrettyCode,
-                  {
-                    theme: "github-dark-default",
-                    keepBackground: true,
-                  },
-                ],
-              ],
-            },
+            mdxOptions: { rehypePlugins },
           }}
         />
       </div>

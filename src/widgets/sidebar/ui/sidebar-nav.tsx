@@ -197,7 +197,6 @@ export function SidebarNav({
         );
       })}
 
-      {/* Live Coding divider */}
       {challengeCategories.length > 0 && (
         <>
           <div className="relative my-4">

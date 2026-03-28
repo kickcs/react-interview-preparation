@@ -5,7 +5,7 @@ import { Spoiler } from "@/shared/ui/spoiler";
 import { QuestionNavigation } from "./question-navigation";
 import type { QuestionMeta, AdjacentQuestions } from "@/entities/question";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import rehypePrettyCode from "rehype-pretty-code";
+import { rehypePlugins } from "@/shared/config/mdx";
 
 const mdxComponents = {
   Answer,
@@ -51,17 +51,7 @@ export async function QuestionView({
           source={content}
           components={mdxComponents}
           options={{
-            mdxOptions: {
-              rehypePlugins: [
-                [
-                  rehypePrettyCode,
-                  {
-                    theme: "github-dark-default",
-                    keepBackground: true,
-                  },
-                ],
-              ],
-            },
+            mdxOptions: { rehypePlugins },
           }}
         />
       </Spoiler>

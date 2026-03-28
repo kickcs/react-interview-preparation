@@ -31,21 +31,26 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const categories = await getCategories();
+  const [categories, challengeCategories] = await Promise.all([
+    getCategories(),
+    getChallengeCategories(),
+  ]);
 
-  const questionsByCategory: Record<string, Awaited<ReturnType<typeof getQuestionsByCategory>>> = {};
-  for (const category of categories) {
-    questionsByCategory[category.slug] = await getQuestionsByCategory(
-      category.slug
-    );
-  }
+  const [questionEntries, challengeEntries] = await Promise.all([
+    Promise.all(
+      categories.map((c) =>
+        getQuestionsByCategory(c.slug).then((q) => [c.slug, q] as const)
+      )
+    ),
+    Promise.all(
+      challengeCategories.map((c) =>
+        getChallenges(c.slug).then((ch) => [c.slug, ch] as const)
+      )
+    ),
+  ]);
 
-  const challengeCategories = await getChallengeCategories();
-
-  const challengesByCategory: Record<string, ChallengeMeta[]> = {};
-  for (const cat of challengeCategories) {
-    challengesByCategory[cat.slug] = await getChallenges(cat.slug);
-  }
+  const questionsByCategory = Object.fromEntries(questionEntries);
+  const challengesByCategory = Object.fromEntries(challengeEntries);
 
   return (
     <html

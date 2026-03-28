@@ -3,14 +3,9 @@ import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
 import { LIVE_CODING_DIR } from "@/shared/config/constants";
+import { fileNameToSlug } from "@/shared/lib/content-utils";
 import { getChallengeCategories } from "./get-challenge-categories";
 import type { ChallengeMeta, ChallengeFull, AdjacentChallenges } from "../model/types";
-
-function fileNameToSlug(fileName: string): string {
-  return fileName
-    .replace(/\.mdx$/, "")
-    .replace(/^\d+-/, "");
-}
 
 export const getChallengesByCategory = cache(
   async (categorySlug: string): Promise<ChallengeMeta[]> => {
