@@ -47,7 +47,7 @@ export default async function RootLayout({
             categories={categories}
             questionsByCategory={questionsByCategory}
           />
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <MobileSidebar
               categories={categories}
               questionsByCategory={questionsByCategory}
