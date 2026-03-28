@@ -1,0 +1,58 @@
+---
+title: "Как работает цепочка прототипов?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **prototype chain** is JavaScript's mechanism for inheritance and property lookup. Every object has an internal link (accessible via `__proto__` or `Object.getPrototypeOf()`) to another object called its **prototype**. When you access a property on an object, the engine first checks the object itself; if the property is not found, it traverses up the prototype chain until it finds the property or reaches `null`.
+
+Constructor functions have a **`prototype`** property — an object that becomes the `__proto__` of all instances created with `new`. For example, when you call `new Dog()`, the created instance's `__proto__` points to `Dog.prototype`. This is how methods defined on `Dog.prototype` are shared across all instances without duplicating memory.
+
+**`Object.create(proto)`** creates a new object with its `__proto__` set to the given prototype, enabling a clean way to set up inheritance without calling a constructor. Modern JavaScript uses **classes** as syntactic sugar over this prototype system — `extends` sets up the prototype chain, and `super` delegates to the parent constructor. Understanding the prototype chain is essential for debugging property resolution and knowing why methods like `toString()` are available on all objects.
+
+</Answer>
+<Answer lang="ru">
+
+**Цепочка прототипов** — это механизм наследования и поиска свойств в JavaScript. Каждый объект имеет внутреннюю ссылку (доступную через `__proto__` или `Object.getPrototypeOf()`) на другой объект, называемый его **прототипом**. При обращении к свойству объекта движок сначала проверяет сам объект; если свойство не найдено, он поднимается по цепочке прототипов, пока не найдёт свойство или не достигнет `null`.
+
+Функции-конструкторы имеют свойство **`prototype`** — объект, который становится `__proto__` всех экземпляров, созданных с помощью `new`. Например, при вызове `new Dog()` свойство `__proto__` созданного экземпляра указывает на `Dog.prototype`. Именно так методы, определённые на `Dog.prototype`, разделяются между всеми экземплярами без дублирования памяти.
+
+**`Object.create(proto)`** создаёт новый объект с `__proto__`, установленным на указанный прототип, что позволяет чисто настроить наследование без вызова конструктора. Современный JavaScript использует **классы** как синтаксический сахар поверх системы прототипов — `extends` настраивает цепочку прототипов, а `super` делегирует родительскому конструктору. Понимание цепочки прототипов важно для отладки разрешения свойств и понимания того, почему методы вроде `toString()` доступны на всех объектах.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+function Animal(name) {
+  this.name = name;
+}
+
+Animal.prototype.speak = function () {
+  return `${this.name} makes a sound.`;
+};
+
+function Dog(name, breed) {
+  Animal.call(this, name);
+  this.breed = breed;
+}
+
+// Set up inheritance
+Dog.prototype = Object.create(Animal.prototype);
+Dog.prototype.constructor = Dog;
+
+Dog.prototype.bark = function () {
+  return `${this.name} barks!`;
+};
+
+const rex = new Dog("Rex", "Shepherd");
+
+console.log(rex.bark());  // "Rex barks!"       — found on Dog.prototype
+console.log(rex.speak()); // "Rex makes a sound." — found on Animal.prototype
+console.log(rex.toString()); // "[object Object]" — found on Object.prototype
+
+// Prototype chain: rex → Dog.prototype → Animal.prototype → Object.prototype → null
+console.log(Object.getPrototypeOf(rex) === Dog.prototype); // true
+console.log(Object.getPrototypeOf(Dog.prototype) === Animal.prototype); // true
+```

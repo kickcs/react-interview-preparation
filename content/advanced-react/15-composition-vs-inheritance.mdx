@@ -1,0 +1,121 @@
+---
+title: "Почему React предпочитает композицию наследованию?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React strongly recommends **composition** over inheritance for code reuse. Composition means building complex UI by combining smaller, focused components through props — especially the **`children`** prop. Instead of creating a base component class and extending it, you wrap or nest components to add behavior and customize appearance.
+
+There are two main composition patterns. **Containment** is when a component does not know its children ahead of time — it uses `children` or named slots (like `left` and `right` props) to let consumers fill in content. **Specialization** is when a generic component is configured to produce a specific variant — for example, a `Dialog` component wrapped with specific props becomes a `ConfirmDialog` or `AlertDialog`.
+
+Inheritance is problematic in React for several reasons. It creates tight coupling between components, making them hard to change independently. Deeply nested class hierarchies become difficult to understand and debug. Most importantly, React's component model is fundamentally **functional** — components are functions of props to UI, and composition naturally maps to function composition. The React team at Facebook reviewed thousands of components and found **zero cases** where they would recommend inheritance. With hooks, even logic reuse (which was the strongest argument for inheritance) is handled better through composition of custom hooks.
+
+</Answer>
+<Answer lang="ru">
+
+React настоятельно рекомендует **композицию** вместо наследования для повторного использования кода. Композиция означает построение сложного UI путём комбинирования маленьких, специализированных компонентов через пропсы — особенно через проп **`children`**. Вместо создания базового класса компонента и его расширения, вы оборачиваете или вкладываете компоненты для добавления поведения и настройки внешнего вида.
+
+Существуют два основных паттерна композиции. **Вмещение (containment)** — когда компонент не знает своих детей заранее — он использует `children` или именованные слоты (вроде пропсов `left` и `right`), чтобы потребители могли заполнить контент. **Специализация** — когда универсальный компонент настраивается для создания конкретного варианта — например, компонент `Dialog`, обёрнутый с определёнными пропсами, становится `ConfirmDialog` или `AlertDialog`.
+
+Наследование проблематично в React по нескольким причинам. Оно создаёт тесную связанность между компонентами, затрудняя их независимое изменение. Глубоко вложенные иерархии классов становятся сложными для понимания и отладки. Самое главное, модель компонентов React по своей сути **функциональна** — компоненты являются функциями от пропсов к UI, и композиция естественно соответствует композиции функций. Команда React в Facebook проверила тысячи компонентов и не нашла **ни одного случая**, где они бы рекомендовали наследование. С появлением хуков даже повторное использование логики (самый сильный аргумент в пользу наследования) лучше решается через композицию пользовательских хуков.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Containment — component accepts any children
+function Card({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <div className="card">
+      <h2>{title}</h2>
+      <div className="card-body">{children}</div>
+    </div>
+  );
+}
+
+// Named slots for flexible layouts
+function Layout({
+  sidebar,
+  content,
+}: {
+  sidebar: React.ReactNode;
+  content: React.ReactNode;
+}) {
+  return (
+    <div className="layout">
+      <aside>{sidebar}</aside>
+      <main>{content}</main>
+    </div>
+  );
+}
+
+// Specialization — wrapping a generic component
+function Dialog({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div className="dialog-overlay">
+      <div className="dialog">
+        <h2>{title}</h2>
+        {children}
+        <button onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  message,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Dialog title="Confirm Action" onClose={onCancel}>
+      <p>{message}</p>
+      <div>
+        <button onClick={onCancel}>Cancel</button>
+        <button onClick={onConfirm}>Confirm</button>
+      </div>
+    </Dialog>
+  );
+}
+
+// Composition of behavior via custom hooks (replaces inheritance)
+function useFormField(initialValue: string) {
+  const [value, setValue] = useState(initialValue);
+  const [error, setError] = useState<string | null>(null);
+  return { value, setValue, error, setError };
+}
+
+function useValidation(value: string, validate: (v: string) => string | null) {
+  const error = validate(value);
+  return { isValid: error === null, error };
+}
+
+// Usage — composing hooks instead of extending base classes
+function EmailInput() {
+  const field = useFormField("");
+  const { isValid, error } = useValidation(field.value, (v) =>
+    v.includes("@") ? null : "Invalid email"
+  );
+
+  return (
+    <div>
+      <input value={field.value} onChange={(e) => field.setValue(e.target.value)} />
+      {!isValid && <span>{error}</span>}
+    </div>
+  );
+}
+```

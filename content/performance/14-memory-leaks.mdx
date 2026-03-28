@@ -1,0 +1,78 @@
+---
+title: "Как предотвращать утечки памяти в React?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Memory leaks** in React occur when your application retains references to objects that are no longer needed, preventing the garbage collector from reclaiming that memory. Over time, this causes increasing memory usage, degraded performance, and eventually crashes — especially in long-lived single-page applications.
+
+The most common causes are **uncleaned side effects**: `setInterval` or `setTimeout` callbacks that keep running after a component unmounts, event listeners attached to `window` or `document` that are never removed, WebSocket or EventSource connections left open, and `fetch` requests that update state after the component is gone. **Closures** can also trap large objects in memory if they reference variables from an outer scope that is no longer needed.
+
+Prevention follows a simple rule: **every setup must have a matching cleanup**. In `useEffect`, return a cleanup function that clears timers, removes listeners, closes connections, and aborts pending requests using **`AbortController`**. For tracking down existing leaks, use Chrome DevTools **Memory tab** — take heap snapshots before and after an action, then compare them to find objects that should have been garbage collected. The **Performance Monitor** panel shows real-time JS heap size to confirm whether memory grows unboundedly.
+
+</Answer>
+<Answer lang="ru">
+
+**Утечки памяти** в React возникают, когда приложение сохраняет ссылки на объекты, которые больше не нужны, не позволяя сборщику мусора освободить эту память. Со временем это приводит к растущему потреблению памяти, снижению производительности и, в конечном итоге, к сбоям — особенно в долгоживущих одностраничных приложениях.
+
+Наиболее частые причины — **неочищенные побочные эффекты**: колбэки `setInterval` или `setTimeout`, которые продолжают работать после размонтирования компонента, обработчики событий, привязанные к `window` или `document` и никогда не удалённые, незакрытые соединения WebSocket или EventSource, и `fetch`-запросы, обновляющие состояние после удаления компонента. **Замыкания** также могут удерживать крупные объекты в памяти, если они ссылаются на переменные из внешней области видимости, которая больше не нужна.
+
+Предотвращение следует простому правилу: **каждая настройка должна иметь соответствующую очистку**. В `useEffect` возвращайте функцию очистки, которая сбрасывает таймеры, удаляет слушатели, закрывает соединения и отменяет ожидающие запросы с помощью **`AbortController`**. Для поиска существующих утечек используйте вкладку **Memory** в Chrome DevTools — делайте снимки кучи (heap snapshots) до и после действия, затем сравнивайте их для нахождения объектов, которые должны были быть собраны. Панель **Performance Monitor** показывает размер JS-кучи в реальном времени для проверки, растёт ли память безгранично.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useEffect, useState } from "react";
+
+function LiveDashboard({ userId }: { userId: string }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    // 1. AbortController for fetch cleanup
+    const controller = new AbortController();
+
+    async function fetchData() {
+      try {
+        const res = await fetch(`/api/data/${userId}`, {
+          signal: controller.signal,
+        });
+        const json = await res.json();
+        setData(json); // Safe — won't run if aborted
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return; // Component unmounted, ignore
+        }
+        throw err;
+      }
+    }
+
+    fetchData();
+
+    // 2. Interval cleanup
+    const intervalId = setInterval(fetchData, 30_000);
+
+    // 3. Event listener cleanup
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchData();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // 4. WebSocket cleanup
+    const ws = new WebSocket(`wss://api.example.com/live/${userId}`);
+    ws.onmessage = (event) => setData(JSON.parse(event.data));
+
+    // Cleanup function — runs on unmount or before re-running effect
+    return () => {
+      controller.abort();                 // Cancel pending fetch
+      clearInterval(intervalId);          // Stop polling
+      document.removeEventListener("visibilitychange", handleVisibility);
+      ws.close();                         // Close WebSocket
+    };
+  }, [userId]);
+
+  return <div>{data ? JSON.stringify(data) : "Loading..."}</div>;
+}
+```

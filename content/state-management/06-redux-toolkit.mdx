@@ -1,0 +1,113 @@
+---
+title: "Что такое Redux Toolkit и как он упрощает Redux?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Redux Toolkit (RTK)** is the official, recommended way to write Redux logic. It was created to address the three main complaints about Redux: too much boilerplate, too many packages to install, and too much configuration required. RTK provides utility functions that simplify the most common Redux use cases while still following Redux principles under the hood.
+
+The key APIs are: **createSlice** which auto-generates action creators and action types from reducer functions, **configureStore** which sets up the store with good defaults (Redux DevTools, thunk middleware, and development checks), **createAsyncThunk** which handles the lifecycle of async requests (pending, fulfilled, rejected), and **RTK Query** which is a powerful data fetching and caching solution built on top of Redux. A major feature is the built-in **Immer** integration — you can write "mutating" logic in reducers, and Immer safely produces immutable updates behind the scenes.
+
+RTK dramatically reduces the amount of code you need to write. A typical Redux setup that previously required separate files for actions, action types, and reducers can now be expressed in a single `createSlice` call. Combined with TypeScript support out of the box and `createAsyncThunk` for side effects, RTK makes Redux approachable and productive for modern applications.
+
+</Answer>
+<Answer lang="ru">
+
+**Redux Toolkit (RTK)** — это официальный, рекомендованный способ написания логики Redux. Он был создан для решения трёх основных претензий к Redux: слишком много шаблонного кода, слишком много пакетов для установки и слишком сложная конфигурация. RTK предоставляет утилитарные функции, упрощающие наиболее распространённые сценарии использования Redux, при этом под капотом следуя принципам Redux.
+
+Ключевые API: **createSlice** автоматически генерирует создатели действий и типы действий из функций-редьюсеров, **configureStore** настраивает хранилище с хорошими настройками по умолчанию (Redux DevTools, thunk middleware и проверки для разработки), **createAsyncThunk** обрабатывает жизненный цикл асинхронных запросов (pending, fulfilled, rejected), а **RTK Query** — это мощное решение для загрузки и кэширования данных, построенное поверх Redux. Важная особенность — встроенная интеграция с **Immer**: вы можете писать «мутирующую» логику в редьюсерах, а Immer безопасно создаёт иммутабельные обновления за кулисами.
+
+RTK кардинально сокращает количество кода. Типичная конфигурация Redux, которая раньше требовала отдельных файлов для действий, типов действий и редьюсеров, теперь может быть выражена одним вызовом `createSlice`. В сочетании со встроенной поддержкой TypeScript и `createAsyncThunk` для побочных эффектов, RTK делает Redux доступным и продуктивным для современных приложений.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createSlice, configureStore, createAsyncThunk } from "@reduxjs/toolkit";
+
+// Async thunk — handles pending/fulfilled/rejected automatically
+const fetchTodos = createAsyncThunk("todos/fetch", async () => {
+  const response = await fetch("/api/todos");
+  return response.json() as Promise<Todo[]>;
+});
+
+type Todo = { id: number; title: string; completed: boolean };
+
+// createSlice — actions + reducer in one place, with Immer
+const todosSlice = createSlice({
+  name: "todos",
+  initialState: {
+    items: [] as Todo[],
+    status: "idle" as "idle" | "loading" | "failed",
+  },
+  reducers: {
+    // Immer lets you "mutate" state safely
+    todoToggled(state, action: { payload: number }) {
+      const todo = state.items.find((t) => t.id === action.payload);
+      if (todo) todo.completed = !todo.completed;
+    },
+    todoAdded(state, action: { payload: string }) {
+      state.items.push({
+        id: Date.now(),
+        title: action.payload,
+        completed: false,
+      });
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchTodos.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(fetchTodos.fulfilled, (state, action) => {
+        state.status = "idle";
+        state.items = action.payload;
+      })
+      .addCase(fetchTodos.rejected, (state) => {
+        state.status = "failed";
+      });
+  },
+});
+
+// Auto-generated action creators
+export const { todoToggled, todoAdded } = todosSlice.actions;
+
+// configureStore — good defaults out of the box
+const store = configureStore({
+  reducer: {
+    todos: todosSlice.reducer,
+  },
+  // DevTools, thunk middleware, and serialization checks included by default
+});
+
+type RootState = ReturnType<typeof store.getState>;
+
+// Usage in a component
+function TodoList() {
+  const todos = useSelector((state: RootState) => state.todos.items);
+  const status = useSelector((state: RootState) => state.todos.status);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch(fetchTodos());
+  }, [dispatch]);
+
+  if (status === "loading") return <p>Loading...</p>;
+
+  return (
+    <ul>
+      {todos.map((todo) => (
+        <li
+          key={todo.id}
+          onClick={() => dispatch(todoToggled(todo.id))}
+          style={{ textDecoration: todo.completed ? "line-through" : "none" }}
+        >
+          {todo.title}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```

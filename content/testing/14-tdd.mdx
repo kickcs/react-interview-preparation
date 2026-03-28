@@ -1,0 +1,93 @@
+---
+title: "Что такое Test-Driven Development (TDD)?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Test-Driven Development (TDD)** is a development methodology where you write tests before writing the implementation code. It follows a strict three-step cycle known as **Red-Green-Refactor**. First, write a failing test that describes the desired behavior (Red). Then, write the minimal code to make the test pass (Green). Finally, refactor the code to improve its structure while keeping all tests green (Refactor).
+
+The key benefit of TDD is that it forces you to **think about the interface before the implementation**. You define what a function or component should do from the consumer's perspective, which naturally leads to cleaner APIs and better design. Since every line of code is written to satisfy a test, you end up with comprehensive test coverage as a side effect.
+
+In React, TDD works especially well for **utility functions, custom hooks, and component behavior**. Start by writing a test: "when the user clicks Add, a new item appears in the list." Then build the component to satisfy that test. For complex features, break them into small increments — each increment gets its own Red-Green-Refactor cycle.
+
+TDD is not without trade-offs. It can feel slow at first, and it works less well for exploratory UI work where you're still figuring out what the component should look like. **Pragmatic approach:** use strict TDD for business logic, hooks, and utilities; use a lighter test-after approach for visual components. The important thing is that tests exist and are meaningful, regardless of whether they were written first or last.
+
+</Answer>
+<Answer lang="ru">
+
+**Разработка через тестирование (TDD)** — это методология, при которой тесты пишутся до написания кода реализации. Она следует строгому трёхшаговому циклу **Red-Green-Refactor**. Сначала напишите падающий тест, описывающий желаемое поведение (Red). Затем напишите минимальный код для прохождения теста (Green). Наконец, отрефакторите код для улучшения структуры, сохраняя все тесты зелёными (Refactor).
+
+Ключевое преимущество TDD в том, что он заставляет **думать об интерфейсе до реализации**. Вы определяете, что функция или компонент должны делать с точки зрения потребителя, что естественным образом приводит к более чистым API и лучшему дизайну. Поскольку каждая строка кода пишется для удовлетворения теста, вы получаете полное покрытие тестами как побочный эффект.
+
+В React TDD особенно хорошо работает для **утилитарных функций, кастомных хуков и поведения компонентов**. Начните с теста: «когда пользователь нажимает "Добавить", новый элемент появляется в списке». Затем создайте компонент для прохождения этого теста. Для сложных фич разбивайте их на маленькие инкременты — каждый инкремент получает свой цикл Red-Green-Refactor.
+
+TDD имеет свои компромиссы. Поначалу может казаться медленным, и он хуже работает для исследовательской работы с UI, когда ещё неясно, как компонент должен выглядеть. **Прагматичный подход:** используйте строгий TDD для бизнес-логики, хуков и утилит; применяйте более лёгкий подход «тесты после» для визуальных компонентов. Главное — тесты существуют и осмысленны, независимо от того, были они написаны первыми или последними.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+
+// Step 1 (RED): Write the test FIRST — it will fail because TodoList doesn't exist yet
+
+test("adds a new todo to the list", async () => {
+  const user = userEvent.setup();
+  render(<TodoList />);
+
+  await user.type(screen.getByLabelText(/new todo/i), "Buy milk");
+  await user.click(screen.getByRole("button", { name: /add/i }));
+
+  expect(screen.getByText("Buy milk")).toBeInTheDocument();
+  expect(screen.getByLabelText(/new todo/i)).toHaveValue("");
+});
+
+test("does not add empty todos", async () => {
+  const user = userEvent.setup();
+  render(<TodoList />);
+
+  await user.click(screen.getByRole("button", { name: /add/i }));
+
+  expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+});
+
+// Step 2 (GREEN): Write minimal code to make tests pass
+
+function TodoList() {
+  const [todos, setTodos] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+
+  const addTodo = () => {
+    if (!input.trim()) return;
+    setTodos([...todos, input]);
+    setInput("");
+  };
+
+  return (
+    <div>
+      <label htmlFor="new-todo">New todo</label>
+      <input
+        id="new-todo"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+      />
+      <button onClick={addTodo}>Add</button>
+      <ul>
+        {todos.map((todo, i) => (
+          <li key={i}>{todo}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Step 3 (REFACTOR): Improve without breaking tests
+// - Extract input into a custom hook
+// - Add TypeScript types
+// - Extract TodoItem component
+// All tests should still pass after refactoring!
+```

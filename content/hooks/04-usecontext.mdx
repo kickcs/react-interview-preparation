@@ -1,0 +1,81 @@
+---
+title: "Как работает useContext?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useContext** is a hook that lets you read and subscribe to context from any component in the tree without prop drilling. You first create a context with `createContext(defaultValue)`, then wrap a subtree with a `Provider` that supplies the current value. Any descendant calling `useContext(MyContext)` receives the nearest provider's value.
+
+When the context value changes, **every component** that calls `useContext` for that context re-renders, regardless of whether it uses the specific part of the value that changed. This is a key difference from state management libraries like Redux or Zustand, which allow selective subscriptions. To mitigate unnecessary re-renders, you can split large contexts into smaller, focused ones, memoize the provider value with `useMemo`, or use composition patterns to lift static parts out of the re-rendering subtree.
+
+Context is ideal for global, rarely-changing data: themes, locale, authentication status, or feature flags. For frequently-changing values (like form input or animation state), a dedicated state management solution is usually more performant. In React 19, the `use()` hook can also read context and has the advantage of being callable inside conditionals.
+
+</Answer>
+<Answer lang="ru">
+
+**useContext** — это хук, который позволяет читать и подписываться на контекст из любого компонента в дереве без прокидывания пропсов (prop drilling). Сначала вы создаёте контекст с помощью `createContext(defaultValue)`, затем оборачиваете поддерево `Provider`, который предоставляет текущее значение. Любой потомок, вызывающий `useContext(MyContext)`, получает значение ближайшего провайдера.
+
+Когда значение контекста меняется, **каждый компонент**, вызывающий `useContext` для этого контекста, ре-рендерится, независимо от того, использует ли он конкретную часть значения, которая изменилась. Это ключевое отличие от библиотек управления состоянием, таких как Redux или Zustand, которые позволяют выборочные подписки. Чтобы уменьшить ненужные ре-рендеры, можно разделить крупные контексты на более мелкие и специализированные, мемоизировать значение провайдера с помощью `useMemo` или использовать паттерны композиции для выноса статичных частей за пределы ре-рендерящегося поддерева.
+
+Контекст идеален для глобальных, редко меняющихся данных: темы, локали, статус аутентификации или feature-флаги. Для часто меняющихся значений (например, ввод форм или состояние анимации) специализированное решение для управления состоянием обычно более производительно. В React 19 хук `use()` также может читать контекст и имеет преимущество — его можно вызывать внутри условий.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createContext, useContext, useMemo, useState } from "react";
+
+type Theme = "light" | "dark";
+
+const ThemeContext = createContext<{
+  theme: Theme;
+  toggleTheme: () => void;
+}>({
+  theme: "light",
+  toggleTheme: () => {},
+});
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>("light");
+
+  // Memoize to prevent unnecessary re-renders of consumers
+  const value = useMemo(
+    () => ({
+      theme,
+      toggleTheme: () => setTheme((t) => (t === "light" ? "dark" : "light")),
+    }),
+    [theme]
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+function ThemedButton() {
+  const { theme, toggleTheme } = useContext(ThemeContext);
+
+  return (
+    <button
+      onClick={toggleTheme}
+      style={{
+        background: theme === "dark" ? "#333" : "#fff",
+        color: theme === "dark" ? "#fff" : "#333",
+      }}
+    >
+      Current theme: {theme}
+    </button>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <div>
+        <h1>Theme Example</h1>
+        <ThemedButton />
+      </div>
+    </ThemeProvider>
+  );
+}
+```

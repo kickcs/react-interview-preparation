@@ -1,0 +1,87 @@
+---
+title: "Как писать юнит-тесты с Vitest/Jest?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **unit test** verifies a single function or module in isolation. Both **Vitest** and **Jest** share nearly identical APIs: you organize tests with `describe` and `it` (or `test`), then make assertions with `expect`. Vitest is often preferred in modern projects because it reuses your Vite config and runs significantly faster.
+
+**Matchers** are the methods you chain after `expect()`. The most common ones are `toBe` for strict equality, `toEqual` for deep equality of objects and arrays, `toHaveLength` for checking array/string length, `toBeTruthy` / `toBeFalsy` for boolean checks, and `toThrow` for verifying that a function throws an error.
+
+**Setup and teardown** helpers keep your tests clean. Use `beforeEach` to reset state before every test and `afterEach` for cleanup. `beforeAll` and `afterAll` run once per `describe` block — useful for expensive operations like opening a database connection.
+
+A well-organized test file groups related cases inside `describe` blocks, keeps each `it` focused on one behavior, and uses descriptive names so failures are easy to locate. Avoid testing implementation details — focus on inputs and outputs.
+
+</Answer>
+<Answer lang="ru">
+
+**Юнит-тест** проверяет одну функцию или модуль изолированно. **Vitest** и **Jest** имеют практически идентичный API: тесты организуются с помощью `describe` и `it` (или `test`), а утверждения делаются через `expect`. Vitest часто предпочитают в современных проектах, потому что он использует конфигурацию Vite и работает значительно быстрее.
+
+**Матчеры** — это методы, которые вызываются после `expect()`. Самые распространённые: `toBe` для строгого равенства, `toEqual` для глубокого сравнения объектов и массивов, `toHaveLength` для проверки длины массива или строки, `toBeTruthy` / `toBeFalsy` для булевых проверок и `toThrow` для проверки выброса ошибки.
+
+Хелперы **настройки и очистки** поддерживают чистоту тестов. Используйте `beforeEach` для сброса состояния перед каждым тестом и `afterEach` для очистки. `beforeAll` и `afterAll` выполняются один раз на блок `describe` — полезны для дорогих операций, например открытия соединения с базой данных.
+
+Хорошо организованный тестовый файл группирует связанные случаи в блоки `describe`, каждый `it` проверяет одно поведение, а описательные имена помогают быстро находить причину ошибки. Избегайте тестирования деталей реализации — сосредоточьтесь на входных и выходных данных.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+
+function createCalculator() {
+  let history: number[] = [];
+
+  return {
+    add(a: number, b: number) {
+      const result = a + b;
+      history.push(result);
+      return result;
+    },
+    subtract(a: number, b: number) {
+      const result = a - b;
+      history.push(result);
+      return result;
+    },
+    getHistory() {
+      return [...history];
+    },
+    clear() {
+      history = [];
+    },
+  };
+}
+
+describe("createCalculator", () => {
+  let calc: ReturnType<typeof createCalculator>;
+
+  beforeEach(() => {
+    calc = createCalculator();
+  });
+
+  it("adds two numbers", () => {
+    expect(calc.add(2, 3)).toBe(5);
+  });
+
+  it("subtracts two numbers", () => {
+    expect(calc.subtract(10, 4)).toBe(6);
+  });
+
+  it("tracks calculation history", () => {
+    calc.add(1, 2);
+    calc.subtract(5, 3);
+
+    expect(calc.getHistory()).toEqual([3, 2]);
+    expect(calc.getHistory()).toHaveLength(2);
+  });
+
+  it("clears history", () => {
+    calc.add(1, 1);
+    calc.clear();
+
+    expect(calc.getHistory()).toEqual([]);
+  });
+});
+```

@@ -1,0 +1,68 @@
+---
+title: "Как работает useState подробно?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useState** is the most fundamental React hook for adding state to function components. When you call `useState(initialValue)`, React returns a pair: the current state value and a setter function. The initial value is only used on the first render; on subsequent renders, React returns the persisted state from its internal fiber tree.
+
+**Lazy initialization** allows you to pass a function to `useState` instead of a value — `useState(() => expensiveComputation())`. This function runs only once on mount, which avoids re-running expensive calculations on every render. **Functional updates** let you pass a function to the setter — `setState(prev => prev + 1)` — which is essential when the next state depends on the previous state, especially inside closures that may capture stale values.
+
+React **batches** multiple `setState` calls within the same event handler into a single re-render for performance. Since React 18, batching also works in promises, timeouts, and native event handlers (automatic batching). When working with object state, you must create a new object reference because React uses `Object.is` to compare state values. Direct mutation of an object does not create a new reference, so React skips the re-render entirely.
+
+Always treat state as **immutable** — spread the previous object and override the changed properties. This ensures React detects the change and triggers the appropriate re-render.
+
+</Answer>
+<Answer lang="ru">
+
+**useState** — самый базовый хук React для добавления состояния в функциональные компоненты. При вызове `useState(initialValue)` React возвращает пару: текущее значение состояния и функцию-сеттер. Начальное значение используется только при первом рендере; при последующих рендерах React возвращает сохранённое состояние из внутреннего дерева файберов.
+
+**Ленивая инициализация** позволяет передать функцию вместо значения — `useState(() => expensiveComputation())`. Эта функция выполняется только один раз при монтировании, что помогает избежать повторных дорогих вычислений при каждом рендере. **Функциональные обновления** позволяют передавать функцию в сеттер — `setState(prev => prev + 1)` — что необходимо, когда следующее состояние зависит от предыдущего, особенно внутри замыканий, которые могут захватить устаревшие значения.
+
+React **группирует** (batching) несколько вызовов `setState` в одном обработчике событий в один ре-рендер для повышения производительности. Начиная с React 18, группировка работает и в промисах, таймаутах и нативных обработчиках событий (автоматическая группировка). При работе с объектным состоянием необходимо создавать новую ссылку на объект, так как React использует `Object.is` для сравнения значений состояния. Прямая мутация объекта не создаёт новую ссылку, поэтому React пропускает ре-рендер.
+
+Всегда обращайтесь с состоянием как с **неизменяемым** (immutable) — используйте spread-оператор для предыдущего объекта и переопределяйте изменённые свойства. Это гарантирует, что React обнаружит изменение и вызовет соответствующий ре-рендер.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState } from "react";
+
+function Counter() {
+  // Functional update ensures correct value even in closures
+  const [count, setCount] = useState(0);
+
+  const incrementThreeTimes = () => {
+    // Without functional update, all three would use the same stale value
+    setCount((prev) => prev + 1);
+    setCount((prev) => prev + 1);
+    setCount((prev) => prev + 1);
+  };
+
+  return <button onClick={incrementThreeTimes}>Count: {count}</button>;
+}
+
+function UserProfile() {
+  // Lazy initialization — expensive parsing runs only once
+  const [user, setUser] = useState(() => ({
+    name: "Alice",
+    age: 25,
+    email: "alice@example.com",
+  }));
+
+  const updateName = (name: string) => {
+    // Create a new object — never mutate directly
+    setUser((prev) => ({ ...prev, name }));
+  };
+
+  return (
+    <div>
+      <p>{user.name}, {user.age}</p>
+      <button onClick={() => updateName("Bob")}>Change Name</button>
+    </div>
+  );
+}
+```

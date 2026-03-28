@@ -1,0 +1,156 @@
+---
+title: "Что такое parallel и intercepting routes?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Parallel routes** allow you to render multiple pages simultaneously in the same layout using named **slots**. Slots are defined by creating folders prefixed with `@` (e.g., `@dashboard`, `@analytics`). The parent layout receives each slot as a prop alongside `children`. This enables complex layouts where different sections of the page load independently — if one slot is loading, others can still be interactive. Each slot can have its own `loading.tsx`, `error.tsx`, and independent navigation state.
+
+A `default.tsx` file must be provided for each slot to serve as the fallback when Next.js cannot determine the active state of a slot (e.g., on a full page reload with a sub-route active in another slot). Without `default.tsx`, Next.js will render a 404 for unmatched slots.
+
+**Intercepting routes** use a special convention — `(.)`, `(..)`, `(..)(..)`, and `(...)` — to intercept a route and display it within the current layout instead of navigating to its full page. The most common pattern is the **modal pattern**: clicking a photo in a gallery opens a modal (intercepted route) while the URL updates. If the user refreshes or shares the URL, they see the full photo page. This combines the UX benefits of modals with proper URL-based navigation and shareability.
+
+</Answer>
+<Answer lang="ru">
+
+**Параллельные маршруты** позволяют рендерить несколько страниц одновременно в одном макете с помощью именованных **слотов**. Слоты определяются созданием папок с префиксом `@` (например, `@dashboard`, `@analytics`). Родительский макет получает каждый слот как проп наряду с `children`. Это позволяет создавать сложные макеты, где различные секции страницы загружаются независимо — если один слот загружается, другие остаются интерактивными. Каждый слот может иметь собственные `loading.tsx`, `error.tsx` и независимое состояние навигации.
+
+Файл `default.tsx` должен быть предоставлен для каждого слота в качестве fallback, когда Next.js не может определить активное состояние слота (например, при полной перезагрузке страницы с активным подмаршрутом в другом слоте). Без `default.tsx` Next.js отрендерит 404 для несовпадающих слотов.
+
+**Перехватывающие маршруты** используют специальную конвенцию — `(.)`, `(..)`, `(..)(..)` и `(...)` — для перехвата маршрута и отображения его в текущем макете вместо перехода на полную страницу. Самый распространённый паттерн — **паттерн модального окна**: клик по фото в галерее открывает модальное окно (перехваченный маршрут), при этом URL обновляется. Если пользователь обновит страницу или поделится URL, он увидит полную страницу фото. Это сочетает UX-преимущества модальных окон с правильной навигацией на основе URL и возможностью поделиться ссылкой.
+
+</Answer>
+</AnswerGroup>
+
+```txt
+Parallel routes — folder structure:
+
+app/
+├── layout.tsx              # Receives @team and @analytics as props
+├── page.tsx
+├── @team/
+│   ├── page.tsx            # Rendered in the "team" slot
+│   ├── loading.tsx         # Independent loading state
+│   └── default.tsx         # Fallback for unmatched states
+└── @analytics/
+    ├── page.tsx            # Rendered in the "analytics" slot
+    ├── loading.tsx
+    └── default.tsx
+```
+
+```tsx
+// app/layout.tsx — Layout with parallel route slots
+
+export default function Layout({
+  children,
+  team,
+  analytics,
+}: {
+  children: React.ReactNode;
+  team: React.ReactNode;
+  analytics: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div>{children}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div>{team}</div>
+        <div>{analytics}</div>
+      </div>
+    </div>
+  );
+}
+```
+
+```tsx
+// app/@team/default.tsx — Required fallback for parallel slots
+
+export default function TeamDefault() {
+  return <div>Select a team member</div>;
+}
+```
+
+```txt
+Intercepting routes — modal pattern:
+
+app/
+├── layout.tsx
+├── page.tsx
+├── @modal/
+│   ├── default.tsx          # Empty default (renders nothing)
+│   └── (.)photos/[id]/
+│       └── page.tsx         # Intercepted → shows modal
+└── photos/
+    └── [id]/
+        └── page.tsx         # Direct navigation → full page
+```
+
+```tsx
+// app/@modal/default.tsx — Renders nothing when no modal is active
+
+export default function ModalDefault() {
+  return null;
+}
+```
+
+```tsx
+// app/@modal/(.)photos/[id]/page.tsx — Intercepted route (modal)
+"use client";
+
+import { useRouter } from "next/navigation";
+
+export default function PhotoModal({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const router = useRouter();
+  const { id } = use(params);
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={() => router.back()}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: "white", padding: 24, borderRadius: 8 }}
+      >
+        <img src={`/photos/${id}.jpg`} alt={`Photo ${id}`} />
+        <button onClick={() => router.back()}>Close</button>
+      </div>
+    </div>
+  );
+}
+```
+
+```tsx
+// app/photos/[id]/page.tsx — Full page (direct navigation or refresh)
+
+export default async function PhotoPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  return (
+    <div>
+      <img src={`/photos/${id}.jpg`} alt={`Photo ${id}`} width={800} />
+      <h1>Photo {id}</h1>
+      <p>Full photo page — seen on direct navigation or page refresh.</p>
+    </div>
+  );
+}
+```

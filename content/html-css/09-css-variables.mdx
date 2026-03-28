@@ -1,0 +1,76 @@
+---
+title: "Что такое CSS пользовательские свойства (переменные)?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS custom properties** (commonly called CSS variables) allow you to define reusable values using the `--` prefix syntax and reference them with the `var()` function. Unlike preprocessor variables (Sass, Less), CSS custom properties are live in the browser, participate in the cascade, and can be inherited by child elements. They are typically defined on `:root` for global access but can be scoped to any selector.
+
+The `var()` function accepts a fallback value as its second argument: `var(--color-primary, #0066cc)` uses the fallback if the variable is undefined. Custom properties follow normal inheritance and specificity rules, so you can override them at any level of the DOM tree. This makes them ideal for **theming** — define your color palette, spacing scale, and typography as variables, then swap themes by changing the variables on a parent element.
+
+Custom properties can also be updated dynamically with JavaScript using `element.style.setProperty('--variable', value)`, enabling interactive effects without class toggling. Combined with media queries, they allow responsive design tokens — for example, increasing spacing on larger screens by redefining a single variable. Modern design systems heavily rely on CSS custom properties for consistency and maintainability.
+
+</Answer>
+<Answer lang="ru">
+
+**Пользовательские свойства CSS** (обычно называемые CSS-переменными) позволяют определять переиспользуемые значения с помощью синтаксиса с префиксом `--` и ссылаться на них через функцию `var()`. В отличие от переменных препроцессоров (Sass, Less), пользовательские свойства CSS живут в браузере, участвуют в каскаде и могут наследоваться дочерними элементами. Обычно они определяются в `:root` для глобального доступа, но могут быть ограничены любым селектором.
+
+Функция `var()` принимает резервное значение как второй аргумент: `var(--color-primary, #0066cc)` использует резервное значение, если переменная не определена. Пользовательские свойства следуют обычным правилам наследования и специфичности, поэтому их можно переопределять на любом уровне DOM-дерева. Это делает их идеальными для **тематизации** — определите цветовую палитру, шкалу отступов и типографику как переменные, а затем переключайте темы, меняя переменные на родительском элементе.
+
+Пользовательские свойства также можно обновлять динамически с помощью JavaScript через `element.style.setProperty('--variable', value)`, что позволяет создавать интерактивные эффекты без переключения классов. В сочетании с медиа-запросами они позволяют создавать адаптивные дизайн-токены — например, увеличивать отступы на больших экранах, переопределяя одну переменную. Современные дизайн-системы активно используют пользовательские свойства CSS для единообразия и удобства поддержки.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Define global design tokens */
+:root {
+  --color-primary: #0066cc;
+  --color-secondary: #6c757d;
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 2rem;
+  --radius: 8px;
+}
+
+/* Dark theme override */
+[data-theme="dark"] {
+  --color-primary: #4da3ff;
+  --color-bg: #1a1a2e;
+  --color-text: #e0e0e0;
+}
+
+/* Using variables in components */
+.card {
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-secondary, #ccc);
+}
+
+.button {
+  background: var(--color-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius);
+}
+```
+
+```html
+<!-- Toggle theme with JavaScript -->
+<button onclick="toggleTheme()">Toggle Theme</button>
+
+<script>
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute(
+      "data-theme",
+      current === "dark" ? "light" : "dark"
+    );
+  }
+</script>
+```

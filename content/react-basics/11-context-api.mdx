@@ -1,0 +1,57 @@
+---
+title: "Что такое Context API?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Context API** is a built-in React mechanism for passing data through the component tree without manually threading props through every level. This solves the problem of **prop drilling**, where intermediate components must forward props they do not use themselves, just to deliver them to deeply nested children.
+
+To use context, you create a context object with **`createContext`**, wrap a part of the tree with its **Provider** component that holds the value, and consume it in any descendant using the **`useContext`** hook. When the provider's value changes, all components that consume that context will re-render. In React 19, you can use `<Context>` directly as a provider instead of `<Context.Provider>`.
+
+Context is ideal for truly global or semi-global data like **themes**, **locale**, **authentication status**, or **routing**. However, it should not replace proper state management for frequently changing data, because every update to the context value triggers a re-render of all consumers, regardless of whether they use the specific piece of data that changed. For high-frequency updates, consider combining context with **memoization** or using a dedicated state management library like Zustand.
+
+</Answer>
+<Answer lang="ru">
+
+**Context API** — это встроенный механизм React для передачи данных через дерево компонентов без ручного пробрасывания пропсов через каждый уровень. Это решает проблему **prop drilling**, когда промежуточные компоненты вынуждены передавать пропсы, которые они сами не используют, только для доставки их глубоко вложенным потомкам.
+
+Для использования контекста создаётся объект контекста с помощью **`createContext`**, часть дерева оборачивается компонентом **Provider**, содержащим значение, и это значение потребляется в любом потомке через хук **`useContext`**. Когда значение провайдера изменяется, все компоненты, использующие этот контекст, перерисовываются. В React 19 можно использовать `<Context>` напрямую как провайдер вместо `<Context.Provider>`.
+
+Контекст идеален для действительно глобальных или полуглобальных данных, таких как **темы**, **локаль**, **статус аутентификации** или **маршрутизация**. Однако он не должен заменять полноценное управление состоянием для часто изменяющихся данных, потому что каждое обновление значения контекста вызывает перерисовку всех потребителей, независимо от того, используют ли они конкретную часть данных, которая изменилась. Для высокочастотных обновлений рассмотрите комбинирование контекста с **мемоизацией** или использование специализированной библиотеки управления состоянием, например Zustand.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createContext, useContext, useState } from "react";
+
+type Theme = "light" | "dark";
+
+const ThemeContext = createContext<{
+  theme: Theme;
+  toggleTheme: () => void;
+}>({ theme: "light", toggleTheme: () => {} });
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>("light");
+  const toggleTheme = () => setTheme(t => (t === "light" ? "dark" : "light"));
+
+  return (
+    <ThemeContext value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext>
+  );
+}
+
+function ThemedButton() {
+  const { theme, toggleTheme } = useContext(ThemeContext);
+
+  return (
+    <button onClick={toggleTheme}>
+      Current theme: {theme}
+    </button>
+  );
+}
+```

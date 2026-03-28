@@ -1,0 +1,81 @@
+---
+title: "Что такое preloading и prefetching?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Preloading**, **prefetching**, and **preconnecting** are resource hints that tell the browser to fetch resources earlier than it normally would, improving perceived performance. They operate at different priorities and are suited for different situations.
+
+**`rel="preload"`** tells the browser to fetch a resource immediately because it will be needed for the current page. Use it for critical fonts, hero images, or above-the-fold CSS that the browser would otherwise discover late. **`rel="prefetch"`** fetches resources that will likely be needed for the next navigation — the browser downloads them at low priority during idle time. **`rel="preconnect"`** establishes early connections (DNS lookup, TCP handshake, TLS negotiation) to third-party origins, saving 100-500ms when you later request resources from them.
+
+In React and Next.js, **`ReactDOM.preload()`** and **`ReactDOM.prefetchDNS()`** provide programmatic control over these hints from within components. Next.js `<Link>` components automatically **prefetch** linked pages when they enter the viewport, so navigation feels instant. Combining these techniques strategically — preloading critical resources, preconnecting to API domains, and prefetching likely next pages — can significantly reduce time to first meaningful paint and navigation latency.
+
+</Answer>
+<Answer lang="ru">
+
+**Предзагрузка** (preloading), **предвыборка** (prefetching) и **предварительное подключение** (preconnecting) — это ресурсные подсказки, которые говорят браузеру загружать ресурсы раньше обычного, улучшая воспринимаемую производительность. Они работают с разными приоритетами и подходят для разных ситуаций.
+
+**`rel="preload"`** сообщает браузеру немедленно загрузить ресурс, потому что он понадобится для текущей страницы. Используйте для критических шрифтов, главных изображений или CSS выше сгиба, которые браузер иначе обнаружил бы поздно. **`rel="prefetch"`** загружает ресурсы, которые, вероятно, понадобятся при следующей навигации — браузер скачивает их с низким приоритетом в свободное время. **`rel="preconnect"`** устанавливает ранние соединения (DNS-запрос, TCP-рукопожатие, TLS-согласование) к сторонним источникам, экономя 100-500мс при последующих запросах к ним.
+
+В React и Next.js **`ReactDOM.preload()`** и **`ReactDOM.prefetchDNS()`** дают программный контроль над этими подсказками из компонентов. Компоненты Next.js `<Link>` автоматически **предзагружают** связанные страницы, когда они попадают в область видимости, благодаря чему навигация ощущается мгновенной. Стратегическая комбинация этих техник — предзагрузка критических ресурсов, предварительное подключение к доменам API и предвыборка вероятных следующих страниц — может значительно сократить время до первого значимого отображения и задержку навигации.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// 1. HTML resource hints in <head>
+function ResourceHints() {
+  return (
+    <head>
+      {/* Preload — critical resource for current page (high priority) */}
+      <link
+        rel="preload"
+        href="/fonts/inter.woff2"
+        as="font"
+        type="font/woff2"
+        crossOrigin="anonymous"
+      />
+
+      {/* Prefetch — resource for likely next page (low priority, idle time) */}
+      <link rel="prefetch" href="/dashboard/chunk.js" as="script" />
+
+      {/* Preconnect — establish connection to third-party origin */}
+      <link rel="preconnect" href="https://api.example.com" />
+      <link rel="dns-prefetch" href="https://cdn.example.com" />
+    </head>
+  );
+}
+```
+
+```tsx
+// 2. Programmatic preloading in React
+import { preload, preconnect, prefetchDNS } from "react-dom";
+
+function App() {
+  // Preload critical resources from within a component
+  preload("/fonts/inter.woff2", { as: "font", type: "font/woff2" });
+  preconnect("https://api.example.com");
+  prefetchDNS("https://cdn.example.com");
+
+  return <main>{/* ... */}</main>;
+}
+```
+
+```tsx
+// 3. Next.js Link — automatic route prefetching
+import Link from "next/link";
+
+function Navigation() {
+  return (
+    <nav>
+      {/* Prefetches /dashboard when this link enters the viewport */}
+      <Link href="/dashboard">Dashboard</Link>
+
+      {/* Disable prefetching for rarely visited pages */}
+      <Link href="/admin" prefetch={false}>Admin</Link>
+    </nav>
+  );
+}
+```

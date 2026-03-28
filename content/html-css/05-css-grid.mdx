@@ -1,0 +1,63 @@
+---
+title: "Как работает CSS Grid?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS Grid** is a two-dimensional layout system that lets you control both columns and rows simultaneously. When you set `display: grid` on an element, it becomes a **grid container**, and its direct children become **grid items**. Unlike Flexbox which works in one dimension, Grid excels at creating complex page layouts with rows and columns.
+
+The key container properties are `grid-template-columns` and `grid-template-rows` which define the grid structure. The **fr** unit represents a fraction of available space — `grid-template-columns: 1fr 2fr` creates two columns where the second is twice as wide. The `repeat()` function simplifies repetitive definitions: `repeat(3, 1fr)` creates three equal columns. **auto-fill** and **auto-fit** enable responsive grids without media queries — `auto-fill` creates as many tracks as possible, while `auto-fit` collapses empty tracks.
+
+Grid items can be placed using `grid-column` and `grid-row` properties or named **grid areas** with `grid-template-areas`. The `gap` property adds consistent spacing between cells. CSS Grid and Flexbox are complementary — use Grid for the overall page layout and Flexbox for component-level alignment within grid cells.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS Grid** — это двумерная система компоновки, позволяющая одновременно управлять и столбцами, и строками. Когда вы устанавливаете `display: grid` на элементе, он становится **grid-контейнером**, а его прямые потомки — **grid-элементами**. В отличие от Flexbox, который работает в одном измерении, Grid отлично подходит для создания сложных макетов страниц со строками и столбцами.
+
+Ключевые свойства контейнера — `grid-template-columns` и `grid-template-rows`, определяющие структуру сетки. Единица **fr** представляет долю доступного пространства — `grid-template-columns: 1fr 2fr` создаёт два столбца, где второй вдвое шире. Функция `repeat()` упрощает повторяющиеся определения: `repeat(3, 1fr)` создаёт три равных столбца. **auto-fill** и **auto-fit** позволяют создавать адаптивные сетки без медиа-запросов — `auto-fill` создаёт максимум треков, а `auto-fit` сворачивает пустые.
+
+Grid-элементы можно размещать с помощью свойств `grid-column` и `grid-row` или именованных **grid-областей** через `grid-template-areas`. Свойство `gap` добавляет единообразные отступы между ячейками. CSS Grid и Flexbox дополняют друг друга — используйте Grid для общей компоновки страницы, а Flexbox для выравнивания на уровне компонентов внутри ячеек.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Basic grid layout */
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+/* Page layout with named areas */
+.page {
+  display: grid;
+  grid-template-areas:
+    "header  header  header"
+    "sidebar content content"
+    "footer  footer  footer";
+  grid-template-columns: 250px 1fr 1fr;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+.page-header  { grid-area: header; }
+.page-sidebar { grid-area: sidebar; }
+.page-content { grid-area: content; }
+.page-footer  { grid-area: footer; }
+
+/* Responsive grid — no media queries needed */
+.auto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Spanning grid items */
+.featured {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+```

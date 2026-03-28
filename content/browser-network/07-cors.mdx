@@ -1,0 +1,62 @@
+---
+title: "Что такое CORS и как это работает?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CORS** (Cross-Origin Resource Sharing) is a security mechanism that allows a server to indicate which origins (domain, protocol, port combinations) are permitted to access its resources. By default, browsers enforce the **same-origin policy**, which blocks requests from a different origin than the page. CORS relaxes this restriction in a controlled way by using specific HTTP headers.
+
+Requests are classified as **simple** or **preflighted**. Simple requests use GET, HEAD, or POST with standard content types and do not trigger a preflight. Complex requests — those using PUT, DELETE, custom headers, or JSON content type — trigger a **preflight request**: the browser sends an OPTIONS request first to check whether the actual request is allowed. The server responds with CORS headers indicating allowed origins, methods, and headers.
+
+Key CORS headers include **`Access-Control-Allow-Origin`** (which origins can access the resource), **`Access-Control-Allow-Methods`** (permitted HTTP methods), **`Access-Control-Allow-Headers`** (permitted custom headers), and **`Access-Control-Allow-Credentials`** (whether cookies are allowed). Setting `Allow-Origin` to `*` permits any origin but is incompatible with credentials. For authenticated requests, you must specify the exact origin.
+
+</Answer>
+<Answer lang="ru">
+
+**CORS** (Cross-Origin Resource Sharing) — это механизм безопасности, позволяющий серверу указать, каким источникам (комбинация домена, протокола и порта) разрешён доступ к его ресурсам. По умолчанию браузеры применяют **политику одного источника** (same-origin policy), блокируя запросы с другого origin. CORS ослабляет это ограничение контролируемым образом с помощью специальных HTTP-заголовков.
+
+Запросы классифицируются как **простые** или **предварительные** (preflighted). Простые запросы используют GET, HEAD или POST со стандартными типами контента и не вызывают preflight. Сложные запросы — использующие PUT, DELETE, кастомные заголовки или JSON content type — вызывают **предварительный запрос**: браузер сначала отправляет OPTIONS-запрос, чтобы проверить, разрешён ли основной запрос. Сервер отвечает CORS-заголовками, указывающими допустимые источники, методы и заголовки.
+
+Ключевые CORS-заголовки: **`Access-Control-Allow-Origin`** (какие origin могут обращаться к ресурсу), **`Access-Control-Allow-Methods`** (разрешённые HTTP-методы), **`Access-Control-Allow-Headers`** (разрешённые кастомные заголовки) и **`Access-Control-Allow-Credentials`** (разрешены ли cookies). Установка `Allow-Origin` в `*` разрешает любой origin, но несовместима с credentials. Для аутентифицированных запросов необходимо указывать точный origin.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Server-side: Express.js CORS configuration
+import cors from "cors";
+
+// Allow specific origin with credentials
+app.use(
+  cors({
+    origin: "https://myapp.com",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+
+// Manual CORS headers (without library)
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "https://myapp.com");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Max-Age", "86400"); // cache preflight 24h
+    return res.status(204).end();
+  }
+  next();
+});
+
+// Client-side: fetch with credentials (cookies)
+const res = await fetch("https://api.example.com/data", {
+  method: "GET",
+  credentials: "include", // send cookies cross-origin
+  headers: { Authorization: "Bearer token123" },
+});
+```

@@ -1,0 +1,67 @@
+---
+title: "Как работает кеширование браузером?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Browser caching** stores copies of resources locally to avoid re-downloading them on subsequent visits. The **Cache-Control** header is the primary mechanism for controlling cache behavior. `max-age=3600` tells the browser to use the cached version for 3600 seconds without contacting the server. `no-cache` forces the browser to validate with the server before using the cache. `no-store` prevents caching entirely.
+
+When the cache expires, the browser uses **conditional requests** to check if the resource has changed. The server can provide an **ETag** (a hash or version identifier of the resource) and a **Last-Modified** timestamp. On the next request, the browser sends `If-None-Match` (with the ETag) or `If-Modified-Since` (with the timestamp). If the resource has not changed, the server responds with **304 Not Modified** and no body, saving bandwidth.
+
+There are two types of caching: **strong cache** (the browser uses the cached response without contacting the server, controlled by `Cache-Control` and `Expires`) and **negotiated cache** (the browser validates freshness with the server, controlled by `ETag` and `Last-Modified`). Modern best practice combines both: use long `max-age` with content-hashed filenames for static assets (so the URL changes when content changes), and short `max-age` or `no-cache` for HTML documents to ensure users get the latest version.
+
+</Answer>
+<Answer lang="ru">
+
+**Кеширование в браузере** сохраняет копии ресурсов локально, чтобы не загружать их повторно при следующих посещениях. Заголовок **Cache-Control** — основной механизм управления кешированием. `max-age=3600` указывает браузеру использовать кешированную версию 3600 секунд без обращения к серверу. `no-cache` заставляет браузер валидировать ресурс с сервером перед использованием кеша. `no-store` полностью запрещает кеширование.
+
+Когда кеш истекает, браузер использует **условные запросы** для проверки, изменился ли ресурс. Сервер может предоставить **ETag** (хеш или идентификатор версии ресурса) и метку **Last-Modified**. При следующем запросе браузер отправляет `If-None-Match` (с ETag) или `If-Modified-Since` (с временной меткой). Если ресурс не изменился, сервер отвечает **304 Not Modified** без тела, экономя трафик.
+
+Существует два типа кеширования: **сильный кеш** (браузер использует кешированный ответ без обращения к серверу, управляется `Cache-Control` и `Expires`) и **согласованный кеш** (браузер проверяет свежесть с сервером, управляется `ETag` и `Last-Modified`). Современная лучшая практика сочетает оба подхода: длинный `max-age` с хешированными именами файлов для статических ресурсов (URL меняется при изменении содержимого) и короткий `max-age` или `no-cache` для HTML-документов, чтобы пользователи получали актуальную версию.
+
+</Answer>
+</AnswerGroup>
+
+```html
+<!-- Typical caching headers set by the server -->
+
+<!-- Static assets with content hash (immutable, cache forever) -->
+<!-- GET /assets/app.a1b2c3d4.js -->
+<!-- Cache-Control: public, max-age=31536000, immutable -->
+
+<!-- HTML documents (always validate) -->
+<!-- GET /index.html -->
+<!-- Cache-Control: no-cache -->
+<!-- ETag: "abc123" -->
+```
+
+```javascript
+// Express.js: configure caching headers
+import express from "express";
+const app = express();
+
+// Static assets — long cache with immutable
+app.use(
+  "/assets",
+  express.static("dist/assets", {
+    maxAge: "1y",
+    immutable: true,
+  })
+);
+
+// HTML — must revalidate every time
+app.get("*", (req, res) => {
+  res.set({
+    "Cache-Control": "no-cache",
+    ETag: computeETag(req.path),
+  });
+  res.sendFile("dist/index.html");
+});
+
+// Conditional request flow:
+// 1st request:  GET /style.css → 200 OK, ETag: "abc123"
+// 2nd request:  GET /style.css, If-None-Match: "abc123" → 304 Not Modified
+// After change:  GET /style.css, If-None-Match: "abc123" → 200 OK, ETag: "def456"
+```

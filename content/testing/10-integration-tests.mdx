@@ -1,0 +1,87 @@
+---
+title: "Что такое интеграционные тесты?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Integration tests** verify that multiple components work together correctly. While unit tests check individual pieces in isolation, integration tests render a larger portion of your app — a whole page, a form with its validation logic, or a feature composed of several components — to ensure they interact properly.
+
+The sweet spot for integration tests is testing a **feature or page as a unit**. Render a parent component that includes its children, context providers, and routing. Mock only the external boundaries — network requests via MSW, browser APIs like `localStorage`, or external services. Keep internal component communication real.
+
+A typical integration test renders a page component, waits for data to load (mocked via MSW), interacts with the UI using `userEvent`, and asserts on the final result. This catches bugs that unit tests miss: incorrect prop passing, broken context consumption, missing error boundaries, or race conditions between components.
+
+**Integration tests offer the best return on investment.** They give you high confidence that features work end-to-end without the overhead and flakiness of E2E tests. The Testing Trophy (by Kent C. Dodds) recommends spending the most effort on integration tests. Aim for one integration test per major user flow — login, form submission, data filtering, etc.
+
+</Answer>
+<Answer lang="ru">
+
+**Интеграционные тесты** проверяют, что несколько компонентов корректно работают вместе. Если юнит-тесты проверяют отдельные части изолированно, интеграционные тесты рендерят большую часть приложения — целую страницу, форму с логикой валидации или фичу из нескольких компонентов — чтобы убедиться в правильности их взаимодействия.
+
+Оптимальная область интеграционных тестов — тестирование **фичи или страницы как единого целого**. Рендерите родительский компонент с дочерними элементами, провайдерами контекста и роутингом. Мокайте только внешние границы — сетевые запросы через MSW, браузерные API вроде `localStorage` или внешние сервисы. Внутреннее взаимодействие компонентов оставляйте реальным.
+
+Типичный интеграционный тест рендерит компонент страницы, ожидает загрузки данных (замоканных через MSW), взаимодействует с UI через `userEvent` и проверяет конечный результат. Это ловит баги, которые пропускают юнит-тесты: неправильную передачу пропсов, сломанное потребление контекста, отсутствующие error boundary или гонки между компонентами.
+
+**Интеграционные тесты дают лучшую отдачу от вложений.** Они обеспечивают высокую уверенность в работе фич от начала до конца без накладных расходов и нестабильности E2E-тестов. Testing Trophy (от Kent C. Dodds) рекомендует уделять больше всего усилий интеграционным тестам. Стремитесь к одному интеграционному тесту на каждый основной пользовательский поток — авторизация, отправка формы, фильтрация данных и т.д.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+
+// Assume a TodoPage that fetches todos and allows adding new ones
+import { TodoPage } from "./TodoPage";
+
+const server = setupServer(
+  http.get("/api/todos", () => {
+    return HttpResponse.json([
+      { id: 1, text: "Learn React", done: false },
+      { id: 2, text: "Write tests", done: true },
+    ]);
+  }),
+  http.post("/api/todos", async ({ request }) => {
+    const body = (await request.json()) as { text: string };
+    return HttpResponse.json({ id: 3, text: body.text, done: false }, { status: 201 });
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+test("displays existing todos and allows adding a new one", async () => {
+  const user = userEvent.setup();
+  render(<TodoPage />);
+
+  // Wait for todos to load
+  expect(await screen.findByText("Learn React")).toBeInTheDocument();
+  expect(screen.getByText("Write tests")).toBeInTheDocument();
+
+  // Add a new todo
+  await user.type(screen.getByLabelText(/new todo/i), "Ship feature");
+  await user.click(screen.getByRole("button", { name: /add/i }));
+
+  // Verify the new todo appears in the list
+  expect(await screen.findByText("Ship feature")).toBeInTheDocument();
+
+  // Verify the input was cleared
+  expect(screen.getByLabelText(/new todo/i)).toHaveValue("");
+});
+
+test("shows error message when fetch fails", async () => {
+  server.use(
+    http.get("/api/todos", () => {
+      return new HttpResponse(null, { status: 500 });
+    })
+  );
+
+  render(<TodoPage />);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(/failed to load/i);
+});
+```

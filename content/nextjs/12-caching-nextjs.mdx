@@ -1,0 +1,104 @@
+---
+title: "Как работает кеширование в Next.js?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Next.js has a multi-layered caching system designed to optimize performance. **Request Memoization** deduplicates identical `fetch` calls within a single server render — if multiple components fetch the same URL, only one network request is made. The **Data Cache** persists fetch responses across requests and deployments on the server, controlled by `cache` and `next.revalidate` options. The **Full Route Cache** stores the rendered HTML and RSC payload of static routes at build time.
+
+The **Router Cache** is a client-side, in-memory cache that stores the RSC payload of previously visited routes. It provides instant back/forward navigation and prefetches routes for links visible in the viewport. This cache persists for the duration of the user session and is automatically invalidated when Server Actions call `revalidatePath` or `revalidateTag`.
+
+Cache invalidation can be done through **time-based revalidation** (`next: { revalidate: 60 }` on fetch), **on-demand revalidation** using `revalidatePath()` to purge a specific route or `revalidateTag()` to purge all fetches tagged with a specific label. You can also opt out of caching entirely with `cache: 'no-store'` on individual fetches or `export const dynamic = 'force-dynamic'` at the route level. Understanding these layers is critical for building applications that are both fast and fresh.
+
+</Answer>
+<Answer lang="ru">
+
+В Next.js существует многоуровневая система кэширования для оптимизации производительности. **Мемоизация запросов** (Request Memoization) дедуплицирует одинаковые `fetch`-вызовы в рамках одного серверного рендера — если несколько компонентов запрашивают один URL, выполняется только один сетевой запрос. **Кэш данных** (Data Cache) сохраняет ответы fetch между запросами и деплоями на сервере, управляемый опциями `cache` и `next.revalidate`. **Кэш полного маршрута** (Full Route Cache) хранит отрендеренный HTML и RSC-пейлоад статических маршрутов при сборке.
+
+**Кэш роутера** (Router Cache) — это клиентский кэш в памяти, хранящий RSC-пейлоад ранее посещённых маршрутов. Он обеспечивает мгновенную навигацию назад/вперёд и предзагружает маршруты для видимых ссылок. Этот кэш сохраняется на протяжении пользовательской сессии и автоматически инвалидируется, когда серверные действия вызывают `revalidatePath` или `revalidateTag`.
+
+Инвалидация кэша может выполняться через **временную ревалидацию** (`next: { revalidate: 60 }` в fetch), **ревалидацию по запросу** с помощью `revalidatePath()` для очистки конкретного маршрута или `revalidateTag()` для очистки всех fetch-запросов с определённым тегом. Также можно полностью отключить кэширование с помощью `cache: 'no-store'` для отдельных запросов или `export const dynamic = 'force-dynamic'` на уровне маршрута. Понимание этих уровней критически важно для создания приложений, которые одновременно быстрые и актуальные.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// 1. Request Memoization — same fetch is called once per render
+
+// components/header.tsx
+async function getUser() {
+  // This fetch is automatically memoized
+  const res = await fetch("https://api.example.com/user");
+  return res.json();
+}
+
+// components/sidebar.tsx
+async function getUser() {
+  // Same URL — reuses the result from above (one network request total)
+  const res = await fetch("https://api.example.com/user");
+  return res.json();
+}
+```
+
+```tsx
+// 2. Data Cache — control caching per fetch
+
+// Cached indefinitely (static)
+const staticData = await fetch("https://api.example.com/config", {
+  cache: "force-cache",
+});
+
+// Revalidate every 60 seconds (ISR)
+const isrData = await fetch("https://api.example.com/posts", {
+  next: { revalidate: 60 },
+});
+
+// Never cached (always fresh)
+const dynamicData = await fetch("https://api.example.com/live", {
+  cache: "no-store",
+});
+
+// Tagged for on-demand revalidation
+const taggedData = await fetch("https://api.example.com/products", {
+  next: { tags: ["products"] },
+});
+```
+
+```tsx
+// 3. On-demand revalidation in a Server Action
+
+"use server";
+
+import { revalidatePath, revalidateTag } from "next/cache";
+
+export async function updateProduct(formData: FormData) {
+  const id = formData.get("id") as string;
+  const title = formData.get("title") as string;
+
+  await db.product.update({ where: { id }, data: { title } });
+
+  // Revalidate all fetches tagged with "products"
+  revalidateTag("products");
+
+  // Revalidate a specific page
+  revalidatePath(`/products/${id}`);
+
+  // Revalidate a layout (and all pages under it)
+  revalidatePath("/products", "layout");
+}
+```
+
+```tsx
+// 4. Opting out of caching at the route level
+
+// This makes the entire page dynamic
+export const dynamic = "force-dynamic";
+
+// Or make it fully static
+export const dynamic = "force-static";
+
+// Control revalidation at route level
+export const revalidate = 3600; // Revalidate every hour
+```

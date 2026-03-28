@@ -1,0 +1,91 @@
+---
+title: "Что такое XSS и CSRF атаки?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**XSS** (Cross-Site Scripting) is an attack where malicious scripts are injected into a trusted website. There are three types: **Stored XSS** (the script is saved in the database and served to all users — most dangerous), **Reflected XSS** (the script is embedded in a URL and reflected back in the response), and **DOM-based XSS** (the script manipulates the DOM directly through client-side JavaScript without going through the server). XSS can steal cookies, session tokens, or perform actions on behalf of the user.
+
+**CSRF** (Cross-Site Request Forgery) tricks an authenticated user's browser into making unwanted requests to a site where they are logged in. For example, a malicious page might contain a hidden form that submits a money transfer request to the user's bank. The browser automatically includes the bank's cookies, so the request appears legitimate. CSRF targets state-changing operations (POST, PUT, DELETE), not data theft.
+
+Prevention strategies for XSS include: **input sanitization** (escape or strip HTML), **Content Security Policy** (CSP) headers (restrict where scripts can load from), using `textContent` instead of `innerHTML`, and frameworks like React that auto-escape JSX output by default. For CSRF: use **anti-CSRF tokens** (unique per-session tokens in forms), set cookies with **`SameSite=Strict`** or **`SameSite=Lax`**, and verify the **`Origin`** or **`Referer`** header on the server.
+
+</Answer>
+<Answer lang="ru">
+
+**XSS** (Cross-Site Scripting) — это атака, при которой вредоносные скрипты внедряются в доверенный сайт. Есть три типа: **Stored XSS** (скрипт сохраняется в базе данных и отдаётся всем пользователям — самый опасный), **Reflected XSS** (скрипт встроен в URL и отражается в ответе сервера) и **DOM-based XSS** (скрипт манипулирует DOM через клиентский JavaScript, не проходя через сервер). XSS может украсть cookies, токены сессии или выполнять действия от имени пользователя.
+
+**CSRF** (Cross-Site Request Forgery) заставляет браузер аутентифицированного пользователя выполнить нежелательный запрос к сайту, на котором он авторизован. Например, вредоносная страница может содержать скрытую форму, отправляющую запрос на перевод денег в банк пользователя. Браузер автоматически включает cookies банка, поэтому запрос выглядит легитимным. CSRF нацелен на операции, изменяющие состояние (POST, PUT, DELETE), а не на кражу данных.
+
+Стратегии защиты от XSS: **санитизация ввода** (экранирование или удаление HTML), заголовки **Content Security Policy** (CSP) (ограничение источников загрузки скриптов), использование `textContent` вместо `innerHTML`, и фреймворки вроде React, которые автоматически экранируют JSX по умолчанию. Для CSRF: использовать **анти-CSRF токены** (уникальные токены сессии в формах), устанавливать cookies с **`SameSite=Strict`** или **`SameSite=Lax`**, проверять заголовок **`Origin`** или **`Referer`** на сервере.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// === XSS Prevention ===
+
+// BAD: vulnerable to XSS
+element.innerHTML = userInput;
+document.write(userInput);
+
+// GOOD: safe — text is not parsed as HTML
+element.textContent = userInput;
+
+// Sanitize HTML when you must render it
+import DOMPurify from "dompurify";
+element.innerHTML = DOMPurify.sanitize(userInput);
+
+// React auto-escapes by default — this is safe:
+// <div>{userInput}</div>
+// DANGER: this bypasses protection:
+// <div dangerouslySetInnerHTML={{ __html: userInput }} />
+```
+
+```html
+<!-- Content Security Policy header -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+/>
+```
+
+```javascript
+// === CSRF Prevention ===
+
+// Server: generate and validate CSRF token
+import crypto from "crypto";
+
+function generateCsrfToken(session) {
+  const token = crypto.randomBytes(32).toString("hex");
+  session.csrfToken = token;
+  return token;
+}
+
+function validateCsrfToken(req) {
+  const token = req.headers["x-csrf-token"] || req.body._csrf;
+  return token === req.session.csrfToken;
+}
+
+// Middleware to protect state-changing routes
+app.post("/api/transfer", (req, res) => {
+  if (!validateCsrfToken(req)) {
+    return res.status(403).json({ error: "Invalid CSRF token" });
+  }
+  // process transfer...
+});
+
+// Client: include CSRF token in requests
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+await fetch("/api/transfer", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-CSRF-Token": csrfToken,
+  },
+  body: JSON.stringify({ to: "Alice", amount: 100 }),
+});
+```

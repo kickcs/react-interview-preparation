@@ -1,0 +1,103 @@
+---
+title: "Что такое методология BEM?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**BEM** (Block, Element, Modifier) is a CSS naming convention that provides a clear structure for class names and helps avoid specificity wars. A **Block** is a standalone component (e.g., `card`, `menu`), an **Element** is a part of a block that has no standalone meaning (e.g., `card__title`, `menu__item`), and a **Modifier** is a flag that changes the appearance or behavior of a block or element (e.g., `card--featured`, `menu__item--active`).
+
+The naming convention uses double underscores (`__`) to separate blocks from elements and double hyphens (`--`) to denote modifiers. This results in flat, predictable selectors with low specificity (single class), making styles easy to override and maintain. BEM eliminates the need for nested selectors, so you never write `.card .title` — instead you write `.card__title`, which is both more specific in meaning and lower in CSS specificity.
+
+Common mistakes include nesting elements too deeply (`.block__element__subelement` — instead, flatten or create a new block), using BEM for every element (utility classes for simple properties are fine), and mixing BEM with ID or tag selectors. BEM works well with preprocessors like Sass using the `&` parent selector. While newer approaches like CSS Modules and utility-first frameworks have gained popularity, BEM remains widely used and is especially valuable in large codebases with multiple developers.
+
+</Answer>
+<Answer lang="ru">
+
+**BEM** (Блок, Элемент, Модификатор) — это соглашение об именовании CSS-классов, обеспечивающее чёткую структуру имён и помогающее избежать конфликтов специфичности. **Блок** — это самостоятельный компонент (например, `card`, `menu`), **Элемент** — часть блока, не имеющая самостоятельного значения (например, `card__title`, `menu__item`), а **Модификатор** — флаг, изменяющий внешний вид или поведение блока или элемента (например, `card--featured`, `menu__item--active`).
+
+Соглашение об именовании использует двойное подчёркивание (`__`) для разделения блоков и элементов и двойной дефис (`--`) для обозначения модификаторов. Это приводит к плоским, предсказуемым селекторам с низкой специфичностью (один класс), что упрощает переопределение и поддержку стилей. BEM устраняет необходимость в вложенных селекторах — вместо `.card .title` вы пишете `.card__title`, что более точно по смыслу и ниже по CSS-специфичности.
+
+Типичные ошибки: слишком глубокая вложенность элементов (`.block__element__subelement` — лучше сделать плоскую структуру или создать новый блок), применение BEM к каждому элементу (для простых свойств подходят утилитарные классы) и смешивание BEM с ID- или тег-селекторами. BEM хорошо работает с препроцессорами вроде Sass через родительский селектор `&`. Хотя новые подходы, такие как CSS Modules и utility-first фреймворки, набрали популярность, BEM по-прежнему широко используется и особенно полезен в больших кодовых базах с несколькими разработчиками.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Block */
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Elements */
+.card__header {
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.card__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.card__body {
+  padding: 1rem;
+}
+
+.card__footer {
+  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Modifiers */
+.card--featured {
+  border: 2px solid #0066cc;
+}
+
+.card--compact .card__body {
+  padding: 0.5rem;
+}
+
+/* Button block with modifiers */
+.button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.button--primary {
+  background: #0066cc;
+  color: white;
+}
+
+.button--secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+```
+
+```html
+<article class="card card--featured">
+  <div class="card__header">
+    <h2 class="card__title">Featured Post</h2>
+  </div>
+  <div class="card__body">
+    <p>Card content goes here.</p>
+  </div>
+  <div class="card__footer">
+    <button class="button button--secondary">Cancel</button>
+    <button class="button button--primary">Read More</button>
+  </div>
+</article>
+```

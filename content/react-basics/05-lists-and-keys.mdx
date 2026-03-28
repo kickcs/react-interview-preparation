@@ -1,0 +1,45 @@
+---
+title: "Как работают списки и ключи в React?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Rendering lists in React is done by transforming arrays of data into arrays of elements, typically using the **`.map()`** method. Each element in the resulting array should be assigned a unique **key** prop so React can efficiently track which items have changed, been added, or been removed during re-renders.
+
+**Keys** help React identify elements across renders. They must be unique among siblings (not globally) and should be stable, meaning they do not change between renders. The best key is a unique identifier from your data, such as a database ID. Using the **array index as a key** is an anti-pattern when the list can be reordered, filtered, or items can be inserted or deleted. In such cases, index keys cause React to incorrectly reuse DOM nodes, leading to bugs with component state and broken animations.
+
+If your data does not have a natural unique identifier, consider generating stable IDs when the data is created (e.g., with `crypto.randomUUID()`), rather than at render time. Keys are not passed as a prop to the component — they are consumed internally by React. If you need the same value inside the component, pass it explicitly as a separate prop.
+
+</Answer>
+<Answer lang="ru">
+
+Отображение списков в React выполняется путём преобразования массивов данных в массивы элементов, обычно с помощью метода **`.map()`**. Каждому элементу результирующего массива необходимо присвоить уникальный проп **key**, чтобы React мог эффективно отслеживать, какие элементы изменились, были добавлены или удалены при перерисовках.
+
+**Ключи (keys)** помогают React идентифицировать элементы между рендерами. Они должны быть уникальными среди соседних элементов (не глобально) и стабильными, то есть не изменяться между рендерами. Лучший ключ — это уникальный идентификатор из ваших данных, например ID из базы данных. Использование **индекса массива в качестве ключа** является антипаттерном, когда список может быть переупорядочен, отфильтрован или элементы могут быть вставлены или удалены. В таких случаях ключи-индексы заставляют React неправильно переиспользовать DOM-узлы, что приводит к ошибкам с состоянием компонентов и сломанным анимациям.
+
+Если ваши данные не имеют естественного уникального идентификатора, рассмотрите генерацию стабильных ID при создании данных (например, с помощью `crypto.randomUUID()`), а не во время рендеринга. Ключи не передаются как проп компоненту — они используются React внутренне. Если вам нужно то же значение внутри компонента, передайте его явно как отдельный проп.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+function UserList({ users }: { users: User[] }) {
+  return (
+    <ul>
+      {users.map(user => (
+        <li key={user.id}>
+          <strong>{user.name}</strong> — {user.email}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```

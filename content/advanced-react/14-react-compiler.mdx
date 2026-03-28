@@ -1,0 +1,95 @@
+---
+title: "Что такое React Compiler?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **React Compiler** (formerly known as React Forget) is a build-time tool that automatically optimizes React components by adding memoization. Instead of developers manually wrapping values in `useMemo`, `useCallback`, and `React.memo`, the compiler analyzes your code and inserts these optimizations where they are beneficial.
+
+The compiler works by understanding the **Rules of React** — it analyzes which values change between renders and which remain stable. It then generates code that caches computed values and skips re-renders when props have not changed. This is done at compile time through a Babel plugin, so there is no runtime overhead from the optimization itself. The compiler respects React's semantic model and only applies safe transformations.
+
+The key benefit is eliminating the **mental overhead** of manual memoization. Developers often memoize too little (causing performance issues) or too much (adding complexity for no gain). The compiler makes optimal decisions consistently. It also reduces bundle size by removing manual `useMemo`/`useCallback` calls that are replaced by more efficient compiler-generated code. The React Compiler works with existing React code — you do not need to rewrite your components. It can be adopted incrementally by applying it to specific files or directories first.
+
+</Answer>
+<Answer lang="ru">
+
+**React Compiler** (ранее известный как React Forget) — это инструмент времени сборки, который автоматически оптимизирует React-компоненты, добавляя мемоизацию. Вместо того чтобы разработчики вручную оборачивали значения в `useMemo`, `useCallback` и `React.memo`, компилятор анализирует код и вставляет эти оптимизации там, где они полезны.
+
+Компилятор работает, понимая **правила React** — он анализирует, какие значения меняются между рендерами, а какие остаются стабильными. Затем он генерирует код, который кэширует вычисленные значения и пропускает повторные рендеры, когда пропсы не изменились. Это делается во время компиляции через Babel-плагин, поэтому сама оптимизация не создаёт накладных расходов во время выполнения. Компилятор уважает семантическую модель React и применяет только безопасные трансформации.
+
+Ключевое преимущество — устранение **ментальной нагрузки** ручной мемоизации. Разработчики часто мемоизируют слишком мало (вызывая проблемы с производительностью) или слишком много (добавляя сложность без выигрыша). Компилятор принимает оптимальные решения стабильно. Он также уменьшает размер бандла, заменяя ручные вызовы `useMemo`/`useCallback` более эффективным кодом, сгенерированным компилятором. React Compiler работает с существующим React-кодом — вам не нужно переписывать компоненты. Его можно внедрять постепенно, применяя сначала к конкретным файлам или директориям.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// BEFORE: Manual memoization required by developer
+
+import { useMemo, useCallback, memo } from "react";
+
+const ExpensiveList = memo(function ExpensiveList({
+  items,
+  onSelect,
+}: {
+  items: Item[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id} onClick={() => onSelect(item.id)}>
+          {item.name}
+        </li>
+      ))}
+    </ul>
+  );
+});
+
+function SearchPage({ data }: { data: Item[] }) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Developer must manually memoize
+  const filtered = useMemo(
+    () => data.filter((item) => item.name.includes(query)),
+    [data, query]
+  );
+
+  // Developer must manually stabilize callback
+  const handleSelect = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      <ExpensiveList items={filtered} onSelect={handleSelect} />
+    </div>
+  );
+}
+
+// AFTER: With React Compiler — same code, no manual memoization
+
+function SearchPage({ data }: { data: Item[] }) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Compiler automatically memoizes this computation
+  const filtered = data.filter((item) => item.name.includes(query));
+
+  // Compiler automatically stabilizes this callback
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+  };
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      {/* Compiler automatically prevents unnecessary re-renders */}
+      <ExpensiveList items={filtered} onSelect={handleSelect} />
+    </div>
+  );
+}
+```

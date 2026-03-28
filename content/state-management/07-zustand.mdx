@@ -1,0 +1,106 @@
+---
+title: "Что такое Zustand и как это работает?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Zustand** is a lightweight state management library for React that focuses on simplicity and minimal boilerplate. Unlike Redux, it doesn't require providers, reducers, or action types. You create a store with the `create` function, define your state and actions together, and consume it in components via a hook. Zustand stores exist outside the React tree, which means they can be accessed from anywhere — even outside components.
+
+A key feature of Zustand is its **selector-based subscription model**. When you call the store hook with a selector (e.g., `useStore((s) => s.count)`), the component only re-renders when that specific slice of state changes. This gives you fine-grained reactivity without the complexity of memoization or context splitting.
+
+Zustand supports a rich **middleware** ecosystem: `persist` saves state to localStorage (with versioning and migration support), `devtools` connects to Redux DevTools for debugging, `immer` enables immutable updates with mutable syntax, and `subscribeWithSelector` allows subscribing to specific state slices outside React. Compared to Redux Toolkit, Zustand has a much smaller bundle size and simpler API, making it an excellent choice for small to medium applications or when you want a lightweight global store without ceremony.
+
+</Answer>
+<Answer lang="ru">
+
+**Zustand** — это легковесная библиотека управления состоянием для React, ориентированная на простоту и минимальный шаблонный код. В отличие от Redux, она не требует провайдеров, редьюсеров или типов действий. Вы создаёте хранилище с помощью функции `create`, определяете состояние и действия вместе, и используете их в компонентах через хук. Хранилища Zustand существуют вне дерева React, что означает доступ к ним из любого места — даже вне компонентов.
+
+Ключевая особенность Zustand — **модель подписки на основе селекторов**. Когда вы вызываете хук хранилища с селектором (например, `useStore((s) => s.count)`), компонент перерендеривается только при изменении этого конкретного среза состояния. Это обеспечивает точечную реактивность без сложности мемоизации или разделения контекстов.
+
+Zustand поддерживает богатую экосистему **middleware**: `persist` сохраняет состояние в localStorage (с поддержкой версионирования и миграций), `devtools` подключается к Redux DevTools для отладки, `immer` позволяет делать иммутабельные обновления с мутабельным синтаксисом, а `subscribeWithSelector` позволяет подписываться на конкретные срезы состояния вне React. По сравнению с Redux Toolkit, Zustand имеет значительно меньший размер бандла и более простой API, что делает его отличным выбором для малых и средних приложений или когда нужно лёгкое глобальное хранилище без лишней церемонии.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { create } from "zustand";
+import { persist, devtools } from "zustand/middleware";
+
+// Define the store with state and actions together
+interface TodoStore {
+  todos: { id: number; text: string; done: boolean }[];
+  filter: "all" | "active" | "done";
+  addTodo: (text: string) => void;
+  toggleTodo: (id: number) => void;
+  setFilter: (filter: "all" | "active" | "done") => void;
+}
+
+const useTodoStore = create<TodoStore>()(
+  devtools(
+    persist(
+      (set) => ({
+        todos: [],
+        filter: "all",
+
+        addTodo: (text) =>
+          set(
+            (state) => ({
+              todos: [...state.todos, { id: Date.now(), text, done: false }],
+            }),
+            false,
+            "addTodo" // Action name for DevTools
+          ),
+
+        toggleTodo: (id) =>
+          set(
+            (state) => ({
+              todos: state.todos.map((t) =>
+                t.id === id ? { ...t, done: !t.done } : t
+              ),
+            }),
+            false,
+            "toggleTodo"
+          ),
+
+        setFilter: (filter) => set({ filter }, false, "setFilter"),
+      }),
+      {
+        name: "todo-storage", // localStorage key
+        version: 1,           // For migrations
+      }
+    )
+  )
+);
+
+// Components subscribe to specific slices — minimal re-renders
+function TodoCount() {
+  // Only re-renders when todos array changes
+  const count = useTodoStore((s) => s.todos.filter((t) => !t.done).length);
+  return <span>{count} remaining</span>;
+}
+
+function TodoList() {
+  const todos = useTodoStore((s) => s.todos);
+  const filter = useTodoStore((s) => s.filter);
+  const toggleTodo = useTodoStore((s) => s.toggleTodo);
+
+  const filtered = todos.filter((t) =>
+    filter === "all" ? true : filter === "done" ? t.done : !t.done
+  );
+
+  return (
+    <ul>
+      {filtered.map((todo) => (
+        <li key={todo.id} onClick={() => toggleTodo(todo.id)}>
+          {todo.done ? "✓" : "○"} {todo.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Access store outside React
+const { addTodo } = useTodoStore.getState();
+```

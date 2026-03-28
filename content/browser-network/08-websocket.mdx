@@ -1,0 +1,65 @@
+---
+title: "Что такое WebSockets?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**WebSockets** provide a persistent, full-duplex communication channel between a client and a server over a single TCP connection. Unlike HTTP, where the client must initiate every request, WebSockets allow both the server and client to send messages at any time. The connection starts with an HTTP **handshake** (an Upgrade request), and once established, switches to the `ws://` (or `wss://` for secure) protocol.
+
+WebSocket connections fire four key events: **`open`** (connection established), **`message`** (data received), **`close`** (connection terminated), and **`error`** (an error occurred). Messages can be text or binary data. The persistent connection eliminates the overhead of establishing new HTTP connections for each message, making WebSockets ideal for real-time applications.
+
+Compared to alternatives: **HTTP polling** sends repeated requests at intervals (wasteful when there is no new data), **long polling** holds the connection open until data is available (better but still creates new connections), and **Server-Sent Events** (SSE) provide one-way server-to-client streaming over HTTP. WebSockets are the best choice when you need bidirectional real-time communication — chat apps, live dashboards, multiplayer games, or collaborative editing.
+
+</Answer>
+<Answer lang="ru">
+
+**WebSockets** обеспечивают постоянный полнодуплексный канал связи между клиентом и сервером через одно TCP-соединение. В отличие от HTTP, где клиент должен инициировать каждый запрос, WebSockets позволяют и серверу, и клиенту отправлять сообщения в любой момент. Соединение начинается с HTTP-**рукопожатия** (Upgrade-запрос), и после установки переключается на протокол `ws://` (или `wss://` для защищённого соединения).
+
+WebSocket-соединение генерирует четыре ключевых события: **`open`** (соединение установлено), **`message`** (данные получены), **`close`** (соединение закрыто) и **`error`** (произошла ошибка). Сообщения могут быть текстовыми или бинарными. Постоянное соединение устраняет накладные расходы на создание новых HTTP-соединений для каждого сообщения, что делает WebSockets идеальными для приложений реального времени.
+
+По сравнению с альтернативами: **HTTP polling** отправляет повторные запросы через интервалы (расточительно, когда новых данных нет), **long polling** держит соединение открытым до появления данных (лучше, но всё ещё создаёт новые соединения), а **Server-Sent Events** (SSE) обеспечивают однонаправленную потоковую передачу от сервера к клиенту по HTTP. WebSockets — лучший выбор, когда нужна двунаправленная связь в реальном времени: чаты, живые панели мониторинга, многопользовательские игры или совместное редактирование.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Client-side: simple chat with WebSocket
+const socket = new WebSocket("wss://chat.example.com");
+
+socket.addEventListener("open", () => {
+  console.log("Connected to server");
+  socket.send(JSON.stringify({ type: "join", room: "general" }));
+});
+
+socket.addEventListener("message", (event) => {
+  const data = JSON.parse(event.data);
+  console.log(`${data.user}: ${data.text}`);
+});
+
+socket.addEventListener("close", (event) => {
+  console.log(`Disconnected: code=${event.code}, reason=${event.reason}`);
+});
+
+socket.addEventListener("error", (error) => {
+  console.error("WebSocket error:", error);
+});
+
+// Send a message
+function sendMessage(text) {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "message", text }));
+  }
+}
+
+// Reconnect logic
+function connectWithRetry(url, delay = 1000) {
+  const ws = new WebSocket(url);
+  ws.addEventListener("close", () => {
+    console.log(`Reconnecting in ${delay}ms...`);
+    setTimeout(() => connectWithRetry(url, Math.min(delay * 2, 30000)), delay);
+  });
+  return ws;
+}
+```

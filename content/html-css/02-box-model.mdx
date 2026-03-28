@@ -1,0 +1,52 @@
+---
+title: "Что такое блочная модель CSS?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **CSS Box Model** is a fundamental concept that describes how every HTML element is rendered as a rectangular box. Each box consists of four layers from inside out: **content** (the actual text or image), **padding** (space between content and border), **border** (the edge around padding), and **margin** (space outside the border separating the element from others).
+
+By default, the browser uses `box-sizing: content-box`, which means that `width` and `height` apply only to the content area. Padding and border are added on top, making the element's total size larger than specified. This often leads to unexpected layout issues. The `box-sizing: border-box` model includes padding and border within the specified width and height, making sizing far more predictable.
+
+Most modern CSS resets apply `box-sizing: border-box` globally. Margins can also collapse vertically — when two vertical margins meet, the larger one wins rather than both being added together. Understanding the box model is essential for building accurate layouts.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS Box Model** (блочная модель) — это фундаментальная концепция, описывающая, как каждый HTML-элемент отображается в виде прямоугольного блока. Каждый блок состоит из четырёх слоёв изнутри наружу: **content** (содержимое — текст или изображение), **padding** (отступ между содержимым и рамкой), **border** (рамка вокруг отступа) и **margin** (внешний отступ, отделяющий элемент от других).
+
+По умолчанию браузер использует `box-sizing: content-box`, что означает, что `width` и `height` применяются только к области содержимого. Padding и border добавляются сверху, делая общий размер элемента больше заданного. Это часто приводит к неожиданным проблемам с вёрсткой. Модель `box-sizing: border-box` включает padding и border в указанные ширину и высоту, что делает размеры гораздо более предсказуемыми.
+
+Большинство современных CSS-сбросов применяют `box-sizing: border-box` глобально. Вертикальные margin также могут схлопываться — когда два вертикальных margin встречаются, побеждает больший, а не складываются оба. Понимание блочной модели необходимо для создания точных макетов.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Global box-sizing reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* content-box (default): total width = 200 + 20*2 + 2*2 = 244px */
+.content-box-example {
+  box-sizing: content-box;
+  width: 200px;
+  padding: 20px;
+  border: 2px solid #333;
+  margin: 10px;
+}
+
+/* border-box: total width = 200px (content shrinks to fit) */
+.border-box-example {
+  box-sizing: border-box;
+  width: 200px;
+  padding: 20px;
+  border: 2px solid #333;
+  margin: 10px;
+}
+```

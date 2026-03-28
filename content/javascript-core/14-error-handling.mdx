@@ -1,0 +1,98 @@
+---
+title: "Как работает обработка ошибок в JavaScript?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+JavaScript provides **`try/catch/finally`** as the primary mechanism for error handling. Code that might throw is placed inside `try`, errors are caught in `catch` (which receives the error object), and `finally` runs regardless of whether an error occurred — making it ideal for cleanup tasks like closing connections. The `catch` block can inspect the error type using `instanceof` to handle different errors differently.
+
+JavaScript has several built-in **error types**: `Error` (base), `TypeError` (wrong type), `ReferenceError` (undefined variable), `SyntaxError` (invalid code), `RangeError` (value out of range), and `URIError`. You can create **custom error classes** by extending `Error`, which is essential for domain-specific error handling in larger applications. Custom errors should set a meaningful `name` property and can include additional metadata.
+
+For **asynchronous error handling**, try/catch works seamlessly with `async/await`. Unhandled promise rejections can be caught globally with `window.addEventListener("unhandledrejection", handler)` in browsers or `process.on("unhandledRejection", handler)` in Node.js. Similarly, `window.onerror` or `window.addEventListener("error", handler)` catches uncaught synchronous errors globally. In production, these global handlers are typically used to log errors to monitoring services.
+
+</Answer>
+<Answer lang="ru">
+
+JavaScript предоставляет **`try/catch/finally`** как основной механизм обработки ошибок. Код, который может выбросить ошибку, помещается в `try`, ошибки перехватываются в `catch` (который получает объект ошибки), а `finally` выполняется независимо от того, произошла ли ошибка — что идеально для задач очистки, таких как закрытие соединений. Блок `catch` может проверять тип ошибки с помощью `instanceof` для различной обработки разных ошибок.
+
+В JavaScript есть несколько встроенных **типов ошибок**: `Error` (базовый), `TypeError` (неверный тип), `ReferenceError` (необъявленная переменная), `SyntaxError` (невалидный код), `RangeError` (значение вне диапазона) и `URIError`. Вы можете создавать **пользовательские классы ошибок**, наследуя от `Error`, что необходимо для доменной обработки ошибок в крупных приложениях. Пользовательские ошибки должны устанавливать осмысленное свойство `name` и могут содержать дополнительные метаданные.
+
+Для **асинхронной обработки ошибок** try/catch прекрасно работает с `async/await`. Необработанные отклонения промисов можно перехватить глобально через `window.addEventListener("unhandledrejection", handler)` в браузерах или `process.on("unhandledRejection", handler)` в Node.js. Аналогично, `window.onerror` или `window.addEventListener("error", handler)` перехватывает необработанные синхронные ошибки глобально. В продакшене эти глобальные обработчики обычно используются для отправки ошибок в сервисы мониторинга.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Basic try/catch/finally
+try {
+  const data = JSON.parse("invalid json");
+} catch (error) {
+  console.error(error.message); // "Unexpected token i in JSON..."
+} finally {
+  console.log("Cleanup runs always");
+}
+
+// Checking error types
+try {
+  undeclaredVar;
+} catch (error) {
+  if (error instanceof ReferenceError) {
+    console.log("Variable not declared");
+  } else if (error instanceof TypeError) {
+    console.log("Type mismatch");
+  }
+}
+
+// Custom error class
+class ValidationError extends Error {
+  constructor(field, message) {
+    super(message);
+    this.name = "ValidationError";
+    this.field = field;
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(resource, id) {
+    super(`${resource} with id ${id} not found`);
+    this.name = "NotFoundError";
+    this.resource = resource;
+    this.id = id;
+  }
+}
+
+function validateUser(user) {
+  if (!user.email) throw new ValidationError("email", "Email is required");
+  if (!user.email.includes("@"))
+    throw new ValidationError("email", "Invalid email format");
+}
+
+// Async error handling
+async function fetchUser(id) {
+  try {
+    const response = await fetch(`/api/users/${id}`);
+    if (!response.ok) {
+      throw new NotFoundError("User", id);
+    }
+    return await response.json();
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      console.warn(error.message);
+      return null;
+    }
+    throw error; // re-throw unexpected errors
+  }
+}
+
+// Global error handlers (browser)
+window.addEventListener("error", (event) => {
+  console.error("Uncaught error:", event.error);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled rejection:", event.reason);
+  event.preventDefault(); // prevents default console error
+});
+```

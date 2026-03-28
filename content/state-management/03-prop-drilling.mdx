@@ -1,0 +1,84 @@
+---
+title: "Что такое проблема prop drilling?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Prop drilling** is the process of passing data through multiple layers of intermediate components that don't actually use the data themselves — they only forward it to deeper children. While passing props one or two levels deep is perfectly normal in React, drilling through many levels makes code harder to read, maintain, and refactor.
+
+The main problems with excessive prop drilling include: components become tightly coupled to props they don't use, renaming or changing a prop requires updating every component in the chain, and it becomes difficult to trace where data originates. When a component in the middle of the tree needs to be restructured, all the "pass-through" props must be reorganized as well.
+
+There are several solutions to prop drilling. **Component composition** (passing children or render props) can eliminate intermediate forwarding. **Context API** lets you skip levels entirely by providing data to any descendant. For more complex cases, **state management libraries** like Zustand or Redux Toolkit provide global stores accessible from any component. The right solution depends on how widely shared the data is and how often it changes.
+
+</Answer>
+<Answer lang="ru">
+
+**Prop drilling (пробрасывание пропсов)** — это процесс передачи данных через множество промежуточных компонентов, которые сами эти данные не используют, а лишь передают их глубже по дереву. Хотя передача пропсов на один-два уровня — совершенно нормальная практика в React, пробрасывание через множество уровней делает код менее читаемым, сложным в поддержке и рефакторинге.
+
+Основные проблемы чрезмерного prop drilling: компоненты становятся тесно связаны с пропсами, которые они не используют; переименование или изменение пропса требует обновления каждого компонента в цепочке; становится сложно отследить источник данных. Когда компонент в середине дерева нужно перестроить, все «транзитные» пропсы тоже приходится реорганизовывать.
+
+Существует несколько решений проблемы prop drilling. **Композиция компонентов** (передача children или render props) может устранить промежуточную пересылку. **Context API** позволяет пропускать уровни, предоставляя данные любому потомку. Для более сложных случаев **библиотеки управления состоянием** вроде Zustand или Redux Toolkit предоставляют глобальные хранилища, доступные из любого компонента. Правильное решение зависит от того, насколько широко используются данные и как часто они меняются.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// ❌ Problem: prop drilling through many levels
+function App() {
+  const [user, setUser] = useState({ name: "Alice", role: "admin" });
+
+  return <Layout user={user} />;
+}
+
+function Layout({ user }: { user: User }) {
+  return (
+    <div>
+      <Sidebar user={user} />   {/* Layout doesn't use user */}
+      <Main user={user} />      {/* Main doesn't use user */}
+    </div>
+  );
+}
+
+function Sidebar({ user }: { user: User }) {
+  return <UserMenu user={user} />;  {/* Sidebar doesn't use user */}
+}
+
+function UserMenu({ user }: { user: User }) {
+  return <span>Hello, {user.name}!</span>;  {/* Only this component needs it */}
+}
+
+// ✅ Solution 1: Component composition — pass the component itself
+function App() {
+  const [user, setUser] = useState({ name: "Alice", role: "admin" });
+
+  return (
+    <Layout
+      sidebar={<Sidebar userMenu={<UserMenu user={user} />} />}
+    />
+  );
+}
+
+function Layout({ sidebar }: { sidebar: React.ReactNode }) {
+  return <div>{sidebar}</div>;  {/* No user prop needed */}
+}
+
+// ✅ Solution 2: Context API — skip levels entirely
+const UserContext = createContext<User | null>(null);
+
+function App() {
+  const [user, setUser] = useState({ name: "Alice", role: "admin" });
+
+  return (
+    <UserContext.Provider value={user}>
+      <Layout />
+    </UserContext.Provider>
+  );
+}
+
+function UserMenu() {
+  const user = useContext(UserContext);  {/* Access data directly */}
+  return <span>Hello, {user?.name}!</span>;
+}
+```

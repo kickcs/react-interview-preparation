@@ -1,0 +1,123 @@
+---
+title: "Что такое TanStack Query (React Query)?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**TanStack Query** (formerly React Query) is a server state management library that handles data fetching, caching, synchronization, and updates. Unlike client state libraries (Redux, Zustand), it is purpose-built for managing **asynchronous server data** — the data that lives on your backend and needs to be fetched, cached, and kept fresh in the UI.
+
+The core API revolves around **useQuery** for reading data and **useMutation** for creating, updating, or deleting data. Every query is identified by a **query key** (an array like `["todos", userId]`) which TanStack Query uses for caching, deduplication, and refetching. The library implements a **stale-while-revalidate** strategy: it serves cached (potentially stale) data immediately for a fast UI, then revalidates in the background. You can configure `staleTime` (how long data is considered fresh) and `gcTime` (how long unused cache is kept).
+
+**Query invalidation** is how you tell TanStack Query that cached data is outdated. After a mutation, you call `queryClient.invalidateQueries({ queryKey: ["todos"] })` to trigger a refetch of related queries. This creates a seamless loop: mutate data on the server, invalidate the cache, and the UI automatically updates with fresh data. TanStack Query eliminates the need to manually manage loading states, error states, and cache synchronization — dramatically reducing boilerplate in data-heavy applications.
+
+</Answer>
+<Answer lang="ru">
+
+**TanStack Query** (ранее React Query) — это библиотека управления серверным состоянием, которая обрабатывает загрузку данных, кэширование, синхронизацию и обновления. В отличие от библиотек клиентского состояния (Redux, Zustand), она специально создана для управления **асинхронными серверными данными** — данными, которые хранятся на бэкенде и должны быть загружены, закэшированы и поддерживаться в актуальном состоянии в UI.
+
+Основной API строится вокруг **useQuery** для чтения данных и **useMutation** для создания, обновления или удаления данных. Каждый запрос идентифицируется **ключом запроса (query key)** — массивом вроде `["todos", userId]`, который TanStack Query использует для кэширования, дедупликации и повторной загрузки. Библиотека реализует стратегию **stale-while-revalidate**: она моментально отдаёт закэшированные (возможно, устаревшие) данные для быстрого UI, а затем обновляет их в фоне. Вы можете настроить `staleTime` (как долго данные считаются свежими) и `gcTime` (как долго хранится неиспользуемый кэш).
+
+**Инвалидация запросов (query invalidation)** — это способ сообщить TanStack Query, что закэшированные данные устарели. После мутации вы вызываете `queryClient.invalidateQueries({ queryKey: ["todos"] })` для запуска повторной загрузки связанных запросов. Это создаёт бесшовный цикл: изменить данные на сервере, инвалидировать кэш — и UI автоматически обновится свежими данными. TanStack Query устраняет необходимость вручную управлять состояниями загрузки, ошибок и синхронизацией кэша, что кардинально сокращает шаблонный код в приложениях с интенсивной работой с данными.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // Data is fresh for 5 minutes
+      gcTime: 30 * 60 * 1000,   // Unused cache kept for 30 minutes
+    },
+  },
+});
+
+type Todo = { id: number; title: string; completed: boolean };
+
+// API functions
+const api = {
+  getTodos: (): Promise<Todo[]> => fetch("/api/todos").then((r) => r.json()),
+  addTodo: (title: string): Promise<Todo> =>
+    fetch("/api/todos", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }).then((r) => r.json()),
+  deleteTodo: (id: number): Promise<void> =>
+    fetch(`/api/todos/${id}`, { method: "DELETE" }).then(() => undefined),
+};
+
+function TodoApp() {
+  const queryClient = useQueryClient();
+
+  // READ — useQuery handles loading, error, caching, and refetching
+  const {
+    data: todos,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["todos"],       // Cache key for this data
+    queryFn: api.getTodos,     // Fetch function
+  });
+
+  // CREATE — useMutation handles the write + cache invalidation
+  const addMutation = useMutation({
+    mutationFn: api.addTodo,
+    onSuccess: () => {
+      // Invalidate cache → triggers refetch of todos
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+    },
+  });
+
+  // DELETE — same pattern
+  const deleteMutation = useMutation({
+    mutationFn: api.deleteTodo,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+    },
+  });
+
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <div>
+      <button
+        onClick={() => addMutation.mutate("New todo")}
+        disabled={addMutation.isPending}
+      >
+        {addMutation.isPending ? "Adding..." : "Add Todo"}
+      </button>
+
+      <ul>
+        {todos?.map((todo) => (
+          <li key={todo.id}>
+            {todo.title}
+            <button onClick={() => deleteMutation.mutate(todo.id)}>
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Wrap app with provider
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TodoApp />
+    </QueryClientProvider>
+  );
+}
+```

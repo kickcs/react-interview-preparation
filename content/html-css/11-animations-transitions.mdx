@@ -1,0 +1,87 @@
+---
+title: "Как работают CSS анимации и переходы?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS transitions** provide smooth changes between property values over a specified duration. You define which properties to animate, the duration, timing function, and optional delay using the `transition` shorthand. Transitions only work between two states (e.g., default and `:hover`) and require a triggering event. Only certain properties can be transitioned — generally those with numeric intermediate values like `color`, `opacity`, `transform`, and `width`.
+
+**CSS animations** use `@keyframes` to define multi-step sequences that can run automatically without a trigger. You specify keyframe stops (using percentages or `from`/`to`) and control playback with properties like `animation-duration`, `animation-timing-function`, `animation-iteration-count` (use `infinite` for loops), `animation-direction`, and `animation-fill-mode` (use `forwards` to keep the final state).
+
+For **performance**, always prefer animating `transform` and `opacity` — these properties are composited on the GPU and don't trigger layout recalculation. Avoid animating `width`, `height`, `top`, or `left` as they cause expensive layout reflows. The `will-change` property hints to the browser that a property will animate, allowing it to optimize ahead of time, but overuse wastes memory. The `prefers-reduced-motion` media query should be used to disable or reduce animations for users who are sensitive to motion.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS-переходы** обеспечивают плавное изменение значений свойств за указанный промежуток времени. Вы определяете, какие свойства анимировать, длительность, функцию времени и необязательную задержку с помощью сокращённого свойства `transition`. Переходы работают только между двумя состояниями (например, обычное и `:hover`) и требуют события-триггера. Переход возможен лишь для определённых свойств — как правило, имеющих числовые промежуточные значения: `color`, `opacity`, `transform`, `width`.
+
+**CSS-анимации** используют `@keyframes` для определения многоступенчатых последовательностей, которые могут запускаться автоматически без триггера. Вы задаёте ключевые кадры (в процентах или `from`/`to`) и управляете воспроизведением свойствами `animation-duration`, `animation-timing-function`, `animation-iteration-count` (используйте `infinite` для циклов), `animation-direction` и `animation-fill-mode` (используйте `forwards` для сохранения конечного состояния).
+
+Для **производительности** всегда предпочитайте анимацию `transform` и `opacity` — эти свойства обрабатываются на GPU и не вызывают пересчёт layout. Избегайте анимации `width`, `height`, `top` или `left`, так как они вызывают дорогостоящие пересчёты компоновки. Свойство `will-change` подсказывает браузеру, что свойство будет анимироваться, позволяя оптимизировать заранее, но чрезмерное использование расходует память. Медиа-запрос `prefers-reduced-motion` следует использовать для отключения или уменьшения анимаций для пользователей, чувствительных к движению.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Transition — smooth hover effect */
+.button {
+  background: #0066cc;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.button:hover {
+  background: #0052a3;
+  transform: translateY(-2px);
+}
+
+/* Keyframe animation — fade in and slide up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+/* Spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Performance — use will-change sparingly */
+.animated-element {
+  will-change: transform, opacity;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+  .button {
+    transition: none;
+  }
+}
+```

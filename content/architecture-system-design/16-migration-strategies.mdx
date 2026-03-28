@@ -1,0 +1,102 @@
+---
+title: "Какие стратегии миграции фронтенда?"
+order: 16
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Strangler Fig pattern** is the gold standard for frontend migration. Instead of a risky big-bang rewrite, you incrementally replace parts of the old application with the new one. A reverse proxy or routing layer directs traffic: new routes go to the new app, old routes stay on the legacy app. Over time, more routes migrate until the old app is fully replaced. This approach is low-risk because the legacy system remains functional throughout, and you can stop or reverse the migration at any point.
+
+**Feature flags** are essential for safe migrations. They let you deploy migrated features behind a toggle, enabling gradual rollout (1% of users, then 10%, then 100%) and instant rollback if issues arise. Combined with **A/B testing**, feature flags let you compare the migrated version against the legacy one using real user metrics before fully committing. **Codemods** (automated code transformations using tools like jscodeshift) handle repetitive mechanical changes across hundreds of files — renaming API calls, updating import paths, transforming component patterns — in minutes instead of weeks.
+
+**Backwards compatibility** is the thread that holds everything together during migration. The new and old systems must coexist, sharing authentication, routing, and sometimes state. Use a **shared shell** (header, navigation, footer) that wraps both old and new pages. Establish a **migration plan** with clear phases, each with defined scope, success criteria, and rollback procedures. Communicate timelines to stakeholders and track progress per route or feature. The biggest risk in migration is not technical — it's losing momentum. Set aggressive milestones and dedicate a team to the migration rather than spreading it across sprints.
+
+</Answer>
+<Answer lang="ru">
+
+Паттерн **Strangler Fig (удушающая фига)** — золотой стандарт миграции фронтенда. Вместо рискованного полного переписывания вы инкрементально заменяете части старого приложения новым. Обратный прокси или слой маршрутизации направляет трафик: новые маршруты идут в новое приложение, старые остаются на легаси. Со временем всё больше маршрутов мигрируют, пока старое приложение не будет полностью заменено. Этот подход малорисковый, так как легаси-система остаётся функциональной, и вы можете остановить или откатить миграцию в любой момент.
+
+**Feature flags (флаги фич)** необходимы для безопасной миграции. Они позволяют деплоить мигрированные фичи за переключателем, обеспечивая постепенный раскат (1% пользователей, затем 10%, затем 100%) и мгновенный откат при проблемах. В сочетании с **A/B-тестированием** флаги позволяют сравнить мигрированную версию с легаси по реальным метрикам перед полным переходом. **Кодмоды** (автоматические трансформации кода инструментами вроде jscodeshift) выполняют повторяющиеся механические изменения в сотнях файлов — переименование API-вызовов, обновление путей импорта, трансформация паттернов компонентов — за минуты вместо недель.
+
+**Обратная совместимость** — нить, связывающая всё во время миграции. Новая и старая системы должны сосуществовать, разделяя аутентификацию, маршрутизацию и иногда состояние. Используйте **общую оболочку** (хедер, навигация, футер), оборачивающую и старые, и новые страницы. Составьте **план миграции** с чёткими фазами, каждая с определённым объёмом, критериями успеха и процедурами отката. Сообщайте сроки стейкхолдерам и отслеживайте прогресс по маршруту или фиче. Главный риск миграции не технический — это потеря импульса. Ставьте агрессивные вехи и выделите команду под миграцию, а не размазывайте её по спринтам.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Migration strategy: Strangler Fig + Feature Flags
+
+// 1. Routing layer — proxy decides old vs new app
+// nginx.conf or Next.js middleware
+// middleware.ts
+import { NextRequest, NextResponse } from "next/server";
+
+const migratedRoutes = ["/dashboard", "/settings", "/profile"];
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Route to new app if migrated, otherwise proxy to legacy
+  if (migratedRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next(); // Serve from new Next.js app
+  }
+
+  // Proxy to legacy app
+  return NextResponse.rewrite(new URL(pathname, "https://legacy.example.com"));
+}
+
+// 2. Feature flag for gradual rollout
+interface FeatureFlags {
+  newCheckout: boolean;
+  newProductPage: boolean;
+  newSearch: boolean;
+}
+
+function useFeatureFlag(flag: keyof FeatureFlags): boolean {
+  const { user } = useAuth();
+  const flags = useFlags(); // From LaunchDarkly, Unleash, etc.
+  return flags[flag] ?? false;
+}
+
+function ProductPage({ product }: { product: Product }) {
+  const useNewPage = useFeatureFlag("newProductPage");
+
+  if (useNewPage) {
+    return <NewProductPage product={product} />;
+  }
+
+  return <LegacyProductPage product={product} />;
+}
+
+// 3. Codemod example — jscodeshift transform
+// Migrate: import { Button } from "old-ui" → import { Button } from "@/shared/ui"
+export default function transformer(file, api) {
+  const j = api.jscodeshift;
+  return j(file.source)
+    .find(j.ImportDeclaration, { source: { value: "old-ui" } })
+    .forEach((path) => {
+      path.node.source.value = "@/shared/ui";
+    })
+    .toSource();
+}
+
+// 4. Migration tracking
+const migrationPlan = {
+  phase1: {
+    routes: ["/login", "/register", "/forgot-password"],
+    status: "complete",
+    rollback: "Revert nginx config to proxy all auth routes to legacy",
+  },
+  phase2: {
+    routes: ["/dashboard", "/settings", "/profile"],
+    status: "in-progress",
+    rollback: "Disable newDashboard feature flag",
+  },
+  phase3: {
+    routes: ["/products", "/checkout", "/orders"],
+    status: "planned",
+    rollback: "Revert proxy rules for commerce routes",
+  },
+};
+```

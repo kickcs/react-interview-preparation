@@ -1,0 +1,74 @@
+---
+title: "Как работают JWT и OAuth?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **JSON Web Token** (JWT) is a compact, self-contained token used for authentication and information exchange. It consists of three Base64-encoded parts separated by dots: the **header** (algorithm and token type), the **payload** (claims — user data, expiration, issuer), and the **signature** (created by signing header + payload with a secret key). Because the payload is only encoded (not encrypted), JWTs should never contain sensitive data unless additionally encrypted (JWE).
+
+**OAuth 2.0** is an authorization framework that allows a third-party application to access a user's resources without knowing their password. The most common flow (Authorization Code) works like this: the user is redirected to the authorization server (e.g., Google), logs in and grants permission, receives an **authorization code**, which the app exchanges for an **access token** (short-lived) and a **refresh token** (long-lived). The access token is used for API requests; when it expires, the refresh token is used to get a new one without re-authentication.
+
+**Session-based auth** stores session data on the server and uses a cookie with the session ID. It is simpler but harder to scale across multiple servers. **Token-based auth** (JWT) is stateless — the server does not store session data, making it easier to scale. However, JWTs cannot be easily revoked (you need a blocklist or short expiration). Best practice is to store access tokens in memory, use short expiration (15 minutes), and store refresh tokens in `HttpOnly` cookies.
+
+</Answer>
+<Answer lang="ru">
+
+**JSON Web Token** (JWT) — это компактный, самодостаточный токен, используемый для аутентификации и обмена информацией. Он состоит из трёх частей, закодированных в Base64 и разделённых точками: **заголовок** (алгоритм и тип токена), **полезная нагрузка** (claims — данные пользователя, срок действия, издатель) и **подпись** (создаётся путём подписания заголовка и нагрузки секретным ключом). Поскольку payload только закодирован (не зашифрован), JWT не должен содержать конфиденциальные данные, если дополнительно не зашифрован (JWE).
+
+**OAuth 2.0** — это фреймворк авторизации, позволяющий стороннему приложению получить доступ к ресурсам пользователя без знания его пароля. Наиболее распространённый поток (Authorization Code) работает так: пользователь перенаправляется на сервер авторизации (например, Google), входит и даёт разрешение, получает **код авторизации**, который приложение обменивает на **access token** (короткоживущий) и **refresh token** (долгоживущий). Access token используется для API-запросов; когда он истекает, refresh token используется для получения нового без повторной аутентификации.
+
+**Сессионная аутентификация** хранит данные сессии на сервере и использует cookie с ID сессии. Она проще, но сложнее масштабируется на несколько серверов. **Токен-аутентификация** (JWT) не хранит состояние — сервер не хранит данные сессии, что упрощает масштабирование. Однако JWT сложно отозвать (нужен чёрный список или короткий срок действия). Лучшая практика — хранить access token в памяти, использовать короткий срок действия (15 минут), а refresh token хранить в `HttpOnly`-cookies.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// JWT structure: header.payload.signature
+// eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjQyLCJleHAiOjE3MDAwMDAwMDB9.signature
+
+// Server: generate and verify JWT (using jose library)
+import { SignJWT, jwtVerify } from "jose";
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+
+// Create access token (short-lived)
+async function createAccessToken(userId) {
+  return new SignJWT({ userId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("15m")
+    .setIssuedAt()
+    .sign(secret);
+}
+
+// Verify token
+async function verifyToken(token) {
+  const { payload } = await jwtVerify(token, secret);
+  return payload; // { userId: 42, exp: ..., iat: ... }
+}
+
+// Client: attach token to requests
+async function fetchWithAuth(url, options = {}) {
+  const token = getAccessToken(); // from memory, not localStorage
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  // If token expired, refresh and retry
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken(); // POST /api/auth/refresh
+    return fetch(url, {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${newToken}` },
+    });
+  }
+
+  return res;
+}
+```

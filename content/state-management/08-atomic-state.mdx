@@ -1,0 +1,117 @@
+---
+title: "Что такое атомарный подход к управлению состоянием?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **atomic approach** to state management treats each piece of state as an independent unit called an **atom**. Instead of a single centralized store (like Redux), you build state from the bottom up — each atom holds a small piece of data, and more complex state is expressed as **derived atoms** that compute values from other atoms. Libraries like **Jotai** and **Recoil** implement this pattern.
+
+In Jotai, you create atoms with `atom()` and use them in components with `useAtom()`. Atoms are minimal — they can hold primitives, objects, or async values. **Derived atoms** are created by passing a read function that references other atoms, forming a dependency graph. When a base atom changes, only the derived atoms and components that depend on it re-render. This gives you extremely fine-grained reactivity without selectors or manual subscription management.
+
+Compared to Redux, the atomic approach offers several advantages: no global store configuration, no action boilerplate, natural code splitting (atoms are defined alongside the components that use them), and precise re-rendering by default. The trade-off is that for very large applications, the decentralized nature can make it harder to see the full state picture. The atomic model works especially well for applications with many independent or semi-independent pieces of UI state.
+
+</Answer>
+<Answer lang="ru">
+
+**Атомарный подход** к управлению состоянием рассматривает каждый фрагмент состояния как независимую единицу, называемую **атомом**. Вместо единого централизованного хранилища (как в Redux) вы строите состояние снизу вверх — каждый атом содержит небольшой фрагмент данных, а более сложное состояние выражается как **производные атомы**, вычисляющие значения из других атомов. Библиотеки **Jotai** и **Recoil** реализуют этот паттерн.
+
+В Jotai вы создаёте атомы с помощью `atom()` и используете их в компонентах через `useAtom()`. Атомы минимальны — они могут содержать примитивы, объекты или асинхронные значения. **Производные атомы** создаются передачей функции чтения, которая ссылается на другие атомы, формируя граф зависимостей. Когда базовый атом изменяется, перерендериваются только зависимые производные атомы и компоненты. Это обеспечивает крайне точечную реактивность без селекторов или ручного управления подписками.
+
+По сравнению с Redux, атомарный подход предлагает ряд преимуществ: не нужна конфигурация глобального хранилища, нет шаблонного кода действий, естественное разделение кода (атомы определяются рядом с компонентами, которые их используют) и точечный ре-рендеринг по умолчанию. Компромисс в том, что для очень больших приложений децентрализованная природа может затруднить обзор полного состояния. Атомарная модель особенно хорошо подходит для приложений с множеством независимых или полунезависимых частей UI-состояния.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { atom, useAtom, useAtomValue } from "jotai";
+
+// Base atoms — independent pieces of state
+const todosAtom = atom([
+  { id: 1, text: "Learn Jotai", done: false },
+  { id: 2, text: "Build app", done: false },
+]);
+
+const filterAtom = atom<"all" | "active" | "done">("all");
+
+// Derived atom — computes from other atoms automatically
+const filteredTodosAtom = atom((get) => {
+  const todos = get(todosAtom);
+  const filter = get(filterAtom);
+
+  switch (filter) {
+    case "active":
+      return todos.filter((t) => !t.done);
+    case "done":
+      return todos.filter((t) => t.done);
+    default:
+      return todos;
+  }
+});
+
+// Derived atom — read-only computation
+const statsAtom = atom((get) => {
+  const todos = get(todosAtom);
+  return {
+    total: todos.length,
+    done: todos.filter((t) => t.done).length,
+    remaining: todos.filter((t) => !t.done).length,
+  };
+});
+
+// Write-only atom — an "action" atom
+const toggleTodoAtom = atom(null, (get, set, id: number) => {
+  set(todosAtom, (prev) =>
+    prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+  );
+});
+
+// Async atom — fetches data lazily
+const userAtom = atom(async () => {
+  const response = await fetch("/api/user");
+  return response.json();
+});
+
+// Components — fine-grained re-renders by default
+function TodoStats() {
+  const stats = useAtomValue(statsAtom); // Only re-renders when stats change
+  return (
+    <p>
+      {stats.remaining} of {stats.total} remaining
+    </p>
+  );
+}
+
+function TodoList() {
+  const filteredTodos = useAtomValue(filteredTodosAtom);
+  const [, toggle] = useAtom(toggleTodoAtom);
+
+  return (
+    <ul>
+      {filteredTodos.map((todo) => (
+        <li key={todo.id} onClick={() => toggle(todo.id)}>
+          {todo.done ? "✓" : "○"} {todo.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function FilterBar() {
+  const [filter, setFilter] = useAtom(filterAtom);
+  return (
+    <div>
+      {(["all", "active", "done"] as const).map((f) => (
+        <button
+          key={f}
+          onClick={() => setFilter(f)}
+          style={{ fontWeight: filter === f ? "bold" : "normal" }}
+        >
+          {f}
+        </button>
+      ))}
+    </div>
+  );
+}
+```

@@ -1,0 +1,103 @@
+---
+title: "Как работает middleware в Next.js?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Middleware** in Next.js is defined in a `middleware.ts` file at the root of your project (next to `app/`). It runs **before** every matched request, allowing you to execute code, modify the request or response, redirect, rewrite, or set headers before the page renders. Middleware uses the **Edge Runtime**, which means it has access to a subset of Web APIs and runs with low latency close to the user.
+
+The middleware function receives a `NextRequest` object and must return a `NextResponse`. You can control which routes the middleware applies to using a `config` object with a `matcher` property. Matchers support static paths, dynamic segments, and regex patterns. Without a matcher, middleware runs on every route, so it's important to configure it to avoid unnecessary execution.
+
+Common use cases include **authentication** (checking tokens and redirecting unauthenticated users), **internationalization** (detecting locale and rewriting URLs), **A/B testing** (routing users to different variants), **rate limiting**, and adding **security headers**. Since middleware runs on the Edge, it should be lightweight — avoid heavy computation or database queries. For complex auth logic, validate tokens in middleware and delegate detailed authorization to Server Components or Route Handlers.
+
+</Answer>
+<Answer lang="ru">
+
+**Middleware** в Next.js определяется в файле `middleware.ts` в корне проекта (рядом с `app/`). Он запускается **перед** каждым совпадающим запросом, позволяя выполнять код, модифицировать запрос или ответ, перенаправлять, перезаписывать или устанавливать заголовки до рендеринга страницы. Middleware использует **Edge Runtime**, что означает доступ к подмножеству Web API и работу с низкой задержкой рядом с пользователем.
+
+Функция middleware получает объект `NextRequest` и должна возвращать `NextResponse`. Вы можете контролировать, к каким маршрутам применяется middleware, с помощью объекта `config` со свойством `matcher`. Матчеры поддерживают статические пути, динамические сегменты и регулярные выражения. Без матчера middleware запускается на каждом маршруте, поэтому важно его настроить, чтобы избежать лишних выполнений.
+
+Типичные сценарии использования включают **аутентификацию** (проверка токенов и перенаправление неаутентифицированных пользователей), **интернационализацию** (определение локали и перезапись URL), **A/B тестирование** (маршрутизация пользователей на разные варианты), **ограничение запросов** и добавление **заголовков безопасности**. Поскольку middleware работает на Edge, он должен быть лёгким — избегайте тяжёлых вычислений или запросов к базе данных. Для сложной логики авторизации проверяйте токены в middleware, а детальную авторизацию делегируйте серверным компонентам или Route Handlers.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// middleware.ts — Authentication middleware
+
+import { NextRequest, NextResponse } from "next/server";
+
+export function middleware(request: NextRequest) {
+  const token = request.cookies.get("session-token")?.value;
+  const { pathname } = request.nextUrl;
+
+  // Allow public routes
+  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
+
+  // Redirect unauthenticated users to login
+  if (!token) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Add custom header for downstream use
+  const response = NextResponse.next();
+  response.headers.set("x-user-authenticated", "true");
+
+  return response;
+}
+
+// Only run middleware on specific routes
+export const config = {
+  matcher: [
+    // Match all paths except static files and Next.js internals
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
+};
+```
+
+```tsx
+// middleware.ts — Internationalization (i18n) middleware
+
+import { NextRequest, NextResponse } from "next/server";
+
+const locales = ["en", "ru", "uz"];
+const defaultLocale = "en";
+
+function getLocale(request: NextRequest): string {
+  const acceptLanguage = request.headers.get("accept-language") ?? "";
+
+  for (const locale of locales) {
+    if (acceptLanguage.includes(locale)) return locale;
+  }
+
+  return defaultLocale;
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Check if path already has a locale
+  const hasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  );
+
+  if (hasLocale) return NextResponse.next();
+
+  // Redirect to the detected locale
+  const locale = getLocale(request);
+  const url = request.nextUrl.clone();
+  url.pathname = `/${locale}${pathname}`;
+
+  return NextResponse.redirect(url);
+}
+
+export const config = {
+  matcher: ["/((?!_next|api|favicon.ico).*)"],
+};
+```

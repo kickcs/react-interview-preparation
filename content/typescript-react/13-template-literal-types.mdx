@@ -1,0 +1,85 @@
+---
+title: "Что такое template literal типы?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Template literal types** use the same backtick syntax as JavaScript template literals but at the type level. They allow you to construct new **string literal types** by combining existing ones. For example, `` type Greeting = `hello ${string}` `` creates a type that matches any string starting with "hello ". When combined with union types, they produce every possible combination automatically.
+
+Template literal types become especially powerful with **mapped types**. You can iterate over keys of an object and transform them into new string patterns — for example, generating event handler names like `onNameChange` from property names like `name`. TypeScript also provides built-in string manipulation types: **Uppercase**, **Lowercase**, **Capitalize**, and **Uncapitalize** that work with template literals.
+
+In React and frontend development, template literal types are useful for typing **CSS values** (units, colors), **event handler names**, **API route patterns**, and **configuration keys**. They enforce string patterns at compile time, catching typos and invalid combinations before runtime.
+
+</Answer>
+<Answer lang="ru">
+
+**Шаблонные литеральные типы** используют тот же синтаксис с обратными кавычками, что и шаблонные литералы JavaScript, но на уровне типов. Они позволяют конструировать новые **строковые литеральные типы**, комбинируя существующие. Например, `` type Greeting = `hello ${string}` `` создаёт тип, соответствующий любой строке, начинающейся с "hello ". При комбинировании с типами объединения они автоматически создают все возможные комбинации.
+
+Шаблонные литеральные типы становятся особенно мощными с **отображёнными типами** (mapped types). Можно итерировать по ключам объекта и преобразовывать их в новые строковые паттерны — например, генерировать имена обработчиков событий вроде `onNameChange` из имён свойств вроде `name`. TypeScript также предоставляет встроенные типы для манипуляции строками: **Uppercase**, **Lowercase**, **Capitalize** и **Uncapitalize**, которые работают с шаблонными литералами.
+
+В React и фронтенд-разработке шаблонные литеральные типы полезны для типизации **CSS-значений** (единицы измерения, цвета), **имён обработчиков событий**, **паттернов API-маршрутов** и **ключей конфигурации**. Они обеспечивают соблюдение строковых паттернов на этапе компиляции, отлавливая опечатки и невалидные комбинации до запуска.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Basic template literal types
+type CSSUnit = "px" | "rem" | "em" | "%";
+type CSSValue = `${number}${CSSUnit}`;
+
+const width: CSSValue = "100px";   // OK
+const height: CSSValue = "2.5rem"; // OK
+// const bad: CSSValue = "100vw";  // Error: "vw" is not in CSSUnit
+
+// Combining unions — generates all combinations
+type Color = "red" | "blue" | "green";
+type Shade = "light" | "dark";
+type Theme = `${Shade}-${Color}`;
+// "light-red" | "light-blue" | "light-green" | "dark-red" | "dark-blue" | "dark-green"
+
+// Built-in string manipulation types
+type Upper = Uppercase<"hello">;       // "HELLO"
+type Lower = Lowercase<"HELLO">;       // "hello"
+type Cap = Capitalize<"hello">;        // "Hello"
+type Uncap = Uncapitalize<"Hello">;    // "hello"
+
+// Event handler type from property names
+type FormFields = "name" | "email" | "password";
+type ChangeHandlers = `on${Capitalize<FormFields>}Change`;
+// "onNameChange" | "onEmailChange" | "onPasswordChange"
+
+// Mapped type with template literals — auto-generate event handlers
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
+};
+
+interface Person {
+  name: string;
+  age: number;
+}
+
+type PersonGetters = Getters<Person>;
+// { getName: () => string; getAge: () => number }
+```
+
+```typescript
+// API route pattern matching
+type ApiRoute = `/api/${"users" | "posts" | "comments"}${`/${number}` | ""}`;
+
+const valid: ApiRoute = "/api/users";     // OK
+const withId: ApiRoute = "/api/posts/42"; // OK
+// const bad: ApiRoute = "/api/photos";   // Error
+
+// Extract route params with inference
+type ExtractParams<T extends string> =
+  T extends `${string}:${infer Param}/${infer Rest}`
+    ? Param | ExtractParams<Rest>
+    : T extends `${string}:${infer Param}`
+      ? Param
+      : never;
+
+type Params = ExtractParams<"/api/users/:userId/posts/:postId">;
+// "userId" | "postId"
+```

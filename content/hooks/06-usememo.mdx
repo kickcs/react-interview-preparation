@@ -1,0 +1,78 @@
+---
+title: "Как работает useMemo?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useMemo** is a hook that memoizes the result of an expensive computation, recomputing it only when one of its dependencies changes. You pass a function that calculates a value and a dependency array — React caches the return value and reuses it on subsequent renders as long as the dependencies remain the same (compared with `Object.is`).
+
+The primary use case is **skipping expensive recalculations**. If you have a computation that processes a large dataset — filtering, sorting, or transforming thousands of items — wrapping it in `useMemo` ensures it only re-runs when the input data actually changes, not on every render. Without `useMemo`, the computation would execute on every render, which can degrade performance noticeably.
+
+A secondary use case is **referential equality**. When you create an object or array during rendering and pass it as a prop or dependency, a new reference is created each time. `useMemo` preserves the same reference between renders when the underlying data hasn't changed, preventing unnecessary re-renders of child components that use `React.memo` or unnecessary effect re-runs.
+
+Do not overuse `useMemo`. Memoization has its own cost: React must store the cached value and compare dependencies on every render. For simple calculations or primitives, the overhead of `useMemo` can exceed the cost of just recalculating. Profile first, then optimize.
+
+</Answer>
+<Answer lang="ru">
+
+**useMemo** — это хук, который мемоизирует результат дорогого вычисления, пересчитывая его только при изменении одной из зависимостей. Вы передаёте функцию, вычисляющую значение, и массив зависимостей — React кеширует возвращаемое значение и переиспользует его при последующих рендерах, пока зависимости остаются прежними (сравнение через `Object.is`).
+
+Основной сценарий использования — **пропуск дорогих пересчётов**. Если у вас есть вычисление, обрабатывающее большой набор данных — фильтрация, сортировка или трансформация тысяч элементов — оборачивание в `useMemo` гарантирует, что пересчёт произойдёт только при фактическом изменении входных данных, а не при каждом рендере. Без `useMemo` вычисление выполнялось бы при каждом рендере, что может заметно снизить производительность.
+
+Вторичный сценарий — **ссылочное равенство** (referential equality). Когда вы создаёте объект или массив во время рендеринга и передаёте его как проп или зависимость, каждый раз создаётся новая ссылка. `useMemo` сохраняет ту же ссылку между рендерами, когда базовые данные не изменились, предотвращая ненужные ре-рендеры дочерних компонентов, использующих `React.memo`, или ненужные повторные запуски эффектов.
+
+Не злоупотребляйте `useMemo`. Мемоизация имеет свою стоимость: React должен хранить кешированное значение и сравнивать зависимости при каждом рендере. Для простых вычислений или примитивов накладные расходы `useMemo` могут превышать стоимость простого пересчёта. Сначала профилируйте, потом оптимизируйте.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useMemo } from "react";
+
+interface Product {
+  id: number;
+  name: string;
+  category: string;
+  price: number;
+}
+
+function ProductList({ products }: { products: Product[] }) {
+  const [filter, setFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "price">("name");
+
+  // Only recalculates when products, filter, or sortBy change
+  const filteredAndSorted = useMemo(() => {
+    console.log("Filtering and sorting...");
+    return products
+      .filter((p) =>
+        p.name.toLowerCase().includes(filter.toLowerCase())
+      )
+      .sort((a, b) => {
+        if (sortBy === "price") return a.price - b.price;
+        return a.name.localeCompare(b.name);
+      });
+  }, [products, filter, sortBy]);
+
+  return (
+    <div>
+      <input
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder="Search products..."
+      />
+      <button onClick={() => setSortBy(sortBy === "name" ? "price" : "name")}>
+        Sort by: {sortBy}
+      </button>
+      <ul>
+        {filteredAndSorted.map((p) => (
+          <li key={p.id}>
+            {p.name} — ${p.price}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```

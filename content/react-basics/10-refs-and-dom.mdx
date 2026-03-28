@@ -1,0 +1,57 @@
+---
+title: "Что такое refs и как получить доступ к DOM?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Refs** provide a way to access DOM nodes or persist mutable values across renders without causing a re-render. The **useRef** hook returns a mutable object with a `.current` property that persists for the full lifetime of the component. When attached to a JSX element via the `ref` attribute, React sets `.current` to the corresponding DOM node after mounting.
+
+There are several types of refs. **useRef** is the standard hook for functional components. **Callback refs** accept a function that receives the DOM node (or `null` on unmount), giving you fine-grained control over when refs are set. In React 19, **ref** can be passed as a regular prop to function components, eliminating the need for `forwardRef` in most cases. For older versions, **forwardRef** is needed to expose a child component's DOM node to its parent.
+
+Refs should be used sparingly — only when you need to step outside the declarative React model. Common use cases include managing **focus**, triggering **animations**, integrating with third-party DOM libraries, and **measuring** element dimensions. Avoid using refs to do things that can be handled declaratively with state and props.
+
+</Answer>
+<Answer lang="ru">
+
+**Рефы (refs)** предоставляют способ доступа к DOM-узлам или сохранения изменяемых значений между рендерами без вызова перерисовки. Хук **useRef** возвращает изменяемый объект со свойством `.current`, которое сохраняется на протяжении всего жизненного цикла компонента. При прикреплении к JSX-элементу через атрибут `ref` React устанавливает `.current` в соответствующий DOM-узел после монтирования.
+
+Существует несколько типов рефов. **useRef** — стандартный хук для функциональных компонентов. **Колбэк-рефы** принимают функцию, которая получает DOM-узел (или `null` при размонтировании), давая тонкий контроль над моментом установки рефа. В React 19 **ref** можно передавать как обычный проп функциональным компонентам, что устраняет необходимость в `forwardRef` в большинстве случаев. Для старых версий **forwardRef** нужен, чтобы предоставить родителю доступ к DOM-узлу дочернего компонента.
+
+Рефы следует использовать экономно — только когда нужно выйти за рамки декларативной модели React. Типичные случаи использования: управление **фокусом**, запуск **анимаций**, интеграция со сторонними DOM-библиотеками и **измерение** размеров элементов. Избегайте использования рефов для задач, которые можно решить декларативно с помощью состояния и пропсов.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useRef, useEffect } from "react";
+
+function AutoFocusInput() {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus the input on mount
+    inputRef.current?.focus();
+  }, []);
+
+  return <input ref={inputRef} placeholder="I am focused automatically" />;
+}
+
+function MeasureBox() {
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  function handleClick() {
+    if (boxRef.current) {
+      const { width, height } = boxRef.current.getBoundingClientRect();
+      console.log(`Size: ${width}x${height}`);
+    }
+  }
+
+  return (
+    <div ref={boxRef} onClick={handleClick}>
+      Click me to measure
+    </div>
+  );
+}
+```

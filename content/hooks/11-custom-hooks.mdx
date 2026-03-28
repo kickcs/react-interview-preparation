@@ -1,0 +1,106 @@
+---
+title: "Как создавать пользовательские hooks?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Custom hooks** are JavaScript functions whose names start with `use` that can call other hooks. They allow you to extract and reuse stateful logic between components without changing the component hierarchy. Each component that uses a custom hook gets its own isolated copy of state — hooks don't share state, they share logic.
+
+The naming convention is critical: the function **must** start with `use` (e.g., `useLocalStorage`, `useFetch`). This tells React's linter to enforce the Rules of Hooks within the function and signals to other developers that the function follows hook conventions. Without the `use` prefix, React cannot verify that hooks are being called correctly.
+
+Custom hooks can compose other hooks freely — `useState`, `useEffect`, `useRef`, and even other custom hooks. This composability is their greatest strength. You can build small, focused hooks and combine them into more complex ones, creating a layered abstraction. For example, `useFetch` might use `useState` and `useEffect` internally, while `useAuth` might use `useFetch` and `useLocalStorage`.
+
+When designing custom hooks, keep them **focused on a single concern**. Return only what consumers need — typically a value and optionally a setter or action functions. This makes them easy to test (just call them in a test component), easy to understand, and maximally reusable across different components.
+
+</Answer>
+<Answer lang="ru">
+
+**Пользовательские хуки** — это JavaScript-функции, имена которых начинаются с `use` и которые могут вызывать другие хуки. Они позволяют извлекать и переиспользовать логику с состоянием между компонентами без изменения иерархии компонентов. Каждый компонент, использующий пользовательский хук, получает свою изолированную копию состояния — хуки разделяют не состояние, а логику.
+
+Соглашение об именовании критически важно: функция **должна** начинаться с `use` (например, `useLocalStorage`, `useFetch`). Это указывает линтеру React применять Правила хуков внутри функции и сигнализирует другим разработчикам, что функция следует соглашениям хуков. Без префикса `use` React не может проверить, что хуки вызываются корректно.
+
+Пользовательские хуки могут свободно компоновать другие хуки — `useState`, `useEffect`, `useRef` и даже другие пользовательские хуки. Эта компонуемость — их главная сила. Вы можете создавать маленькие, сфокусированные хуки и комбинировать их в более сложные, выстраивая многоуровневую абстракцию. Например, `useFetch` может внутри использовать `useState` и `useEffect`, а `useAuth` — `useFetch` и `useLocalStorage`.
+
+При проектировании пользовательских хуков придерживайтесь **одной зоны ответственности**. Возвращайте только то, что нужно потребителям — обычно значение и опционально сеттер или функции-действия. Это делает их простыми для тестирования (достаточно вызвать в тестовом компоненте), понятными и максимально переиспользуемыми в разных компонентах.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useEffect, useCallback } from "react";
+
+// Custom hook: persist state to localStorage
+function useLocalStorage<T>(key: string, initialValue: T) {
+  const [value, setValue] = useState<T>(() => {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initialValue;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
+// Custom hook: fetch data with loading and error states
+function useFetch<T>(url: string) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+
+    fetch(url, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        setData(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setError(err);
+          setLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+// Custom hook: debounce a value
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+
+  return debounced;
+}
+
+// Usage in a component
+function SearchPage() {
+  const [query, setQuery] = useLocalStorage("search-query", "");
+  const debouncedQuery = useDebounce(query, 300);
+  const { data, loading, error } = useFetch<string[]>(
+    `/api/search?q=${debouncedQuery}`
+  );
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      {loading && <p>Loading...</p>}
+      {error && <p>Error: {error.message}</p>}
+      {data?.map((item) => <p key={item}>{item}</p>)}
+    </div>
+  );
+}
+```

@@ -1,0 +1,63 @@
+---
+title: "Что такое контролируемые и неконтролируемые компоненты?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **controlled component** is a form element whose value is driven by React state. The component renders the current state value and updates it through an `onChange` handler. This gives you full control over the form data at every keystroke, making it easy to validate, transform, or conditionally disable inputs. The React state is the "single source of truth" for the input's value.
+
+An **uncontrolled component** stores its value internally in the DOM, and you read it using a **ref** when needed (for example, on form submission). You set the initial value with the `defaultValue` prop instead of `value`. Uncontrolled components require less code and can be useful for simple forms or when integrating with non-React libraries that manipulate the DOM directly.
+
+In practice, **controlled components** are recommended for most use cases because they make the form state predictable and easy to integrate with validation libraries, derived state, and conditional rendering. Uncontrolled components are suitable when you only need the value at submission time or when working with file inputs, which are always uncontrolled in React because their value is read-only for security reasons.
+
+</Answer>
+<Answer lang="ru">
+
+**Контролируемый компонент** — это элемент формы, значение которого управляется состоянием React. Компонент отображает текущее значение состояния и обновляет его через обработчик `onChange`. Это даёт полный контроль над данными формы при каждом нажатии клавиши, что упрощает валидацию, трансформацию или условное отключение полей ввода. Состояние React является «единственным источником истины» для значения поля.
+
+**Неконтролируемый компонент** хранит своё значение внутри DOM, и вы читаете его с помощью **рефа** при необходимости (например, при отправке формы). Начальное значение задаётся через проп `defaultValue` вместо `value`. Неконтролируемые компоненты требуют меньше кода и могут быть полезны для простых форм или при интеграции с библиотеками, не использующими React, которые напрямую манипулируют DOM.
+
+На практике **контролируемые компоненты** рекомендуются для большинства случаев, поскольку они делают состояние формы предсказуемым и легко интегрируемым с библиотеками валидации, производным состоянием и условным рендерингом. Неконтролируемые компоненты подходят, когда значение нужно только в момент отправки или при работе с полями загрузки файлов, которые в React всегда неконтролируемые, так как их значение доступно только для чтения по соображениям безопасности.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useRef, FormEvent } from "react";
+
+// Controlled component
+function ControlledForm() {
+  const [name, setName] = useState("");
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    console.log("Controlled:", name);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={e => setName(e.target.value)} />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+// Uncontrolled component
+function UncontrolledForm() {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    console.log("Uncontrolled:", inputRef.current?.value);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={inputRef} defaultValue="" />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```

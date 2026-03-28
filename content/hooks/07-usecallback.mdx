@@ -1,0 +1,81 @@
+---
+title: "Как работает useCallback?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useCallback** is a hook that returns a memoized version of a callback function. The function is only recreated when one of its dependencies changes. This is essentially `useMemo(() => fn, deps)` — instead of memoizing a computed value, it memoizes the function itself.
+
+The primary purpose of `useCallback` is **preventing unnecessary re-renders** of child components. When a parent re-renders, all inline functions are recreated with new references. If a child component is wrapped in `React.memo`, it will still re-render because the function prop has a new reference. By wrapping the function in `useCallback`, you preserve the same reference across renders, allowing `React.memo` to skip the re-render.
+
+The difference between `useCallback` and `useMemo` is what gets memoized. `useMemo` memoizes the **return value** of a function — use it for expensive calculations. `useCallback` memoizes the **function itself** — use it when you need a stable function reference. In practice, `useCallback(fn, deps)` is identical to `useMemo(() => fn, deps)`.
+
+Like `useMemo`, do not use `useCallback` everywhere by default. It only provides value when the memoized function is passed to an optimized child (using `React.memo`) or used as a dependency in another hook. Without those consumers, memoization adds overhead without benefit.
+
+</Answer>
+<Answer lang="ru">
+
+**useCallback** — это хук, который возвращает мемоизированную версию функции обратного вызова. Функция пересоздаётся только при изменении одной из зависимостей. По сути, это `useMemo(() => fn, deps)` — вместо мемоизации вычисленного значения мемоизируется сама функция.
+
+Основная цель `useCallback` — **предотвращение ненужных ре-рендеров** дочерних компонентов. Когда родитель ре-рендерится, все инлайн-функции пересоздаются с новыми ссылками. Если дочерний компонент обёрнут в `React.memo`, он всё равно ре-рендерится, потому что проп-функция получает новую ссылку. Оборачивание функции в `useCallback` сохраняет ту же ссылку между рендерами, позволяя `React.memo` пропустить ре-рендер.
+
+Разница между `useCallback` и `useMemo` — в том, что именно мемоизируется. `useMemo` мемоизирует **возвращаемое значение** функции — используйте для дорогих вычислений. `useCallback` мемоизирует **саму функцию** — используйте, когда нужна стабильная ссылка на функцию. На практике `useCallback(fn, deps)` идентичен `useMemo(() => fn, deps)`.
+
+Как и `useMemo`, не используйте `useCallback` повсюду по умолчанию. Он приносит пользу только когда мемоизированная функция передаётся в оптимизированный дочерний компонент (использующий `React.memo`) или используется как зависимость в другом хуке. Без таких потребителей мемоизация добавляет накладные расходы без пользы.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useCallback, memo } from "react";
+
+// Child wrapped in memo — only re-renders if props actually change
+const SearchResults = memo(function SearchResults({
+  items,
+  onItemClick,
+}: {
+  items: string[];
+  onItemClick: (item: string) => void;
+}) {
+  console.log("SearchResults rendered");
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item} onClick={() => onItemClick(item)}>
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+});
+
+function SearchPage() {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const items = ["React", "Vue", "Angular", "Svelte", "Solid"];
+
+  // Without useCallback, this would be a new function on every render,
+  // causing SearchResults to re-render even when items haven't changed
+  const handleItemClick = useCallback((item: string) => {
+    setSelected(item);
+  }, []);
+
+  const filtered = items.filter((item) =>
+    item.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search frameworks..."
+      />
+      {selected && <p>Selected: {selected}</p>}
+      <SearchResults items={filtered} onItemClick={handleItemClick} />
+    </div>
+  );
+}
+```

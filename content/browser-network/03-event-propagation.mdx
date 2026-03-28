@@ -1,0 +1,63 @@
+---
+title: "Как работает распространение событий?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Event propagation** describes how events travel through the DOM tree when an event is triggered on an element. It consists of three phases: **capturing** (the event travels down from the window to the target element), **target** (the event reaches the element that was actually clicked or interacted with), and **bubbling** (the event travels back up from the target to the window).
+
+By default, event listeners are registered for the bubbling phase. You can listen during the capturing phase by passing `{ capture: true }` as the third argument to `addEventListener`. The method **`stopPropagation()`** prevents the event from continuing to the next element in the current phase, while **`preventDefault()`** prevents the browser's default action (like following a link or submitting a form) but does not stop propagation.
+
+**Event delegation** is a powerful pattern that takes advantage of bubbling. Instead of attaching listeners to many child elements, you attach a single listener to a parent element and use `event.target` to determine which child was interacted with. This is more memory-efficient, works with dynamically added elements, and simplifies cleanup. It is especially useful for lists, tables, and other repeating UI patterns.
+
+</Answer>
+<Answer lang="ru">
+
+**Распространение событий** (Event propagation) описывает, как события проходят через дерево DOM при срабатывании события на элементе. Оно состоит из трёх фаз: **захват** (capturing — событие спускается от window к целевому элементу), **цель** (target — событие достигает элемента, на котором произошло действие) и **всплытие** (bubbling — событие поднимается обратно от цели к window).
+
+По умолчанию обработчики событий регистрируются для фазы всплытия. Можно слушать событие во время фазы захвата, передав `{ capture: true }` третьим аргументом в `addEventListener`. Метод **`stopPropagation()`** предотвращает дальнейшее распространение события к следующему элементу, а **`preventDefault()`** предотвращает действие браузера по умолчанию (например, переход по ссылке или отправку формы), но не останавливает распространение.
+
+**Делегирование событий** (Event delegation) — мощный паттерн, использующий всплытие. Вместо привязки обработчиков к множеству дочерних элементов, один обработчик вешается на родительский элемент, а `event.target` используется для определения, с каким дочерним элементом произошло взаимодействие. Это экономит память, работает с динамически добавляемыми элементами и упрощает очистку. Особенно полезно для списков, таблиц и других повторяющихся UI-паттернов.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Event propagation phases
+document.getElementById("parent").addEventListener(
+  "click",
+  () => console.log("Parent — capturing phase"),
+  { capture: true }
+);
+
+document.getElementById("child").addEventListener("click", (e) => {
+  console.log("Child — target/bubbling phase");
+  // e.stopPropagation();  // would prevent bubbling to parent
+  // e.preventDefault();   // would prevent default browser action
+});
+
+document.getElementById("parent").addEventListener("click", () => {
+  console.log("Parent — bubbling phase");
+});
+// Clicking child logs:
+// "Parent — capturing phase" → "Child — target/bubbling phase" → "Parent — bubbling phase"
+
+// Event delegation pattern
+const list = document.getElementById("todo-list");
+
+list.addEventListener("click", (event) => {
+  const target = event.target;
+
+  if (target.matches("button.delete")) {
+    const item = target.closest("li");
+    item.remove();
+  }
+
+  if (target.matches("input[type='checkbox']")) {
+    const item = target.closest("li");
+    item.classList.toggle("completed");
+  }
+});
+```

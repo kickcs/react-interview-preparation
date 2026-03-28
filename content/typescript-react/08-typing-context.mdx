@@ -1,0 +1,102 @@
+---
+title: "Как типизировать Context в React?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+When creating a context with **createContext**, you need to provide a type and a default value. The most common pattern is the **null pattern**: you type the context as `YourType | null`, pass `null` as the default, and then create a **custom hook** that throws an error if the context is used outside its provider. This avoids forcing consumers to null-check every time.
+
+The context type should be an interface or type alias that describes both the **state** and any **actions** the context provides. For example, a theme context might expose the current theme and a toggle function. Typing the context value precisely ensures that all consumers get full autocompletion and type checking.
+
+For more complex cases, you can create **generic context factories** that produce typed providers and hooks for any data shape. This reduces boilerplate when your application has many contexts. The key insight is that once the context is typed correctly at the `createContext` call, all consumers — through `useContext` or the custom hook — inherit those types automatically.
+
+</Answer>
+<Answer lang="ru">
+
+При создании контекста с помощью **createContext** нужно указать тип и значение по умолчанию. Наиболее распространённый паттерн — **паттерн с null**: вы типизируете контекст как `YourType | null`, передаёте `null` в качестве значения по умолчанию, а затем создаёте **пользовательский хук**, который выбрасывает ошибку, если контекст используется вне его провайдера. Это избавляет потребителей от необходимости каждый раз проверять на null.
+
+Тип контекста должен быть интерфейсом или типовым псевдонимом, описывающим как **состояние**, так и любые **действия**, которые контекст предоставляет. Например, контекст темы может предоставлять текущую тему и функцию переключения. Точная типизация значения контекста обеспечивает полное автодополнение и проверку типов для всех потребителей.
+
+Для более сложных случаев можно создать **обобщённые фабрики контекстов**, которые производят типизированные провайдеры и хуки для любой формы данных. Это уменьшает шаблонный код, когда в приложении много контекстов. Ключевой момент: как только контекст правильно типизирован при вызове `createContext`, все потребители — через `useContext` или пользовательский хук — автоматически наследуют эти типы.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createContext, useContext, useState } from "react";
+
+// 1. Define the context type
+interface ThemeContextType {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+}
+
+// 2. Create context with null default (null pattern)
+const ThemeContext = createContext<ThemeContextType | null>(null);
+
+// 3. Custom hook with null guard
+function useTheme(): ThemeContextType {
+  const context = useContext(ThemeContext);
+  if (context === null) {
+    throw new Error("useTheme must be used within a ThemeProvider");
+  }
+  return context;
+}
+
+// 4. Typed provider component
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+// 5. Consumer — fully typed, no null checks needed
+function Header() {
+  const { theme, toggleTheme } = useTheme();
+
+  return (
+    <header className={theme}>
+      <button onClick={toggleTheme}>
+        Current theme: {theme}
+      </button>
+    </header>
+  );
+}
+```
+
+```tsx
+// Generic context factory — reduces boilerplate
+function createStrictContext<T>(displayName: string) {
+  const Context = createContext<T | null>(null);
+  Context.displayName = displayName;
+
+  function useStrictContext(): T {
+    const context = useContext(Context);
+    if (context === null) {
+      throw new Error(`use${displayName} must be used within ${displayName}Provider`);
+    }
+    return context;
+  }
+
+  return [Context.Provider, useStrictContext] as const;
+}
+
+// Usage
+interface AuthState {
+  user: { name: string } | null;
+  login: (name: string) => void;
+  logout: () => void;
+}
+
+const [AuthProvider, useAuth] = createStrictContext<AuthState>("Auth");
+```

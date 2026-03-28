@@ -1,0 +1,58 @@
+---
+title: "Как анализировать и уменьшать размер бандла?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Bundle analysis** is the process of inspecting what code ends up in your production JavaScript bundle and how much space each module consumes. Tools like **`webpack-bundle-analyzer`** generate an interactive treemap visualization, while **`source-map-explorer`** uses source maps to show precise byte-level breakdowns of your bundle.
+
+The analysis typically reveals a few common issues: oversized dependencies (e.g., importing all of `lodash` instead of `lodash/debounce`), duplicate packages at different versions, polyfills that are no longer needed, and code that could be dynamically imported. Identifying these allows targeted optimization.
+
+To reduce bundle size, replace heavy libraries with lighter alternatives (e.g., `date-fns` instead of `moment`), use **named imports** to enable tree shaking, move rarely-used features behind **dynamic `import()`** calls, and audit your dependencies regularly. In Next.js, the built-in `@next/bundle-analyzer` plugin wraps `webpack-bundle-analyzer` and splits the view into server and client bundles for easier inspection.
+
+</Answer>
+<Answer lang="ru">
+
+**Анализ бандла** — это процесс исследования того, какой код попадает в ваш продакшн-бандл JavaScript и сколько места занимает каждый модуль. Инструменты вроде **`webpack-bundle-analyzer`** генерируют интерактивную визуализацию в виде древовидной карты, а **`source-map-explorer`** использует source maps для отображения точной побайтной разбивки бандла.
+
+Анализ обычно выявляет несколько типичных проблем: слишком большие зависимости (например, импорт всего `lodash` вместо `lodash/debounce`), дублирующиеся пакеты разных версий, полифиллы, которые больше не нужны, и код, который можно загружать динамически. Выявление этих проблем позволяет провести точечную оптимизацию.
+
+Для уменьшения размера бандла замените тяжёлые библиотеки на более лёгкие альтернативы (например, `date-fns` вместо `moment`), используйте **именованные импорты** для включения tree shaking, переместите редко используемые функции за **динамические вызовы `import()`** и регулярно проверяйте зависимости. В Next.js встроенный плагин `@next/bundle-analyzer` оборачивает `webpack-bundle-analyzer` и разделяет представление на серверный и клиентский бандлы для удобного анализа.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// next.config.ts — setting up bundle analysis in Next.js
+import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
+
+const nextConfig: NextConfig = {
+  // your config...
+};
+
+export default withBundleAnalyzer(nextConfig);
+
+// Run analysis:
+// ANALYZE=true bun run build
+
+// Common optimizations after analysis:
+
+// BAD — imports the entire library (70+ kB)
+// import { debounce } from "lodash";
+
+// GOOD — imports only the function you need (~1 kB)
+// import debounce from "lodash/debounce";
+
+// GOOD — use a lighter alternative
+// import { debounce } from "es-toolkit";
+
+// GOOD — dynamically import heavy components
+// const Chart = lazy(() => import("./Chart"));
+```

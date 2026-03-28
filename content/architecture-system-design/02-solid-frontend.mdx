@@ -1,0 +1,83 @@
+---
+title: "Как принципы SOLID применяются во фронтенде?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**SOLID** principles, originally from object-oriented design, translate naturally to React components and hooks. **Single Responsibility Principle (SRP)** means a component or hook should have one reason to change. A `useAuth` hook handles authentication; it should not also manage toast notifications. **Open/Closed Principle (OCP)** means components should be open for extension but closed for modification — you achieve this with composition, render props, and the `children` pattern instead of adding endless `if` branches.
+
+**Liskov Substitution Principle (LSP)** means any component satisfying a prop interface should be swappable without breaking the parent. If you have a `Button` and an `IconButton` that both accept `onClick` and `disabled`, either should work wherever the other does. **Interface Segregation Principle (ISP)** means don't force a component to accept props it doesn't need. Instead of one massive `UserProfile` props object, split into focused interfaces like `UserAvatarProps` and `UserBioProps`.
+
+**Dependency Inversion Principle (DIP)** means high-level modules should not depend on low-level modules; both should depend on abstractions. In React, this translates to injecting services via context or props rather than importing concrete implementations directly. For example, a `DataList` component should accept a generic fetcher function rather than hard-coding a specific API call, making it testable and reusable across different data sources.
+
+</Answer>
+<Answer lang="ru">
+
+Принципы **SOLID**, изначально из объектно-ориентированного проектирования, естественно переносятся на React-компоненты и хуки. **Принцип единственной ответственности (SRP)** означает, что у компонента или хука должна быть одна причина для изменения. Хук `useAuth` управляет аутентификацией; он не должен заодно управлять toast-уведомлениями. **Принцип открытости/закрытости (OCP)** означает, что компоненты должны быть открыты для расширения, но закрыты для модификации — это достигается композицией, render props и паттерном `children` вместо бесконечных `if`-ветвлений.
+
+**Принцип подстановки Лисков (LSP)** означает, что любой компонент, удовлетворяющий интерфейсу пропсов, должен быть взаимозаменяем без поломки родителя. Если `Button` и `IconButton` оба принимают `onClick` и `disabled`, любой из них должен работать там, где используется другой. **Принцип разделения интерфейсов (ISP)** означает: не заставляйте компонент принимать пропсы, которые ему не нужны. Вместо одного огромного объекта пропсов `UserProfile` разделите на фокусные интерфейсы вроде `UserAvatarProps` и `UserBioProps`.
+
+**Принцип инверсии зависимостей (DIP)** означает, что модули верхнего уровня не должны зависеть от модулей нижнего уровня; оба должны зависеть от абстракций. В React это выражается в инъекции сервисов через контекст или пропсы вместо прямого импорта конкретных реализаций. Например, компонент `DataList` должен принимать обобщённую функцию-фетчер, а не хардкодить конкретный API-запрос, что делает его тестируемым и переиспользуемым для разных источников данных.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// SRP — each hook has one responsibility
+function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const login = (credentials: Credentials) => { /* ... */ };
+  const logout = () => { /* ... */ };
+  return { user, login, logout };
+}
+
+// OCP — extend via composition, not modification
+function Button({ children, ...props }: ButtonProps) {
+  return <button className="btn" {...props}>{children}</button>;
+}
+
+function IconButton({ icon, children, ...props }: IconButtonProps) {
+  return (
+    <Button {...props}>
+      <Icon name={icon} />
+      {children}
+    </Button>
+  );
+}
+
+// ISP — focused prop interfaces
+interface UserAvatarProps {
+  src: string;
+  alt: string;
+  size?: "sm" | "md" | "lg";
+}
+
+interface UserBioProps {
+  name: string;
+  bio: string;
+}
+
+// DIP — depend on abstractions, not concretions
+interface DataFetcher<T> {
+  fetch: () => Promise<T[]>;
+}
+
+function DataList<T>({ fetcher, renderItem }: {
+  fetcher: DataFetcher<T>;
+  renderItem: (item: T) => React.ReactNode;
+}) {
+  const [items, setItems] = useState<T[]>([]);
+
+  useEffect(() => {
+    fetcher.fetch().then(setItems);
+  }, [fetcher]);
+
+  return <ul>{items.map(renderItem)}</ul>;
+}
+
+// Usage — inject any fetcher
+const userFetcher: DataFetcher<User> = { fetch: () => api.getUsers() };
+<DataList fetcher={userFetcher} renderItem={(u) => <li key={u.id}>{u.name}</li>} />
+```

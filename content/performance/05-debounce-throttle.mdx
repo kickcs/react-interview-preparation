@@ -1,0 +1,80 @@
+---
+title: "Что такое debouncing и throttling?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Debouncing** and **throttling** are techniques for limiting how often a function executes in response to rapid, repeated events. They are essential for performance when dealing with events like typing, scrolling, resizing, or mouse movement that can fire dozens or hundreds of times per second.
+
+**Debouncing** delays execution until the user has stopped triggering the event for a specified period. If the event fires again before the delay expires, the timer resets. This is ideal for **search inputs** — you wait until the user finishes typing before sending an API request, avoiding one request per keystroke.
+
+**Throttling** ensures a function executes at most once within a given time interval, regardless of how many times the event fires. Unlike debounce, it guarantees regular execution during continuous activity. This is ideal for **scroll handlers** or **resize listeners** where you need periodic updates without overwhelming the browser. Common implementations use `setTimeout` or libraries like `lodash.debounce` and `lodash.throttle`.
+
+</Answer>
+<Answer lang="ru">
+
+**Дебаунсинг** (debouncing) и **троттлинг** (throttling) — это техники ограничения частоты выполнения функции в ответ на быстрые, повторяющиеся события. Они необходимы для производительности при работе с событиями вроде ввода текста, скролла, изменения размера окна или движения мыши, которые могут срабатывать десятки или сотни раз в секунду.
+
+**Дебаунсинг** откладывает выполнение до тех пор, пока пользователь не перестанет вызывать событие в течение указанного периода. Если событие срабатывает снова до истечения задержки, таймер сбрасывается. Это идеально для **полей поиска** — вы ждёте, пока пользователь закончит ввод, прежде чем отправить запрос к API, избегая одного запроса на каждое нажатие клавиши.
+
+**Троттлинг** гарантирует, что функция выполняется не чаще одного раза в заданный интервал времени, независимо от того, сколько раз срабатывает событие. В отличие от дебаунса, он гарантирует регулярное выполнение во время непрерывной активности. Это идеально для **обработчиков скролла** или **слушателей изменения размера окна**, где нужны периодические обновления без перегрузки браузера. Распространённые реализации используют `setTimeout` или библиотеки вроде `lodash.debounce` и `lodash.throttle`.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useMemo, useState } from "react";
+
+function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  delay: number
+): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: unknown[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  }) as T;
+}
+
+function DebouncedSearch() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<string[]>([]);
+
+  const fetchResults = useMemo(
+    () =>
+      debounce(async (searchTerm: string) => {
+        if (!searchTerm) {
+          setResults([]);
+          return;
+        }
+        const res = await fetch(`/api/search?q=${searchTerm}`);
+        const data = await res.json();
+        setResults(data.results);
+      }, 300),
+    []
+  );
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+    fetchResults(value); // Only fires 300ms after the user stops typing
+  };
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={handleChange}
+        placeholder="Search..."
+      />
+      <ul>
+        {results.map((item, i) => (
+          <li key={i}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```

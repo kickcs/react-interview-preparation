@@ -1,0 +1,94 @@
+---
+title: "Что такое оптимистичные обновления?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Optimistic updates** are a UI pattern where you immediately update the interface to reflect the expected result of an action before the server confirms it. Instead of showing a loading spinner while waiting for the API response, you assume the operation will succeed and update the state right away. If the server request fails, you **roll back** to the previous state and optionally show an error message.
+
+This pattern dramatically improves **perceived performance** and user experience. Actions like liking a post, toggling a checkbox, or reordering a list feel instant rather than sluggish. The key implementation steps are: (1) save the current state as a snapshot, (2) immediately apply the expected change, (3) send the request to the server, and (4) if the request fails, restore the snapshot and notify the user.
+
+**TanStack Query** provides first-class support for optimistic updates through its `useMutation` hook. You use the `onMutate` callback to cancel outgoing refetches, snapshot the current cache, and apply the optimistic update. The `onError` callback restores the snapshot on failure, and `onSettled` ensures the cache is reconciled with the server regardless of success or failure. This pattern works well for frequent, low-risk operations where the success rate is high and immediate feedback is important.
+
+</Answer>
+<Answer lang="ru">
+
+**Оптимистичные обновления (optimistic updates)** — это паттерн UI, при котором интерфейс немедленно обновляется, отражая ожидаемый результат действия, ещё до подтверждения сервером. Вместо отображения индикатора загрузки в ожидании ответа API вы предполагаете, что операция будет успешной, и обновляете состояние сразу. Если серверный запрос не удаётся, вы **откатываете** изменения к предыдущему состоянию и опционально показываете сообщение об ошибке.
+
+Этот паттерн кардинально улучшает **воспринимаемую производительность** и пользовательский опыт. Такие действия, как лайк поста, переключение чекбокса или перестановка элементов списка, ощущаются мгновенными, а не медленными. Ключевые шаги реализации: (1) сохранить текущее состояние как снимок, (2) немедленно применить ожидаемое изменение, (3) отправить запрос на сервер, и (4) если запрос не удался — восстановить снимок и уведомить пользователя.
+
+**TanStack Query** предоставляет первоклассную поддержку оптимистичных обновлений через хук `useMutation`. В колбэке `onMutate` вы отменяете исходящие рефетчи, делаете снимок текущего кэша и применяете оптимистичное обновление. Колбэк `onError` восстанавливает снимок при неудаче, а `onSettled` гарантирует согласование кэша с сервером независимо от результата. Этот паттерн хорошо работает для частых операций с низким риском, где процент успеха высок и важна немедленная обратная связь.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+type Post = { id: number; title: string; likes: number; isLiked: boolean };
+
+function LikeButton({ postId }: { postId: number }) {
+  const queryClient = useQueryClient();
+
+  const { data: post } = useQuery({
+    queryKey: ["post", postId],
+    queryFn: () => fetch(`/api/posts/${postId}`).then((r) => r.json()) as Promise<Post>,
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: (liked: boolean) =>
+      fetch(`/api/posts/${postId}/like`, {
+        method: liked ? "POST" : "DELETE",
+      }),
+
+    // Step 1: Optimistic update BEFORE the request
+    onMutate: async (liked) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["post", postId] });
+
+      // Snapshot the previous value
+      const previousPost = queryClient.getQueryData<Post>(["post", postId]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData<Post>(["post", postId], (old) =>
+        old
+          ? {
+              ...old,
+              isLiked: liked,
+              likes: old.likes + (liked ? 1 : -1),
+            }
+          : old
+      );
+
+      // Return snapshot for rollback
+      return { previousPost };
+    },
+
+    // Step 2: Rollback on error
+    onError: (_error, _liked, context) => {
+      if (context?.previousPost) {
+        queryClient.setQueryData(["post", postId], context.previousPost);
+      }
+    },
+
+    // Step 3: Always refetch to reconcile with server
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["post", postId] });
+    },
+  });
+
+  if (!post) return null;
+
+  return (
+    <button
+      onClick={() => likeMutation.mutate(!post.isLiked)}
+      disabled={likeMutation.isPending}
+      aria-label={post.isLiked ? "Unlike post" : "Like post"}
+    >
+      {post.isLiked ? "❤️" : "🤍"} {post.likes}
+    </button>
+  );
+}
+```

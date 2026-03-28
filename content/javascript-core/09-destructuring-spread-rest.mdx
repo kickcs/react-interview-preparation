@@ -1,0 +1,68 @@
+---
+title: "Что такое деструктуризация, spread и rest операторы?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Destructuring** is a syntax that allows you to extract values from arrays or properties from objects into distinct variables. **Object destructuring** uses curly braces and matches property names, while **array destructuring** uses square brackets and matches by position. You can set **default values** for cases where the extracted value is `undefined`, and you can rename variables during object destructuring using the `property: alias` syntax.
+
+The **spread operator** (`...`) expands an iterable (array, string, object) into individual elements. It is commonly used to create shallow copies of arrays and objects, merge multiple arrays or objects, and pass array elements as function arguments. Spread creates a new reference at the top level, which helps avoid mutation bugs.
+
+The **rest operator** uses the same `...` syntax but works in the opposite direction — it collects multiple elements into a single array or object. In function parameters, rest gathers remaining arguments into an array. In destructuring, rest collects the remaining properties or elements. The rest element must always be the last in the pattern.
+
+</Answer>
+<Answer lang="ru">
+
+**Деструктуризация** — это синтаксис, позволяющий извлекать значения из массивов или свойства из объектов в отдельные переменные. **Деструктуризация объектов** использует фигурные скобки и сопоставляет имена свойств, тогда как **деструктуризация массивов** использует квадратные скобки и сопоставляет по позиции. Можно задавать **значения по умолчанию** для случаев, когда извлечённое значение равно `undefined`, и переименовывать переменные при деструктуризации объектов через синтаксис `свойство: псевдоним`.
+
+**Оператор spread** (`...`) раскладывает итерируемый объект (массив, строку, объект) на отдельные элементы. Он часто используется для создания поверхностных копий массивов и объектов, слияния нескольких массивов или объектов и передачи элементов массива как аргументов функции. Spread создаёт новую ссылку на верхнем уровне, что помогает избежать ошибок мутации.
+
+**Оператор rest** использует тот же синтаксис `...`, но работает в обратном направлении — он собирает несколько элементов в один массив или объект. В параметрах функции rest собирает оставшиеся аргументы в массив. При деструктуризации rest собирает оставшиеся свойства или элементы. Элемент rest всегда должен быть последним в шаблоне.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Object destructuring with defaults and renaming
+const user = { name: "Alice", age: 30, role: "admin" };
+const { name, age, country = "Unknown", role: userRole } = user;
+console.log(name, age, country, userRole); // "Alice" 30 "Unknown" "admin"
+
+// Array destructuring with skipping
+const rgb = [255, 128, 0];
+const [red, , blue] = rgb;
+console.log(red, blue); // 255 0
+
+// Swapping variables
+let a = 1, b = 2;
+[a, b] = [b, a];
+console.log(a, b); // 2 1
+
+// Spread — copy and merge
+const arr1 = [1, 2, 3];
+const arr2 = [4, 5, 6];
+const merged = [...arr1, ...arr2]; // [1, 2, 3, 4, 5, 6]
+
+const defaults = { theme: "dark", lang: "en" };
+const prefs = { lang: "ru", fontSize: 14 };
+const config = { ...defaults, ...prefs };
+// { theme: "dark", lang: "ru", fontSize: 14 }
+
+// Rest — collect remaining elements
+const [first, ...remaining] = [10, 20, 30, 40];
+console.log(first);     // 10
+console.log(remaining); // [20, 30, 40]
+
+// Rest in function parameters
+function sum(...numbers) {
+  return numbers.reduce((acc, n) => acc + n, 0);
+}
+console.log(sum(1, 2, 3, 4)); // 10
+
+// Nested destructuring
+const response = { data: { users: [{ id: 1, name: "Bob" }] } };
+const { data: { users: [{ name: firstUser }] } } = response;
+console.log(firstUser); // "Bob"
+```

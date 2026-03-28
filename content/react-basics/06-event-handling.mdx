@@ -1,0 +1,54 @@
+---
+title: "Как работает обработка событий в React?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React uses a **synthetic event** system that wraps native browser events in a cross-browser-compatible `SyntheticEvent` object. Event handlers in React are written in camelCase (e.g., `onClick`, `onChange`, `onSubmit`) and receive a function reference rather than a string. Under the hood, React attaches a single event listener to the root of your app and uses event delegation, which is more efficient than attaching listeners to individual DOM nodes.
+
+**Passing arguments** to event handlers is commonly done by wrapping the handler in an arrow function: `onClick={() => handleClick(id)}`. The **event object** is always available as the last argument. Synthetic events have the same interface as native events (`preventDefault()`, `stopPropagation()`, `target`, etc.), but if you need the underlying native event, you can access it via `event.nativeEvent`.
+
+One key difference from traditional DOM event handling: in React, you cannot return `false` from an event handler to prevent default behavior — you must explicitly call `event.preventDefault()`. Additionally, synthetic events are pooled in React versions before 17 (meaning the event object is reused), but from React 17 onward this pooling was removed, so you can safely access event properties asynchronously.
+
+</Answer>
+<Answer lang="ru">
+
+React использует систему **синтетических событий**, которая оборачивает нативные события браузера в кроссбраузерный объект `SyntheticEvent`. Обработчики событий в React записываются в camelCase (например, `onClick`, `onChange`, `onSubmit`) и принимают ссылку на функцию, а не строку. Под капотом React прикрепляет один обработчик событий к корню приложения и использует делегирование событий, что более эффективно, чем прикрепление обработчиков к отдельным DOM-узлам.
+
+**Передача аргументов** обработчикам событий обычно выполняется путём оборачивания обработчика в стрелочную функцию: `onClick={() => handleClick(id)}`. **Объект события** всегда доступен как последний аргумент. Синтетические события имеют тот же интерфейс, что и нативные события (`preventDefault()`, `stopPropagation()`, `target` и т.д.), но если вам нужно нативное событие, вы можете получить его через `event.nativeEvent`.
+
+Ключевое отличие от традиционной обработки событий в DOM: в React нельзя вернуть `false` из обработчика событий для предотвращения поведения по умолчанию — необходимо явно вызвать `event.preventDefault()`. Кроме того, синтетические события объединялись в пул в версиях React до 17 (объект события переиспользовался), но начиная с React 17 пулинг был убран, поэтому вы можете безопасно обращаться к свойствам события асинхронно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, FormEvent, ChangeEvent } from "react";
+
+function LoginForm() {
+  const [email, setEmail] = useState("");
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    setEmail(event.target.value);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    console.log("Submitted:", email);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={handleChange}
+        placeholder="Enter email"
+      />
+      <button type="submit">Log in</button>
+    </form>
+  );
+}
+```

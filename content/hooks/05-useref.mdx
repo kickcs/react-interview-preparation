@@ -1,0 +1,87 @@
+---
+title: "Как работает useRef?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useRef** returns a mutable ref object with a `.current` property that persists across renders without causing re-renders when changed. This makes it fundamentally different from state: updating `ref.current` does not trigger a re-render, and the value is available synchronously and always reflects the latest assignment.
+
+The most common use case is **DOM access** — passing a ref to a JSX element's `ref` attribute gives you direct access to the underlying DOM node. This is essential for imperative operations like focusing an input, measuring dimensions, or integrating with non-React libraries. In React 19, function components can accept refs directly as props without needing `forwardRef`.
+
+Refs are also valuable for **persisting mutable values** across renders: storing timer IDs, previous state values, tracking whether a component is mounted, or holding any value that needs to survive re-renders without triggering them. Think of `useRef` as an instance variable for function components, similar to class component instance properties.
+
+The key rule is: **never read or write `ref.current` during rendering** (except for lazy initialization). Doing so makes your component impure and can lead to unpredictable behavior with concurrent features. Use refs inside event handlers, effects, or callbacks instead.
+
+</Answer>
+<Answer lang="ru">
+
+**useRef** возвращает мутабельный ref-объект со свойством `.current`, который сохраняется между рендерами и не вызывает ре-рендер при изменении. Это принципиально отличает его от состояния: обновление `ref.current` не запускает ре-рендер, а значение доступно синхронно и всегда отражает последнее присвоение.
+
+Самый распространённый сценарий использования — **доступ к DOM**. Передача ref в атрибут `ref` JSX-элемента даёт прямой доступ к базовому DOM-узлу. Это необходимо для императивных операций: фокусировка поля ввода, измерение размеров или интеграция с не-React библиотеками. В React 19 функциональные компоненты могут принимать refs напрямую как пропсы без необходимости использовать `forwardRef`.
+
+Refs также полезны для **сохранения мутабельных значений** между рендерами: хранение идентификаторов таймеров, предыдущих значений состояния, отслеживание монтирования компонента или хранение любого значения, которое должно пережить ре-рендеры без их вызова. Думайте о `useRef` как о переменной экземпляра для функциональных компонентов, аналогичной свойствам экземпляра в классовых компонентах.
+
+Ключевое правило: **никогда не читайте и не записывайте `ref.current` во время рендеринга** (кроме ленивой инициализации). Это делает компонент нечистым и может привести к непредсказуемому поведению с конкурентными возможностями. Используйте refs внутри обработчиков событий, эффектов или колбэков.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useRef, useEffect } from "react";
+
+function Stopwatch() {
+  const [seconds, setSeconds] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const start = () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    intervalRef.current = setInterval(() => {
+      setSeconds((prev) => prev + 1);
+    }, 1000);
+  };
+
+  const stop = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsRunning(false);
+  };
+
+  const reset = () => {
+    stop();
+    setSeconds(0);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  return (
+    <div>
+      <p>{seconds}s</p>
+      <button onClick={start}>Start</button>
+      <button onClick={stop}>Stop</button>
+      <button onClick={reset}>Reset</button>
+    </div>
+  );
+}
+
+function FocusInput() {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div>
+      <input ref={inputRef} placeholder="Click the button to focus me" />
+      <button onClick={() => inputRef.current?.focus()}>Focus Input</button>
+    </div>
+  );
+}
+```

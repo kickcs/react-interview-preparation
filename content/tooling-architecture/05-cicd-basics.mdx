@@ -1,0 +1,74 @@
+---
+title: "Что такое CI/CD?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CI/CD** stands for **Continuous Integration** and **Continuous Delivery/Deployment** — a set of practices that automate the process of testing, building, and deploying code changes.
+
+**Continuous Integration (CI)** means every developer's code changes are automatically tested when pushed to the repository. A CI pipeline typically runs linting, type checking, unit tests, and build verification. If any step fails, the team is notified immediately. This catches bugs early and prevents broken code from being merged.
+
+**Continuous Delivery (CD)** extends CI by automatically preparing code for release to production after all tests pass. The actual deployment may still require manual approval. **Continuous Deployment** goes one step further — every change that passes the pipeline is automatically deployed to production without human intervention.
+
+**GitHub Actions** is one of the most popular CI/CD platforms for JavaScript projects. Workflows are defined in YAML files inside `.github/workflows/`. Each workflow consists of **triggers** (push, pull request, schedule), **jobs** (groups of steps), and **steps** (individual commands). Jobs can run in parallel on different operating systems and Node versions using a **matrix strategy**.
+
+Other CI/CD platforms include **GitLab CI**, **CircleCI**, **Jenkins**, and **Vercel** (which provides zero-config CI/CD for Next.js projects).
+
+</Answer>
+<Answer lang="ru">
+
+**CI/CD** расшифровывается как **Continuous Integration** (непрерывная интеграция) и **Continuous Delivery/Deployment** (непрерывная доставка/развёртывание) — набор практик для автоматизации тестирования, сборки и развёртывания изменений в коде.
+
+**Непрерывная интеграция (CI)** означает, что изменения кода каждого разработчика автоматически тестируются при отправке в репозиторий. CI-пайплайн обычно запускает линтинг, проверку типов, модульные тесты и верификацию сборки. Если какой-либо шаг завершается неудачей, команда немедленно получает уведомление. Это позволяет обнаруживать ошибки на ранних стадиях и предотвращает слияние сломанного кода.
+
+**Непрерывная доставка (CD)** расширяет CI, автоматически подготавливая код к релизу в продакшен после прохождения всех тестов. Фактическое развёртывание может всё ещё требовать ручного подтверждения. **Непрерывное развёртывание** идёт ещё дальше — каждое изменение, прошедшее пайплайн, автоматически деплоится в продакшен без вмешательства человека.
+
+**GitHub Actions** — одна из самых популярных CI/CD-платформ для JavaScript-проектов. Воркфлоу определяются в YAML-файлах внутри `.github/workflows/`. Каждый воркфлоу состоит из **триггеров** (push, pull request, расписание), **джобов** (групп шагов) и **шагов** (отдельных команд). Джобы могут выполняться параллельно на разных операционных системах и версиях Node с помощью **matrix-стратегии**.
+
+Другие CI/CD-платформы: **GitLab CI**, **CircleCI**, **Jenkins** и **Vercel** (который предоставляет CI/CD с нулевой конфигурацией для проектов на Next.js).
+
+</Answer>
+</AnswerGroup>
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm run test
+      - run: npm run build
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run build
+      # Deploy step depends on your hosting provider
+```

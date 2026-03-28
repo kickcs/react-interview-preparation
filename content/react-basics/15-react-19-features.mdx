@@ -1,0 +1,59 @@
+---
+title: "Что нового в React 19?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React 19 introduces several major features that simplify common patterns. **Actions** are functions that use async transitions to handle form submissions, pending states, errors, and optimistic updates automatically. The new **useActionState** hook manages form action state, providing the current state, a dispatch function, and a pending flag. The **useOptimistic** hook lets you show an optimistic value while an async action is in progress, automatically reverting if the action fails.
+
+The **`use`** hook is a new API that lets you read resources like promises and context during render. Unlike other hooks, `use` can be called conditionally and inside loops, making it more flexible for data fetching patterns with Suspense. Another significant change is that **ref is now a regular prop** for function components, eliminating the need for `forwardRef` in most cases. Components can accept `ref` directly in their props.
+
+React 19 also adds built-in support for **document metadata** — `<title>`, `<meta>`, and `<link>` tags rendered inside components are automatically hoisted to the `<head>`. Stylesheets with a `precedence` prop get managed insertion order. The **React Compiler** (experimental) can automatically memoize components and hooks, reducing the need for manual `useMemo`, `useCallback`, and `React.memo` optimizations.
+
+</Answer>
+<Answer lang="ru">
+
+React 19 вводит несколько крупных функций, упрощающих распространённые паттерны. **Actions** — это функции, использующие асинхронные переходы для автоматической обработки отправки форм, состояний ожидания, ошибок и оптимистичных обновлений. Новый хук **useActionState** управляет состоянием действий формы, предоставляя текущее состояние, функцию dispatch и флаг ожидания. Хук **useOptimistic** позволяет показывать оптимистичное значение во время выполнения асинхронного действия, автоматически откатываясь при ошибке.
+
+Хук **`use`** — это новый API, позволяющий читать ресурсы, такие как промисы и контекст, во время рендеринга. В отличие от других хуков, `use` можно вызывать условно и внутри циклов, что делает его более гибким для паттернов загрузки данных с Suspense. Ещё одно значительное изменение — **ref теперь является обычным пропом** для функциональных компонентов, что устраняет необходимость в `forwardRef` в большинстве случаев. Компоненты могут принимать `ref` напрямую в своих пропсах.
+
+React 19 также добавляет встроенную поддержку **метаданных документа** — теги `<title>`, `<meta>` и `<link>`, отрисованные внутри компонентов, автоматически поднимаются в `<head>`. Таблицы стилей с пропом `precedence` получают управляемый порядок вставки. **React Compiler** (экспериментальный) может автоматически мемоизировать компоненты и хуки, уменьшая потребность в ручной оптимизации через `useMemo`, `useCallback` и `React.memo`.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useActionState, useOptimistic } from "react";
+
+// useActionState — form with async action
+function AddToCart({ itemId }: { itemId: string }) {
+  const [message, submitAction, isPending] = useActionState(
+    async (_prevState: string, formData: FormData) => {
+      const id = formData.get("itemId");
+      await addToCartAPI(id as string);
+      return `Added ${id} to cart!`;
+    },
+    ""
+  );
+
+  return (
+    <form action={submitAction}>
+      <input type="hidden" name="itemId" value={itemId} />
+      <button type="submit" disabled={isPending}>
+        {isPending ? "Adding..." : "Add to Cart"}
+      </button>
+      {message && <p>{message}</p>}
+    </form>
+  );
+}
+
+// ref as a regular prop (no forwardRef needed)
+function CustomInput({ ref, ...props }: {
+  ref?: React.Ref<HTMLInputElement>;
+  placeholder?: string;
+}) {
+  return <input ref={ref} {...props} />;
+}
+```

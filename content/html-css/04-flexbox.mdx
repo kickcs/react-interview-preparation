@@ -1,0 +1,64 @@
+---
+title: "Как работает Flexbox?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Flexbox** (Flexible Box Layout) is a one-dimensional layout model designed for distributing space and aligning items within a container. When you set `display: flex` on an element, it becomes a **flex container** and its direct children become **flex items**. Flexbox works along two axes: the **main axis** (default is horizontal) and the **cross axis** (perpendicular to the main axis).
+
+The container properties include `flex-direction` (row, column, row-reverse, column-reverse), `justify-content` (aligns items along the main axis: flex-start, center, space-between, space-around, space-evenly), `align-items` (aligns items along the cross axis: stretch, center, flex-start, flex-end, baseline), `flex-wrap` (controls whether items wrap to new lines), and `gap` (sets spacing between items).
+
+Flex items have their own properties: **flex-grow** determines how much an item grows relative to others when extra space is available, **flex-shrink** determines how much it shrinks when space is insufficient, and **flex-basis** sets the initial size before growing or shrinking. The shorthand `flex: 1` is equivalent to `flex: 1 1 0%`, making items share space equally. The `align-self` property allows individual items to override the container's `align-items` value.
+
+</Answer>
+<Answer lang="ru">
+
+**Flexbox** (гибкая блочная модель) — это одномерная модель компоновки, предназначенная для распределения пространства и выравнивания элементов внутри контейнера. Когда вы устанавливаете `display: flex` на элементе, он становится **flex-контейнером**, а его прямые потомки — **flex-элементами**. Flexbox работает по двум осям: **главная ось** (по умолчанию горизонтальная) и **поперечная ось** (перпендикулярная главной).
+
+Свойства контейнера включают `flex-direction` (row, column, row-reverse, column-reverse), `justify-content` (выравнивание по главной оси: flex-start, center, space-between, space-around, space-evenly), `align-items` (выравнивание по поперечной оси: stretch, center, flex-start, flex-end, baseline), `flex-wrap` (управляет переносом элементов на новые строки) и `gap` (задаёт расстояние между элементами).
+
+У flex-элементов есть свои свойства: **flex-grow** определяет, насколько элемент увеличивается относительно других при наличии свободного пространства, **flex-shrink** — насколько он уменьшается при нехватке места, а **flex-basis** задаёт начальный размер до увеличения или уменьшения. Сокращение `flex: 1` эквивалентно `flex: 1 1 0%`, что позволяет элементам делить пространство поровну. Свойство `align-self` позволяет отдельным элементам переопределять значение `align-items` контейнера.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Centered content — both axes */
+.center-all {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Navigation bar with spaced items */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+
+/* Equal-width columns */
+.columns {
+  display: flex;
+  gap: 1rem;
+}
+.columns > * {
+  flex: 1;
+}
+
+/* Holy grail layout — sidebar + main + sidebar */
+.holy-grail {
+  display: flex;
+  gap: 1rem;
+}
+.sidebar {
+  flex: 0 0 200px;
+}
+.main-content {
+  flex: 1;
+}
+```

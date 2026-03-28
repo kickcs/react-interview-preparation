@@ -1,0 +1,67 @@
+---
+title: "Что такое snapshot testing?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Snapshot testing** captures the rendered output of a component and saves it to a file. On subsequent test runs, the current output is compared against the stored snapshot. If they differ, the test fails — indicating either a bug or an intentional change that needs the snapshot updated.
+
+There are two main approaches. **toMatchSnapshot()** saves the snapshot to a separate `.snap` file. **toMatchInlineSnapshot()** stores the snapshot directly inside the test file as a string argument, which makes small snapshots easier to review in code reviews since the expected output is right next to the assertion.
+
+Snapshot tests are **useful for catching unintended UI changes** — for example, ensuring a redesigned component still renders all the expected elements. They work well for simple, stable components like icons, badges, or formatted dates.
+
+However, snapshots have **significant dangers**. Large snapshots become unreadable and get approved blindly. Developers often update snapshots without carefully reviewing changes — this defeats the purpose entirely. Snapshots also break on trivial changes (whitespace, CSS classes) causing noise. **Best practice:** keep snapshots small, prefer inline snapshots, and always review snapshot diffs carefully. Use behavioral tests as your primary strategy and snapshots as a supplement.
+
+</Answer>
+<Answer lang="ru">
+
+**Snapshot-тестирование** фиксирует отрендеренный вывод компонента и сохраняет его в файл. При последующих запусках тестов текущий вывод сравнивается с сохранённым снимком. Если они отличаются, тест падает — указывая либо на баг, либо на намеренное изменение, требующее обновления снимка.
+
+Существуют два основных подхода. **toMatchSnapshot()** сохраняет снимок в отдельный файл `.snap`. **toMatchInlineSnapshot()** хранит снимок прямо в тестовом файле как строковый аргумент, что упрощает ревью маленьких снимков, поскольку ожидаемый вывод находится рядом с утверждением.
+
+Snapshot-тесты **полезны для обнаружения непреднамеренных изменений UI** — например, для проверки того, что переделанный компонент всё ещё рендерит все ожидаемые элементы. Они хорошо работают для простых, стабильных компонентов: иконок, бейджей или форматированных дат.
+
+Однако у снимков есть **существенные опасности**. Большие снимки становятся нечитаемыми и утверждаются «вслепую». Разработчики часто обновляют снимки, не проверяя изменения внимательно — это полностью обесценивает подход. Снимки также ломаются при тривиальных изменениях (пробелы, CSS-классы), создавая шум. **Лучшая практика:** держите снимки маленькими, предпочитайте inline-снимки и всегда внимательно проверяйте дифы. Используйте поведенческие тесты как основную стратегию, а снимки — как дополнение.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render } from "@testing-library/react";
+
+function Badge({ status }: { status: "active" | "inactive" | "pending" }) {
+  const colors = { active: "green", inactive: "gray", pending: "yellow" };
+  return (
+    <span className={`badge badge-${colors[status]}`}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
+
+// Snapshot saved to a .snap file
+test("Badge renders active status", () => {
+  const { container } = render(<Badge status="active" />);
+  expect(container.firstChild).toMatchSnapshot();
+});
+
+// Inline snapshot — stored right in the test file
+test("Badge renders pending status", () => {
+  const { container } = render(<Badge status="pending" />);
+  expect(container.firstChild).toMatchInlineSnapshot(`
+    <span class="badge badge-yellow">
+      Pending
+    </span>
+  `);
+});
+
+// Better approach: test behavior instead of snapshots
+test("Badge displays the correct text and class", () => {
+  const { container } = render(<Badge status="inactive" />);
+  const badge = container.firstChild as HTMLElement;
+
+  expect(badge).toHaveTextContent("Inactive");
+  expect(badge).toHaveClass("badge-gray");
+});
+```

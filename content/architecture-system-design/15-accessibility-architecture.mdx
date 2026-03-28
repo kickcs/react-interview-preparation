@@ -1,0 +1,103 @@
+---
+title: "Как построить архитектуру доступности?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Accessible architecture** means building accessibility into your component library and development workflow from the start, not bolting it on later. The foundation is an **accessible component library** — every interactive element (buttons, modals, dropdowns, tabs) must implement proper ARIA roles, keyboard navigation, and focus management. Libraries like **Radix UI** and **React Aria** provide unstyled, fully accessible primitives that you can wrap with your design system, saving months of work compared to building ARIA patterns from scratch.
+
+**Focus management** is critical for single-page applications where navigation doesn't trigger a full page reload. When a route changes, focus should move to the main content area or a heading — otherwise screen reader users are stranded at the top of the page. **Skip links** let keyboard users bypass repetitive navigation. **Live regions** (`aria-live`) announce dynamic content changes (toast notifications, form validation errors, loading states) to assistive technology. These patterns must be architected into your layout and navigation components, not added per-page.
+
+**Automated testing** catches about 30-40% of accessibility issues — the rest require manual testing with screen readers and keyboard navigation. Integrate **axe-core** into your test suite (via `jest-axe` or Playwright's accessibility assertions) to catch missing labels, contrast violations, and invalid ARIA attributes in CI. Add **ESLint accessibility rules** (`eslint-plugin-jsx-a11y`) to catch issues at author time. For manual testing, establish a regular cadence of testing with VoiceOver (macOS), NVDA (Windows), and TalkBack (Android). Accessibility is not a feature — it's a quality requirement that affects every component.
+
+</Answer>
+<Answer lang="ru">
+
+**Архитектура доступности** означает встраивание доступности в библиотеку компонентов и рабочий процесс разработки с самого начала, а не привинчивание постфактум. Основа — **доступная библиотека компонентов** — каждый интерактивный элемент (кнопки, модалки, выпадающие списки, вкладки) должен реализовывать правильные ARIA-роли, клавиатурную навигацию и управление фокусом. Библиотеки вроде **Radix UI** и **React Aria** предоставляют нестилизованные, полностью доступные примитивы, которые можно обернуть вашей дизайн-системой, экономя месяцы работы по сравнению с реализацией ARIA-паттернов с нуля.
+
+**Управление фокусом** критически важно для SPA, где навигация не вызывает полную перезагрузку страницы. При смене маршрута фокус должен перемещаться на основной контент или заголовок — иначе пользователи скринридеров остаются «застрявшими» наверху страницы. **Skip-ссылки** позволяют пользователям клавиатуры пропустить повторяющуюся навигацию. **Живые регионы** (`aria-live`) объявляют динамические изменения контента (toast-уведомления, ошибки валидации, состояния загрузки) ассистивным технологиям. Эти паттерны должны быть заложены в компоненты layout и навигации, а не добавляться постранично.
+
+**Автоматическое тестирование** ловит около 30-40% проблем доступности — остальное требует ручного тестирования со скринридерами и клавиатурной навигацией. Интегрируйте **axe-core** в тестовый набор (через `jest-axe` или accessibility-проверки Playwright) для отлова отсутствующих меток, нарушений контрастности и невалидных ARIA-атрибутов в CI. Добавьте **ESLint-правила доступности** (`eslint-plugin-jsx-a11y`) для выявления проблем на этапе написания кода. Для ручного тестирования установите регулярный ритм проверки с VoiceOver (macOS), NVDA (Windows) и TalkBack (Android). Доступность — не фича, а требование к качеству, затрагивающее каждый компонент.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Accessible component system
+
+// 1. Accessible modal with focus management
+import * as Dialog from "@radix-ui/react-dialog";
+
+function Modal({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onClose}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="modal-overlay" />
+        <Dialog.Content className="modal-content" aria-describedby={undefined}>
+          <Dialog.Title>{title}</Dialog.Title>
+          {children}
+          <Dialog.Close asChild>
+            <button aria-label="Close dialog">X</button>
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+// 2. Skip link in layout
+function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <nav aria-label="Main navigation">{/* nav items */}</nav>
+      <main id="main-content" tabIndex={-1}>
+        {children}
+      </main>
+    </>
+  );
+}
+
+// 3. Live region for dynamic announcements
+function LiveAnnouncer() {
+  const [message, setMessage] = useState("");
+
+  // Expose setter globally or via context
+  useEffect(() => {
+    const handler = (e: CustomEvent) => setMessage(e.detail);
+    window.addEventListener("announce", handler as EventListener);
+    return () => window.removeEventListener("announce", handler as EventListener);
+  }, []);
+
+  return (
+    <div aria-live="polite" aria-atomic="true" className="sr-only">
+      {message}
+    </div>
+  );
+}
+
+// 4. Automated accessibility testing
+import { axe, toHaveNoViolations } from "jest-axe";
+
+expect.extend(toHaveNoViolations);
+
+test("form is accessible", async () => {
+  const { container } = render(<LoginForm />);
+  const results = await axe(container);
+  expect(results).toHaveNoViolations();
+});
+```

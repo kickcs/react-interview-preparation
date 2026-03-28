@@ -1,0 +1,110 @@
+---
+title: "Что такое функции-генераторы?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **generator function** is declared with `function*` and returns a **generator object** that implements both the iterable and iterator protocols. Unlike regular functions that run to completion, generators can **pause** execution at each `yield` expression and **resume** later when `next()` is called. Each call to `next()` returns an object `{ value, done }`, where `value` is the yielded value and `done` indicates whether the generator has finished.
+
+Generators enable **lazy evaluation** — values are computed on demand rather than all at once. This makes them ideal for representing **infinite sequences**, processing large datasets without loading everything into memory, or implementing custom iteration logic. The `yield*` expression delegates to another iterable or generator, enabling composition of generators.
+
+Generators are also **two-way communication channels**: you can pass values *into* a generator via `next(value)`, where the value becomes the result of the `yield` expression inside the generator. You can also throw errors into a generator with `generator.throw(error)` and trigger its return with `generator.return(value)`. **Async generators** (`async function*`) combine generators with async/await, allowing you to yield promises and iterate with `for await...of` — perfect for streaming data, paginated API calls, or processing event streams.
+
+</Answer>
+<Answer lang="ru">
+
+**Функция-генератор** объявляется с помощью `function*` и возвращает **объект генератора**, реализующий протоколы итерируемого объекта и итератора. В отличие от обычных функций, которые выполняются до конца, генераторы могут **приостанавливать** выполнение на каждом выражении `yield` и **возобновлять** его при вызове `next()`. Каждый вызов `next()` возвращает объект `{ value, done }`, где `value` — это возвращённое через yield значение, а `done` указывает, завершился ли генератор.
+
+Генераторы обеспечивают **ленивое вычисление** — значения вычисляются по запросу, а не все сразу. Это делает их идеальными для представления **бесконечных последовательностей**, обработки больших наборов данных без загрузки всего в память или реализации пользовательской логики итерации. Выражение `yield*` делегирует другому итерируемому объекту или генератору, позволяя компоновать генераторы.
+
+Генераторы также являются **двусторонними каналами связи**: можно передавать значения *внутрь* генератора через `next(value)`, где значение становится результатом выражения `yield` внутри генератора. Также можно выбрасывать ошибки в генератор через `generator.throw(error)` и завершать его через `generator.return(value)`. **Асинхронные генераторы** (`async function*`) объединяют генераторы с async/await, позволяя возвращать через yield промисы и итерировать с помощью `for await...of` — идеально для потоковой передачи данных, пагинированных запросов к API или обработки потоков событий.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Basic generator
+function* countdown(n) {
+  while (n > 0) {
+    yield n;
+    n--;
+  }
+}
+
+const counter = countdown(3);
+console.log(counter.next()); // { value: 3, done: false }
+console.log(counter.next()); // { value: 2, done: false }
+console.log(counter.next()); // { value: 1, done: false }
+console.log(counter.next()); // { value: undefined, done: true }
+
+// Infinite sequence with lazy evaluation
+function* fibonacci() {
+  let a = 0, b = 1;
+  while (true) {
+    yield a;
+    [a, b] = [b, a + b];
+  }
+}
+
+// Take only what you need
+function take(gen, n) {
+  const result = [];
+  for (const val of gen) {
+    result.push(val);
+    if (result.length === n) break;
+  }
+  return result;
+}
+console.log(take(fibonacci(), 8)); // [0, 1, 1, 2, 3, 5, 8, 13]
+
+// Two-way communication
+function* accumulator() {
+  let total = 0;
+  while (true) {
+    const value = yield total;
+    total += value;
+  }
+}
+
+const acc = accumulator();
+acc.next();           // { value: 0, done: false } — initialize
+acc.next(10);         // { value: 10, done: false }
+acc.next(20);         // { value: 30, done: false }
+console.log(acc.next(5)); // { value: 35, done: false }
+
+// yield* delegation
+function* inner() {
+  yield "a";
+  yield "b";
+}
+
+function* outer() {
+  yield 1;
+  yield* inner(); // delegates to inner generator
+  yield 2;
+}
+console.log([...outer()]); // [1, "a", "b", 2]
+
+// Async generator — paginated API
+async function* fetchPages(url) {
+  let page = 1;
+  while (true) {
+    const response = await fetch(`${url}?page=${page}`);
+    const data = await response.json();
+    if (data.items.length === 0) return;
+    yield data.items;
+    page++;
+  }
+}
+
+// Usage with for await...of
+async function getAllItems() {
+  const allItems = [];
+  for await (const items of fetchPages("/api/products")) {
+    allItems.push(...items);
+  }
+  return allItems;
+}
+```

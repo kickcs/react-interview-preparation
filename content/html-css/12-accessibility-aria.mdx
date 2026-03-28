@@ -1,0 +1,104 @@
+---
+title: "Что такое веб-доступность и ARIA?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Web accessibility** (a11y) ensures that websites are usable by everyone, including people with visual, auditory, motor, or cognitive disabilities. The **WCAG** (Web Content Accessibility Guidelines) defines four principles: **Perceivable** (content must be presentable in ways users can perceive), **Operable** (UI must be navigable via keyboard and other inputs), **Understandable** (content and UI must be clear), and **Robust** (content must work with assistive technologies). Compliance levels are A, AA (most commonly targeted), and AAA.
+
+**ARIA** (Accessible Rich Internet Applications) is a set of HTML attributes that add semantic meaning for assistive technologies. ARIA **roles** define what an element is (e.g., `role="dialog"`, `role="tab"`), **states** describe the current condition (`aria-expanded`, `aria-checked`, `aria-disabled`), and **properties** provide additional information (`aria-label`, `aria-describedby`, `aria-live`). The first rule of ARIA is: don't use ARIA if a native HTML element already provides the semantics you need — a `<button>` is always better than `<div role="button">`.
+
+**Keyboard navigation** is essential — all interactive elements must be reachable with Tab, activatable with Enter/Space, and dismissable with Escape for modals. Use `tabindex="0"` to make custom elements focusable and `tabindex="-1"` for programmatic focus management. Color contrast must meet at minimum a 4.5:1 ratio for normal text (WCAG AA). Screen readers announce elements based on their role, name, and state, so always provide text alternatives for images (`alt` attribute) and labels for form controls.
+
+</Answer>
+<Answer lang="ru">
+
+**Веб-доступность** (a11y) обеспечивает возможность использования сайтов всеми людьми, включая людей с нарушениями зрения, слуха, моторики или когнитивных функций. **WCAG** (Руководство по доступности веб-контента) определяет четыре принципа: **Воспринимаемость** (контент должен быть представлен в формах, доступных для восприятия), **Управляемость** (интерфейс должен быть доступен через клавиатуру и другие средства ввода), **Понятность** (контент и интерфейс должны быть ясными) и **Устойчивость** (контент должен работать с ассистивными технологиями). Уровни соответствия: A, AA (наиболее часто целевой) и AAA.
+
+**ARIA** (Accessible Rich Internet Applications) — это набор HTML-атрибутов, добавляющих семантический смысл для ассистивных технологий. **Роли** ARIA определяют, чем является элемент (например, `role="dialog"`, `role="tab"`), **состояния** описывают текущее положение (`aria-expanded`, `aria-checked`, `aria-disabled`), а **свойства** предоставляют дополнительную информацию (`aria-label`, `aria-describedby`, `aria-live`). Первое правило ARIA: не используйте ARIA, если нативный HTML-элемент уже предоставляет нужную семантику — `<button>` всегда лучше, чем `<div role="button">`.
+
+**Навигация с клавиатуры** обязательна — все интерактивные элементы должны быть доступны через Tab, активироваться через Enter/Space, а модальные окна — закрываться по Escape. Используйте `tabindex="0"`, чтобы сделать пользовательские элементы фокусируемыми, и `tabindex="-1"` для программного управления фокусом. Контрастность цветов должна соответствовать минимальному соотношению 4.5:1 для обычного текста (WCAG AA). Программы чтения с экрана озвучивают элементы на основе их роли, имени и состояния, поэтому всегда предоставляйте текстовые альтернативы для изображений (атрибут `alt`) и подписи для элементов форм.
+
+</Answer>
+</AnswerGroup>
+
+```html
+<!-- Accessible form with proper labels and ARIA -->
+<form aria-labelledby="form-title">
+  <h2 id="form-title">Contact Us</h2>
+
+  <div>
+    <label for="name">Full Name <span aria-hidden="true">*</span></label>
+    <input
+      id="name"
+      type="text"
+      required
+      aria-required="true"
+      autocomplete="name"
+    />
+  </div>
+
+  <div>
+    <label for="email">Email</label>
+    <input
+      id="email"
+      type="email"
+      required
+      aria-required="true"
+      aria-describedby="email-hint"
+      autocomplete="email"
+    />
+    <span id="email-hint" class="hint">We'll never share your email.</span>
+  </div>
+
+  <div>
+    <label for="message">Message</label>
+    <textarea id="message" rows="4" aria-required="true"></textarea>
+  </div>
+
+  <!-- Live region for form feedback -->
+  <div aria-live="polite" id="form-status"></div>
+
+  <button type="submit">Send Message</button>
+</form>
+
+<!-- Accessible modal dialog -->
+<div
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="dialog-title"
+  aria-describedby="dialog-desc"
+>
+  <h2 id="dialog-title">Confirm Action</h2>
+  <p id="dialog-desc">Are you sure you want to proceed?</p>
+  <button>Cancel</button>
+  <button>Confirm</button>
+</div>
+
+<!-- Skip navigation link for keyboard users -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+```
+
+```css
+/* Skip link — visible only on focus */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  padding: 0.5rem 1rem;
+  background: #0066cc;
+  color: white;
+  z-index: 1000;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Focus styles for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+```

@@ -1,0 +1,66 @@
+---
+title: "Каковы принципы архитектуры компонентов?"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Component architecture** is the practice of organizing UI into a tree of reusable, composable pieces. The most important principle is **Single Responsibility** — each component should do one thing well. A `UserAvatar` renders an image, a `UserCard` composes the avatar with user info, and a `UserList` maps over cards. When a component does too much, split it.
+
+**Composition over inheritance** is central to React. Instead of deep class hierarchies, you compose behavior by nesting components and passing children. This keeps each piece simple and testable. Closely related to this is **cohesion** — everything inside a component (markup, styles, handlers) should serve its single purpose — and **coupling** — components should depend on each other as little as possible. Props form the explicit contract between parent and child.
+
+**Component granularity** is a practical trade-off: too fine-grained and you drown in tiny files with excessive prop-drilling; too coarse and components become unmaintainable. A good heuristic is that a component should be extractable when you can name it, reuse it, or test it independently. Finally, the distinction between **smart (container) components** and **dumb (presentational) components** keeps data-fetching logic separate from rendering logic, making the presentational layer easy to reuse and test.
+
+</Answer>
+<Answer lang="ru">
+
+**Компонентная архитектура** — это практика организации интерфейса в дерево переиспользуемых, компонуемых элементов. Главный принцип — **Single Responsibility (единственная ответственность)** — каждый компонент должен хорошо делать одну вещь. `UserAvatar` рендерит изображение, `UserCard` компонует аватар с информацией о пользователе, а `UserList` перебирает карточки. Если компонент делает слишком много — разделите его.
+
+**Композиция вместо наследования** — центральная идея React. Вместо глубоких иерархий классов вы компонуете поведение, вкладывая компоненты друг в друга и передавая children. Это сохраняет каждую часть простой и тестируемой. Тесно связана с этим **связность (cohesion)** — всё внутри компонента (разметка, стили, обработчики) должно служить его единственной цели — и **связанность (coupling)** — компоненты должны зависеть друг от друга как можно меньше. Пропсы формируют явный контракт между родителем и потомком.
+
+**Гранулярность компонентов** — это практический компромисс: слишком мелкие — и вы тонете в крошечных файлах с чрезмерным проброском пропсов; слишком крупные — и компоненты становятся неподдерживаемыми. Хорошая эвристика: компонент стоит выделить, когда вы можете его назвать, переиспользовать или протестировать независимо. Наконец, разделение на **умные (container) компоненты** и **глупые (presentational) компоненты** отделяет логику получения данных от логики рендеринга, делая презентационный слой легко переиспользуемым и тестируемым.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Well-structured component tree following architecture principles
+
+// Presentational (dumb) — only renders UI based on props
+function UserAvatar({ src, alt }: { src: string; alt: string }) {
+  return <img className="avatar" src={src} alt={alt} />;
+}
+
+function UserCard({ user }: { user: User }) {
+  return (
+    <div className="user-card">
+      <UserAvatar src={user.avatarUrl} alt={user.name} />
+      <h3>{user.name}</h3>
+      <p>{user.role}</p>
+    </div>
+  );
+}
+
+// Smart (container) — handles data fetching and state
+function UserListContainer() {
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    fetchUsers().then(setUsers);
+  }, []);
+
+  return <UserList users={users} />;
+}
+
+// Presentational — receives data, renders list
+function UserList({ users }: { users: User[] }) {
+  return (
+    <section>
+      {users.map((user) => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </section>
+  );
+}
+```

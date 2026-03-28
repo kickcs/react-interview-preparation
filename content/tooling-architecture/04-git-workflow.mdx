@@ -1,0 +1,51 @@
+---
+title: "Какие Git workflows используются в разработке?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **Git workflow** is a set of conventions a team follows for branching, merging, and releasing code. The right workflow depends on team size, release frequency, and project complexity.
+
+**Git Flow** is the most structured workflow. It uses long-lived `main` and `develop` branches, plus short-lived `feature/`, `release/`, and `hotfix/` branches. It works well for projects with scheduled releases but adds overhead for continuous deployment teams.
+
+**GitHub Flow** is simpler: there is only one long-lived branch (`main`). Developers create **feature branches**, open **pull requests** for code review, and merge into main after approval. Every merge to main is deployable. This workflow is ideal for teams that deploy frequently.
+
+**Trunk-based development** takes simplicity further — developers commit directly to `main` (or merge very short-lived branches). This requires strong CI/CD, feature flags, and automated testing. It minimizes merge conflicts and is popular at large companies like Google.
+
+**Conventional Commits** is a complementary practice that standardizes commit messages using prefixes like `feat:`, `fix:`, `chore:`, `docs:`, and `refactor:`. This enables automated changelog generation and semantic versioning with tools like **semantic-release** or **changesets**.
+
+</Answer>
+<Answer lang="ru">
+
+**Git-воркфлоу** — это набор соглашений, которым следует команда при работе с ветками, слиянием и релизами кода. Правильный воркфлоу зависит от размера команды, частоты релизов и сложности проекта.
+
+**Git Flow** — наиболее структурированный воркфлоу. Он использует долгоживущие ветки `main` и `develop`, а также короткоживущие ветки `feature/`, `release/` и `hotfix/`. Он хорошо подходит для проектов с запланированными релизами, но создаёт дополнительную нагрузку для команд с непрерывным развёртыванием.
+
+**GitHub Flow** проще: есть только одна долгоживущая ветка (`main`). Разработчики создают **feature-ветки**, открывают **pull request'ы** для код-ревью и мержат в main после одобрения. Каждый мерж в main готов к деплою. Этот воркфлоу идеален для команд, которые деплоят часто.
+
+**Trunk-based development** (разработка на основе основной ветки) идёт ещё дальше в простоте — разработчики коммитят напрямую в `main` (или мержат очень короткоживущие ветки). Это требует надёжного CI/CD, фича-флагов и автоматизированного тестирования. Подход минимизирует конфликты слияния и популярен в крупных компаниях, таких как Google.
+
+**Conventional Commits** — дополнительная практика, стандартизирующая сообщения коммитов с помощью префиксов: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`. Это позволяет автоматически генерировать changelog и управлять семантическим версионированием с помощью инструментов, таких как **semantic-release** или **changesets**.
+
+</Answer>
+</AnswerGroup>
+
+```bash
+# GitHub Flow — typical workflow
+git checkout -b feature/user-auth
+# ... make changes ...
+git add .
+git commit -m "feat: add user authentication flow"
+git push origin feature/user-auth
+# Open a Pull Request on GitHub
+# After review and approval — merge into main
+
+# Conventional Commits examples
+git commit -m "feat: add dark mode toggle"
+git commit -m "fix: resolve memory leak in useEffect"
+git commit -m "refactor: extract validation logic into hook"
+git commit -m "docs: update API usage examples"
+git commit -m "chore: upgrade dependencies"
+```

@@ -1,0 +1,75 @@
+---
+title: "Как работает async/await?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**`async/await`** is syntactic sugar built on top of Promises that makes asynchronous code look and behave like synchronous code. An **`async`** function always returns a Promise — if you return a non-Promise value, it is automatically wrapped in `Promise.resolve()`. The **`await`** keyword can only be used inside an `async` function (or at the top level of an ES module) and pauses the function execution until the awaited Promise settles.
+
+Error handling with async/await uses familiar **`try/catch/finally`** blocks instead of `.catch()` chains. This makes error handling more intuitive, especially when multiple asynchronous operations depend on each other. You can wrap individual `await` calls or groups of calls in try/catch blocks for fine-grained error control.
+
+A common pitfall is **sequential execution** when operations could run in parallel. If two async operations are independent, awaiting them one after another wastes time. Instead, use **`Promise.all()`** to run them concurrently. Start both promises first, then await the combined result — this can dramatically reduce total execution time.
+
+</Answer>
+<Answer lang="ru">
+
+**`async/await`** — это синтаксический сахар поверх промисов, который делает асинхронный код похожим на синхронный. Функция **`async`** всегда возвращает промис — если вы возвращаете непромисное значение, оно автоматически оборачивается в `Promise.resolve()`. Ключевое слово **`await`** может использоваться только внутри `async`-функции (или на верхнем уровне ES-модуля) и приостанавливает выполнение функции, пока ожидаемый промис не завершится.
+
+Обработка ошибок с async/await использует привычные блоки **`try/catch/finally`** вместо цепочек `.catch()`. Это делает обработку ошибок более интуитивной, особенно когда несколько асинхронных операций зависят друг от друга. Можно оборачивать отдельные вызовы `await` или группы вызовов в блоки try/catch для точного контроля ошибок.
+
+Частая ошибка — **последовательное выполнение** операций, которые могли бы работать параллельно. Если две асинхронные операции независимы, ожидание их одной за другой тратит время впустую. Вместо этого используйте **`Promise.all()`** для параллельного запуска. Запустите оба промиса, а затем ожидайте общий результат — это может значительно сократить общее время выполнения.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Basic async/await
+async function getUser(id) {
+  try {
+    const response = await fetch(`/api/users/${id}`);
+    if (!response.ok) throw new Error("User not found");
+    const user = await response.json();
+    return user;
+  } catch (error) {
+    console.error("Failed to fetch user:", error.message);
+    throw error;
+  } finally {
+    console.log("Request completed");
+  }
+}
+
+// Sequential (slow) — each await waits for the previous one
+async function sequential() {
+  const users = await fetch("/api/users").then((r) => r.json()); // ~1s
+  const posts = await fetch("/api/posts").then((r) => r.json()); // ~1s
+  return { users, posts }; // Total: ~2s
+}
+
+// Parallel (fast) — both requests start at the same time
+async function parallel() {
+  const [users, posts] = await Promise.all([
+    fetch("/api/users").then((r) => r.json()), // ~1s
+    fetch("/api/posts").then((r) => r.json()), // ~1s
+  ]);
+  return { users, posts }; // Total: ~1s
+}
+
+// Comparison with .then() chains
+function withThen(id) {
+  return fetch(`/api/users/${id}`)
+    .then((response) => response.json())
+    .then((user) => fetch(`/api/posts?userId=${user.id}`))
+    .then((response) => response.json())
+    .catch((error) => console.error(error));
+}
+
+// Same logic with async/await — much cleaner
+async function withAwait(id) {
+  const response = await fetch(`/api/users/${id}`);
+  const user = await response.json();
+  const postsResponse = await fetch(`/api/posts?userId=${user.id}`);
+  return postsResponse.json();
+}
+```

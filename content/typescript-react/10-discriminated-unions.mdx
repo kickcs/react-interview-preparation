@@ -1,0 +1,92 @@
+---
+title: "Что такое дискриминированные union'ы?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **discriminated union** (also called a tagged union) is a union type where each member has a common property — the **discriminant** — with a unique literal value. TypeScript uses this discriminant to narrow the type automatically inside `switch`/`case` or `if` blocks. This pattern is extremely powerful for modeling states that have different shapes depending on a status field.
+
+The key benefit is **exhaustive checking**. When you switch on the discriminant, TypeScript ensures you handle every possible case. If you add a new variant to the union later, the compiler will flag every `switch` statement that doesn't handle the new case. You can enforce this with a `never` check in the default branch — if any case is unhandled, TypeScript produces a compile error.
+
+In React, discriminated unions are ideal for **API response states** (loading, success, error), **component prop variants** (different behaviors based on a mode prop), and **reducer actions**. They replace boolean flags like `isLoading` and `isError` that can lead to impossible states (e.g., both true simultaneously). By encoding states as a discriminated union, you make impossible states unrepresentable.
+
+</Answer>
+<Answer lang="ru">
+
+**Дискриминированное объединение** (также называемое размеченным объединением) — это тип объединения, в котором каждый член имеет общее свойство — **дискриминант** — с уникальным литеральным значением. TypeScript использует этот дискриминант для автоматического сужения типа внутри блоков `switch`/`case` или `if`. Этот паттерн чрезвычайно мощен для моделирования состояний, которые имеют разную форму в зависимости от поля статуса.
+
+Ключевое преимущество — **исчерпывающая проверка**. Когда вы выполняете switch по дискриминанту, TypeScript гарантирует, что вы обрабатываете каждый возможный случай. Если вы позже добавите новый вариант в объединение, компилятор отметит каждый оператор `switch`, который не обрабатывает новый случай. Это можно обеспечить проверкой `never` в ветке default — если какой-то случай не обработан, TypeScript выдаст ошибку компиляции.
+
+В React дискриминированные объединения идеальны для **состояний API-ответов** (загрузка, успех, ошибка), **вариантов пропсов компонентов** (разное поведение в зависимости от пропса режима) и **действий редьюсера**. Они заменяют булевые флаги вроде `isLoading` и `isError`, которые могут привести к невозможным состояниям (например, оба true одновременно). Кодируя состояния как дискриминированное объединение, вы делаете невозможные состояния непредставимыми.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// API response as discriminated union
+type ApiState<T> =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; data: T }
+  | { status: "error"; error: string };
+
+// Exhaustive checking with never
+function assertNever(value: never): never {
+  throw new Error(`Unhandled case: ${value}`);
+}
+```
+
+```tsx
+// React component using discriminated union state
+interface User {
+  id: number;
+  name: string;
+}
+
+function UserProfile() {
+  const [state, setState] = React.useState<ApiState<User>>({ status: "idle" });
+
+  // TypeScript narrows the type in each branch
+  switch (state.status) {
+    case "idle":
+      return <p>Click to load user</p>;
+    case "loading":
+      return <p>Loading...</p>;
+    case "success":
+      return <p>Hello, {state.data.name}</p>; // data is available
+    case "error":
+      return <p>Error: {state.error}</p>; // error is available
+    default:
+      return assertNever(state); // compile error if a case is missing
+  }
+}
+
+// Component props with discriminated union
+type NotificationProps =
+  | { type: "success"; message: string }
+  | { type: "error"; message: string; retry: () => void }
+  | { type: "warning"; message: string; dismissAfter?: number };
+
+function Notification(props: NotificationProps) {
+  switch (props.type) {
+    case "success":
+      return <div className="success">{props.message}</div>;
+    case "error":
+      return (
+        <div className="error">
+          {props.message}
+          <button onClick={props.retry}>Retry</button>
+        </div>
+      );
+    case "warning":
+      return <div className="warning">{props.message}</div>;
+  }
+}
+
+// Usage — TypeScript enforces correct props per type
+<Notification type="success" message="Saved!" />
+<Notification type="error" message="Failed" retry={() => refetch()} />
+// <Notification type="success" retry={() => {}} /> // Error!
+```

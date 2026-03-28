@@ -1,0 +1,92 @@
+---
+title: "Как спроектировать масштабируемую структуру проекта?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A scalable project structure must handle growth from a small codebase to hundreds of features without becoming a tangled mess. The key principle is **colocation** — keep related code together. A feature's components, hooks, types, tests, and styles should live in the same directory, not scattered across `components/`, `hooks/`, `types/` folders. This makes features easy to find, modify, and delete as a unit.
+
+**Feature-Sliced Design (FSD)** is a popular architecture that organizes code into layers (app, pages, widgets, features, entities, shared) with strict dependency rules: upper layers can import from lower ones, but never the reverse. Each slice within a layer has a **public API** (`index.ts` barrel file) that controls what's exported. This prevents deep coupling — consumers depend on the public interface, not internal implementation details. When a feature is removed, you delete its directory and fix the imports.
+
+The journey from small to large follows a natural progression. Start with a flat structure — `components/`, `hooks/`, `utils/` — for prototypes. As the app grows to 20+ components, group by feature domain. At enterprise scale, adopt a formal architecture like FSD with strict linting rules enforcing dependency boundaries. **Barrel files** (`index.ts`) serve as public API contracts for each module. The structure should make the impossible impossible: linting rules should prevent circular imports and cross-boundary violations. Let the structure evolve — don't prematurely over-engineer.
+
+</Answer>
+<Answer lang="ru">
+
+Масштабируемая структура проекта должна справляться с ростом от маленькой кодовой базы до сотен фич, не превращаясь в запутанный клубок. Ключевой принцип — **колокация** — держите связанный код вместе. Компоненты, хуки, типы, тесты и стили фичи должны жить в одной директории, а не быть разбросаны по папкам `components/`, `hooks/`, `types/`. Это позволяет легко находить, изменять и удалять фичи как единое целое.
+
+**Feature-Sliced Design (FSD)** — популярная архитектура, организующая код по слоям (app, pages, widgets, features, entities, shared) со строгими правилами зависимостей: верхние слои могут импортировать из нижних, но никогда наоборот. Каждый слайс внутри слоя имеет **публичный API** (barrel-файл `index.ts`), контролирующий экспорт. Это предотвращает глубокую связанность — потребители зависят от публичного интерфейса, а не от внутренней реализации. Когда фича удаляется, вы удаляете её директорию и исправляете импорты.
+
+Путь от маленького к большому проекту следует естественной прогрессии. Начните с плоской структуры — `components/`, `hooks/`, `utils/` — для прототипов. Когда приложение вырастет до 20+ компонентов, группируйте по доменам фич. На корпоративном масштабе примените формальную архитектуру вроде FSD со строгими правилами линтинга, обеспечивающими границы зависимостей. **Barrel-файлы** (`index.ts`) служат контрактами публичного API для каждого модуля. Структура должна делать невозможное невозможным: правила линтинга должны предотвращать циклические импорты и нарушения границ. Позвольте структуре эволюционировать — не переусложняйте преждевременно.
+
+</Answer>
+</AnswerGroup>
+
+```
+// Project structure evolution: small → medium → large
+
+// === Small project (flat) ===
+src/
+  components/
+  hooks/
+  utils/
+  pages/
+
+// === Medium project (grouped by domain) ===
+src/
+  features/
+    auth/
+      LoginForm.tsx
+      useAuth.ts
+      auth.types.ts
+    products/
+      ProductList.tsx
+      ProductCard.tsx
+      useProducts.ts
+  shared/
+    ui/
+    lib/
+
+// === Large project (Feature-Sliced Design) ===
+src/
+  app/              # App-level setup: providers, router, global styles
+    layout.tsx
+    providers.tsx
+  pages/            # Route-level components (compose widgets/features)
+    home/
+      index.ts      # Public API
+      HomePage.tsx
+  widgets/          # Composite UI blocks (compose features/entities)
+    sidebar/
+      index.ts
+      Sidebar.tsx
+    header/
+      index.ts
+      Header.tsx
+  features/         # User interactions (business logic + UI)
+    auth/
+      index.ts      # Public API: export { LoginForm, useAuth }
+      ui/
+        LoginForm.tsx
+      model/
+        useAuth.ts
+      api/
+        authApi.ts
+  entities/         # Domain objects (data + minimal UI)
+    user/
+      index.ts      # Public API: export { UserCard, type User }
+      ui/
+        UserCard.tsx
+      model/
+        user.types.ts
+  shared/           # Reusable infrastructure (no business logic)
+    ui/             # Design system components
+      Button.tsx
+      Input.tsx
+    lib/            # Utilities, helpers
+      cn.ts
+    api/            # API client
+      client.ts
+```

@@ -1,0 +1,66 @@
+---
+title: "Что такое HTTP методы и коды статуса?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**HTTP methods** define the action to perform on a resource. **GET** retrieves data without side effects. **POST** creates a new resource. **PUT** replaces an entire resource. **PATCH** partially updates a resource. **DELETE** removes a resource. GET, PUT, and DELETE are **idempotent** — calling them multiple times produces the same result as calling once. POST is not idempotent because each call may create a new resource.
+
+**HTTP status codes** indicate the result of a request. **2xx** codes mean success: 200 (OK), 201 (Created), 204 (No Content). **3xx** codes indicate redirection: 301 (Moved Permanently), 304 (Not Modified). **4xx** codes are client errors: 400 (Bad Request), 401 (Unauthorized — not authenticated), 403 (Forbidden — not authorized), 404 (Not Found), 409 (Conflict), 422 (Unprocessable Entity). **5xx** codes are server errors: 500 (Internal Server Error), 502 (Bad Gateway), 503 (Service Unavailable).
+
+Understanding the difference between 401 and 403 is important: **401** means the client is not authenticated (needs to log in), while **403** means the client is authenticated but does not have permission. Similarly, 400 indicates malformed request syntax, while 422 means the server understands the request but cannot process the semantic content.
+
+</Answer>
+<Answer lang="ru">
+
+**HTTP-методы** определяют действие над ресурсом. **GET** получает данные без побочных эффектов. **POST** создаёт новый ресурс. **PUT** полностью заменяет ресурс. **PATCH** частично обновляет ресурс. **DELETE** удаляет ресурс. GET, PUT и DELETE являются **идемпотентными** — многократный вызов даёт тот же результат, что и однократный. POST не идемпотентен, потому что каждый вызов может создавать новый ресурс.
+
+**Коды состояния HTTP** указывают результат запроса. **2xx** — успех: 200 (OK), 201 (Created), 204 (No Content). **3xx** — перенаправление: 301 (Moved Permanently), 304 (Not Modified). **4xx** — ошибки клиента: 400 (Bad Request), 401 (Unauthorized — не аутентифицирован), 403 (Forbidden — нет прав), 404 (Not Found), 409 (Conflict), 422 (Unprocessable Entity). **5xx** — ошибки сервера: 500 (Internal Server Error), 502 (Bad Gateway), 503 (Service Unavailable).
+
+Важно понимать разницу между 401 и 403: **401** означает, что клиент не аутентифицирован (нужно войти в систему), а **403** — что клиент аутентифицирован, но не имеет прав. Аналогично, 400 указывает на неправильный синтаксис запроса, тогда как 422 означает, что сервер понимает запрос, но не может обработать семантическое содержание.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// GET — retrieve a list of users
+const users = await fetch("/api/users").then((res) => res.json());
+
+// POST — create a new user (returns 201)
+const newUser = await fetch("/api/users", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "Alice", email: "alice@example.com" }),
+});
+console.log(newUser.status); // 201
+
+// PUT — replace an entire user record
+await fetch("/api/users/1", {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ name: "Alice Updated", email: "alice@new.com" }),
+});
+
+// PATCH — partial update
+await fetch("/api/users/1", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "alice@updated.com" }),
+});
+
+// DELETE — remove a user (returns 204)
+const res = await fetch("/api/users/1", { method: "DELETE" });
+console.log(res.status); // 204
+
+// Error handling with status codes
+async function fetchUser(id) {
+  const res = await fetch(`/api/users/${id}`);
+  if (res.status === 404) throw new Error("User not found");
+  if (res.status === 401) throw new Error("Please log in");
+  if (res.status === 403) throw new Error("Access denied");
+  if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+  return res.json();
+}
+```

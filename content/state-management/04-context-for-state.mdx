@@ -1,0 +1,106 @@
+---
+title: "Как использовать Context API для управления состоянием?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Context API** combined with **useReducer** is a powerful pattern for managing shared state without external libraries. Context provides a way to pass data through the component tree without manual prop drilling, while `useReducer` gives you a predictable state update mechanism similar to Redux. Together, they form a lightweight state management solution built into React.
+
+A common pattern is to create a **context provider** that wraps `useReducer` and exposes both the state and dispatch function. For better performance, you should **split your contexts** — keep the state and dispatch in separate contexts so that components that only dispatch actions don't re-render when state changes. This is an important optimization often overlooked.
+
+Context is **enough** when your state is relatively simple, shared by a subtree of components (not the entire app), and doesn't update at high frequency. Good use cases include authentication state, theme preferences, locale settings, and form wizards. For complex global state with frequent updates, normalized data, or sophisticated middleware needs, consider dedicated libraries like Redux Toolkit or Zustand instead.
+
+</Answer>
+<Answer lang="ru">
+
+**Context API** в сочетании с **useReducer** — это мощный паттерн для управления общим состоянием без внешних библиотек. Context предоставляет способ передачи данных через дерево компонентов без ручного пробрасывания пропсов, а `useReducer` даёт предсказуемый механизм обновления состояния, аналогичный Redux. Вместе они образуют встроенное в React легковесное решение для управления состоянием.
+
+Распространённый паттерн — создать **провайдер контекста**, оборачивающий `useReducer` и предоставляющий как состояние, так и функцию dispatch. Для лучшей производительности следует **разделять контексты** — хранить state и dispatch в отдельных контекстах, чтобы компоненты, которые только отправляют действия, не перерендеривались при изменении состояния. Это важная оптимизация, о которой часто забывают.
+
+Context **достаточен**, когда ваше состояние относительно простое, используется поддеревом компонентов (а не всем приложением) и не обновляется слишком часто. Хорошие примеры использования: состояние аутентификации, настройки темы, локаль, мастера форм. Для сложного глобального состояния с частыми обновлениями, нормализованными данными или потребностью в middleware лучше рассмотреть специализированные библиотеки вроде Redux Toolkit или Zustand.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createContext, useContext, useReducer, type ReactNode } from "react";
+
+// 1. Define types
+type AuthState = {
+  user: { name: string; email: string } | null;
+  isLoading: boolean;
+};
+
+type AuthAction =
+  | { type: "LOGIN_START" }
+  | { type: "LOGIN_SUCCESS"; payload: { name: string; email: string } }
+  | { type: "LOGOUT" };
+
+// 2. Reducer with predictable state transitions
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case "LOGIN_START":
+      return { ...state, isLoading: true };
+    case "LOGIN_SUCCESS":
+      return { user: action.payload, isLoading: false };
+    case "LOGOUT":
+      return { user: null, isLoading: false };
+  }
+}
+
+// 3. Split contexts for performance
+const AuthStateContext = createContext<AuthState | null>(null);
+const AuthDispatchContext = createContext<React.Dispatch<AuthAction> | null>(null);
+
+// 4. Provider component
+function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(authReducer, {
+    user: null,
+    isLoading: false,
+  });
+
+  return (
+    <AuthStateContext.Provider value={state}>
+      <AuthDispatchContext.Provider value={dispatch}>
+        {children}
+      </AuthDispatchContext.Provider>
+    </AuthStateContext.Provider>
+  );
+}
+
+// 5. Custom hooks for clean consumption
+function useAuthState() {
+  const context = useContext(AuthStateContext);
+  if (!context) throw new Error("useAuthState must be used within AuthProvider");
+  return context;
+}
+
+function useAuthDispatch() {
+  const context = useContext(AuthDispatchContext);
+  if (!context) throw new Error("useAuthDispatch must be used within AuthProvider");
+  return context;
+}
+
+// 6. Usage in components
+function LoginButton() {
+  const dispatch = useAuthDispatch(); // Only uses dispatch — won't re-render on state change
+
+  const handleLogin = async () => {
+    dispatch({ type: "LOGIN_START" });
+    const user = await fakeLogin();
+    dispatch({ type: "LOGIN_SUCCESS", payload: user });
+  };
+
+  return <button onClick={handleLogin}>Log in</button>;
+}
+
+function UserProfile() {
+  const { user, isLoading } = useAuthState();
+
+  if (isLoading) return <p>Loading...</p>;
+  if (!user) return <p>Not logged in</p>;
+  return <p>Welcome, {user.name}!</p>;
+}
+```

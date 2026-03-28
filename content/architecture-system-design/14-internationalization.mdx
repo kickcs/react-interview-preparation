@@ -1,0 +1,84 @@
+---
+title: "Как реализовать интернационализацию (i18n)?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Internationalization (i18n)** is the process of designing an application to support multiple languages and locales without code changes for each locale. The key architectural decisions are: where translations live (JSON files, CMS, database), how they're loaded (bundled, lazy-loaded per locale), and how the locale is determined (URL path like `/en/about`, subdomain, cookie, or browser preference). **next-intl** and **i18next** (with react-i18next) are the two most popular solutions in the React ecosystem.
+
+Beyond simple string translation, a production i18n system must handle **pluralization** (English has 2 forms, Russian has 3, Arabic has 6), **date and number formatting** using `Intl.DateTimeFormat` and `Intl.NumberFormat`, and **RTL layout** for Arabic and Hebrew. **ICU MessageFormat** is the industry standard for complex messages with variables, plurals, and gender selection. Message extraction tools automatically scan your code and generate translation files, making the workflow translator-friendly.
+
+The routing architecture matters for both SEO and user experience. **Locale-prefixed URLs** (`/en/products`, `/ru/products`) are the recommended approach — they're shareable, crawlable, and allow search engines to index each language separately. Next.js middleware can detect the user's preferred locale from the `Accept-Language` header and redirect accordingly. Keep translations colocated with features when possible, and lazy-load locale bundles to avoid shipping all languages to every user. Test with pseudo-localization to catch hardcoded strings and layout issues before real translations arrive.
+
+</Answer>
+<Answer lang="ru">
+
+**Интернационализация (i18n)** — это процесс проектирования приложения для поддержки множества языков и локалей без изменения кода для каждой локали. Ключевые архитектурные решения: где хранятся переводы (JSON-файлы, CMS, БД), как они загружаются (в бандле, лениво по локали) и как определяется локаль (путь URL вроде `/en/about`, субдомен, кука или предпочтение браузера). **next-intl** и **i18next** (с react-i18next) — два самых популярных решения в экосистеме React.
+
+Помимо простого перевода строк, продакшн-система i18n должна обрабатывать **плюрализацию** (в английском 2 формы, в русском 3, в арабском 6), **форматирование дат и чисел** через `Intl.DateTimeFormat` и `Intl.NumberFormat`, и **RTL-вёрстку** для арабского и иврита. **ICU MessageFormat** — отраслевой стандарт для сложных сообщений с переменными, множественными числами и выбором рода. Инструменты извлечения сообщений автоматически сканируют код и генерируют файлы переводов, делая процесс удобным для переводчиков.
+
+Архитектура маршрутизации важна как для SEO, так и для пользовательского опыта. **URL с префиксом локали** (`/en/products`, `/ru/products`) — рекомендуемый подход — они шарятся, индексируются и позволяют поисковикам индексировать каждый язык отдельно. Middleware Next.js может определять предпочитаемую локаль по заголовку `Accept-Language` и перенаправлять. Держите переводы колоцированными с фичами когда возможно и лениво загружайте бандлы локалей, чтобы не отправлять все языки каждому пользователю. Тестируйте с псевдолокализацией, чтобы отловить хардкод строк и проблемы вёрстки до прихода реальных переводов.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// i18n setup with next-intl in Next.js
+
+// messages/en.json
+{
+  "home": {
+    "title": "Welcome to our store",
+    "itemCount": "You have {count, plural, =0 {no items} one {# item} other {# items}} in your cart",
+    "lastUpdated": "Last updated: {date, date, medium}"
+  }
+}
+
+// messages/ru.json
+{
+  "home": {
+    "title": "Добро пожаловать в наш магазин",
+    "itemCount": "В корзине {count, plural, =0 {нет товаров} one {# товар} few {# товара} many {# товаров} other {# товаров}}",
+    "lastUpdated": "Обновлено: {date, date, medium}"
+  }
+}
+
+// i18n/request.ts — configuration
+import { getRequestConfig } from "next-intl/server";
+
+export default getRequestConfig(async ({ locale }) => ({
+  messages: (await import(`../messages/${locale}.json`)).default,
+}));
+
+// middleware.ts — locale detection and routing
+import createMiddleware from "next-intl/middleware";
+
+export default createMiddleware({
+  locales: ["en", "ru", "uz"],
+  defaultLocale: "en",
+  localeDetection: true,
+});
+
+export const config = {
+  matcher: ["/((?!api|_next|.*\\..*).*)"],
+};
+
+// app/[locale]/page.tsx — using translations
+import { useTranslations, useFormatter } from "next-intl";
+
+export default function HomePage() {
+  const t = useTranslations("home");
+  const format = useFormatter();
+
+  return (
+    <div>
+      <h1>{t("title")}</h1>
+      <p>{t("itemCount", { count: 3 })}</p>
+      <p>{t("lastUpdated", { date: new Date() })}</p>
+      <p>{format.number(1234.56, { style: "currency", currency: "USD" })}</p>
+    </div>
+  );
+}
+```

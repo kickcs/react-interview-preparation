@@ -1,0 +1,89 @@
+---
+title: "Как типизировать события в React?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React provides its own **synthetic event types** in the `React` namespace that wrap native DOM events. The most common are **React.ChangeEvent**, **React.MouseEvent**, **React.FormEvent**, and **React.KeyboardEvent**. Each is generic over the HTML element it originates from — for example, `React.ChangeEvent<HTMLInputElement>` for an input's onChange handler.
+
+There are two approaches to typing event handlers. You can type the **event parameter** directly in an inline function, or you can type the **handler function** itself using React's handler types like `React.ChangeEventHandler<HTMLInputElement>`. Both achieve the same result, but the handler type approach is cleaner when passing callbacks as props.
+
+For **form submission**, use `React.FormEvent<HTMLFormElement>` and call `e.preventDefault()` to prevent the default behavior. When accessing form data, you often need to cast individual elements or use `FormData`. Understanding these event types eliminates the need for `any` in event handlers, which is one of the most common places where type safety breaks down in React applications.
+
+</Answer>
+<Answer lang="ru">
+
+React предоставляет собственные **синтетические типы событий** в пространстве имён `React`, которые оборачивают нативные DOM-события. Наиболее распространённые — **React.ChangeEvent**, **React.MouseEvent**, **React.FormEvent** и **React.KeyboardEvent**. Каждый из них является обобщённым по HTML-элементу, от которого он исходит — например, `React.ChangeEvent<HTMLInputElement>` для обработчика onChange инпута.
+
+Существуют два подхода к типизации обработчиков событий. Можно типизировать **параметр события** непосредственно в инлайн-функции, или типизировать **саму функцию-обработчик** с помощью типов обработчиков React, таких как `React.ChangeEventHandler<HTMLInputElement>`. Оба подхода дают одинаковый результат, но подход с типом обработчика выглядит чище при передаче колбэков в качестве пропсов.
+
+Для **отправки формы** используйте `React.FormEvent<HTMLFormElement>` и вызовите `e.preventDefault()` для предотвращения поведения по умолчанию. При доступе к данным формы часто нужно приводить отдельные элементы или использовать `FormData`. Понимание этих типов событий устраняет необходимость в `any` в обработчиках событий — одном из самых частых мест, где нарушается типобезопасность в React-приложениях.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState } from "react";
+
+function TypedForm() {
+  const [form, setForm] = useState({ name: "", email: "", role: "user" });
+
+  // ChangeEvent — typed to the specific element
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm((prev) => ({ ...prev, role: e.target.value }));
+  };
+
+  // FormEvent — for form submission
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("Submitted:", form);
+  };
+
+  // MouseEvent — for click handlers
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    console.log("Clicked at:", e.clientX, e.clientY);
+  };
+
+  // KeyboardEvent — for keyboard handlers
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      console.log("Enter pressed");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        name="name"
+        value={form.name}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+      />
+      <input
+        name="email"
+        type="email"
+        value={form.email}
+        onChange={handleInputChange}
+      />
+      <select value={form.role} onChange={handleSelectChange}>
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button type="submit" onClick={handleButtonClick}>
+        Submit
+      </button>
+    </form>
+  );
+}
+
+// Alternative: typing the handler function itself
+const handleChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+  console.log(e.target.value); // e is already typed
+};
+```

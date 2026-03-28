@@ -1,0 +1,111 @@
+---
+title: "Как тестировать формы в React?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Forms are one of the most common UI patterns, and testing them well ensures your app handles user input correctly. The key steps are: **fill inputs**, **trigger submission**, and **verify outcomes** (callback data, validation messages, or UI changes).
+
+Use `screen.getByLabelText()` to find form fields — this query works with `<label htmlFor="...">` associations, which also validates your form's accessibility. For select elements, use `user.selectOptions()`. For checkboxes and radios, use `user.click()`. Always interact with fields through `userEvent` rather than programmatically setting values.
+
+**Validation testing** is crucial. Test both valid and invalid submissions. When a user submits invalid data, verify that error messages appear; when they fix the input, verify the errors disappear. For forms using libraries like **react-hook-form** or **Formik**, the testing approach stays the same — interact with the DOM, not library internals.
+
+Test **edge cases**: empty submissions, maximum-length inputs, special characters, and rapid double-clicks on submit buttons. These scenarios catch real bugs. Also verify that the submit button is disabled during submission to prevent duplicate requests, and that success or error feedback is displayed properly.
+
+</Answer>
+<Answer lang="ru">
+
+Формы — один из самых распространённых UI-паттернов, и их качественное тестирование гарантирует правильную обработку пользовательского ввода. Ключевые шаги: **заполнить поля**, **запустить отправку** и **проверить результат** (данные колбэка, сообщения валидации или изменения UI).
+
+Используйте `screen.getByLabelText()` для поиска полей формы — этот запрос работает с ассоциациями `<label htmlFor="...">`, что также валидирует доступность формы. Для select-элементов используйте `user.selectOptions()`, для чекбоксов и радиокнопок — `user.click()`. Всегда взаимодействуйте с полями через `userEvent`, а не устанавливайте значения программно.
+
+**Тестирование валидации** критически важно. Тестируйте и валидные, и невалидные отправки. Когда пользователь отправляет некорректные данные, проверяйте появление сообщений об ошибках; когда исправляет ввод — проверяйте исчезновение ошибок. Для форм с библиотеками вроде **react-hook-form** или **Formik** подход к тестированию остаётся тем же — взаимодействуйте с DOM, а не с внутренностями библиотеки.
+
+Тестируйте **граничные случаи**: пустые отправки, ввод максимальной длины, специальные символы и быстрые двойные клики по кнопке отправки. Эти сценарии ловят реальные баги. Также проверяйте, что кнопка отправки отключается во время запроса для предотвращения дублирования, и что обратная связь об успехе или ошибке отображается корректно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+
+function RegistrationForm({ onSubmit }: { onSubmit: (data: Record<string, string>) => void }) {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData) as Record<string, string>;
+    const newErrors: Record<string, string> = {};
+
+    if (!data.name) newErrors.name = "Name is required";
+    if (!data.email?.includes("@")) newErrors.email = "Invalid email";
+    if (data.role === "") newErrors.role = "Select a role";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    onSubmit(data);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <label htmlFor="name">Name</label>
+      <input id="name" name="name" />
+      {errors.name && <span role="alert">{errors.name}</span>}
+
+      <label htmlFor="email">Email</label>
+      <input id="email" name="email" type="email" />
+      {errors.email && <span role="alert">{errors.email}</span>}
+
+      <label htmlFor="role">Role</label>
+      <select id="role" name="role" defaultValue="">
+        <option value="">Select...</option>
+        <option value="dev">Developer</option>
+        <option value="designer">Designer</option>
+      </select>
+
+      <label>
+        <input type="checkbox" name="terms" /> I agree to the terms
+      </label>
+
+      <button type="submit">Register</button>
+    </form>
+  );
+}
+
+describe("RegistrationForm", () => {
+  const user = userEvent.setup();
+
+  it("submits valid form data", async () => {
+    const handleSubmit = vi.fn();
+    render(<RegistrationForm onSubmit={handleSubmit} />);
+
+    await user.type(screen.getByLabelText(/name/i), "Alice");
+    await user.type(screen.getByLabelText(/email/i), "alice@test.com");
+    await user.selectOptions(screen.getByLabelText(/role/i), "dev");
+    await user.click(screen.getByLabelText(/terms/i));
+    await user.click(screen.getByRole("button", { name: /register/i }));
+
+    expect(handleSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Alice", email: "alice@test.com", role: "dev" })
+    );
+  });
+
+  it("shows validation errors for empty fields", async () => {
+    const handleSubmit = vi.fn();
+    render(<RegistrationForm onSubmit={handleSubmit} />);
+
+    await user.click(screen.getByRole("button", { name: /register/i }));
+
+    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(screen.getByText("Invalid email")).toBeInTheDocument();
+    expect(handleSubmit).not.toHaveBeenCalled();
+  });
+});
+```

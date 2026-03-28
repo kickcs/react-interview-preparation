@@ -1,0 +1,102 @@
+---
+title: "Какие паттерны обработки ошибок в React?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React provides several complementary approaches to error handling. **Error Boundaries** are class components that catch JavaScript errors during rendering, in lifecycle methods, and in constructors of the child component tree. They use `componentDidCatch` for logging and `getDerivedStateFromError` to render a fallback UI. Error Boundaries do not catch errors in event handlers, asynchronous code, or server-side rendering.
+
+For **event handlers**, you use standard `try/catch` blocks since these errors happen outside of React's rendering cycle. Async operations (API calls, timers) also require `try/catch` or `.catch()` on Promises. A common pattern is combining these with a **toast notification** system to show non-blocking error messages to users, while logging detailed errors to a monitoring service like Sentry.
+
+A comprehensive error handling strategy uses **multiple Error Boundaries** at different levels: a top-level boundary as a last resort (showing a full-page error), route-level boundaries (allowing navigation to other pages), and feature-level boundaries (isolating failures to specific widgets). This granular approach ensures that a crash in one part of the UI does not bring down the entire application. For error recovery, the `key` prop trick can be used — changing the key forces React to remount the boundary, giving the failed component a fresh start.
+
+</Answer>
+<Answer lang="ru">
+
+React предоставляет несколько взаимодополняющих подходов к обработке ошибок. **Error Boundaries** — это классовые компоненты, которые перехватывают JavaScript-ошибки во время рендеринга, в методах жизненного цикла и конструкторах дочернего дерева компонентов. Они используют `componentDidCatch` для логирования и `getDerivedStateFromError` для рендеринга запасного UI. Error Boundaries не ловят ошибки в обработчиках событий, асинхронном коде и при серверном рендеринге.
+
+Для **обработчиков событий** используются стандартные блоки `try/catch`, поскольку эти ошибки происходят вне цикла рендеринга React. Асинхронные операции (API-вызовы, таймеры) также требуют `try/catch` или `.catch()` у промисов. Распространённый паттерн — сочетание этих подходов с системой **toast-уведомлений** для показа неблокирующих сообщений об ошибках пользователям с одновременным логированием детальных ошибок в сервис мониторинга вроде Sentry.
+
+Комплексная стратегия обработки ошибок использует **несколько Error Boundaries** на разных уровнях: верхнеуровневую границу как последнее средство (показывающую полноэкранную ошибку), границы на уровне маршрутов (позволяющие навигацию на другие страницы) и границы на уровне функциональности (изолирующие сбои в отдельных виджетах). Такой гранулярный подход гарантирует, что сбой в одной части UI не обрушит всё приложение. Для восстановления после ошибок можно использовать трюк с пропом `key` — изменение ключа заставляет React перемонтировать границу, давая сбойному компоненту чистый старт.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { Component, useState } from "react";
+
+// Reusable Error Boundary
+class ErrorBoundary extends Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Log to monitoring service
+    console.error("ErrorBoundary caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || <h2>Something went wrong.</h2>;
+    }
+    return this.props.children;
+  }
+}
+
+// Granular error boundaries at different levels
+function App() {
+  return (
+    <ErrorBoundary fallback={<FullPageError />}>
+      <Header />
+      <ErrorBoundary fallback={<p>Feed failed to load.</p>}>
+        <NewsFeed />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={<p>Sidebar unavailable.</p>}>
+        <Sidebar />
+      </ErrorBoundary>
+    </ErrorBoundary>
+  );
+}
+
+// Error handling in event handlers (try/catch)
+function DeleteButton({ id }: { id: string }) {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    try {
+      const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    }
+  };
+
+  return (
+    <>
+      <button onClick={handleDelete}>Delete</button>
+      {error && <p role="alert">{error}</p>}
+    </>
+  );
+}
+
+// Recovery via key change — remounts the boundary
+function RecoverableWidget() {
+  const [key, setKey] = useState(0);
+  return (
+    <ErrorBoundary
+      key={key}
+      fallback={<button onClick={() => setKey((k) => k + 1)}>Retry</button>}
+    >
+      <FragileComponent />
+    </ErrorBoundary>
+  );
+}
+```

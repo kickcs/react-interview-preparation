@@ -1,0 +1,81 @@
+---
+title: "Как Server Components улучшают производительность?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React Server Components** (RSC) render on the server and send the result as a serialized React tree to the client. Unlike traditional server-side rendering (SSR), Server Components send **zero JavaScript** to the browser — their code never appears in the client bundle. This dramatically reduces the amount of JavaScript the client must download, parse, and execute.
+
+Server Components enable **streaming** and **selective hydration**. The server can start sending HTML as soon as parts of the tree are ready, rather than waiting for everything. Client Components within the tree are hydrated independently, so interactive parts become responsive without waiting for the entire page. This results in faster **Time to Interactive** (TTI) and better **Largest Contentful Paint** (LCP).
+
+Use Server Components for data fetching, accessing backend resources (databases, file system), and rendering static or infrequently-updated content. Only add the `"use client"` directive to components that need interactivity (event handlers, hooks like `useState`, browser APIs). By keeping most of your component tree as Server Components, you minimize the client-side JavaScript budget while maintaining a rich, interactive user experience where it matters.
+
+</Answer>
+<Answer lang="ru">
+
+**React Server Components** (RSC) рендерятся на сервере и отправляют результат на клиент в виде сериализованного дерева React. В отличие от традиционного серверного рендеринга (SSR), серверные компоненты отправляют **ноль JavaScript** в браузер — их код никогда не появляется в клиентском бандле. Это значительно уменьшает объём JavaScript, который клиент должен скачать, распарсить и выполнить.
+
+Серверные компоненты позволяют использовать **стриминг** и **селективную гидратацию**. Сервер может начать отправку HTML, как только части дерева готовы, не дожидаясь завершения всего рендера. Клиентские компоненты в дереве гидратируются независимо, поэтому интерактивные части становятся отзывчивыми без ожидания всей страницы. Это приводит к более быстрому **Time to Interactive** (TTI) и лучшему **Largest Contentful Paint** (LCP).
+
+Используйте серверные компоненты для получения данных, доступа к серверным ресурсам (базы данных, файловая система) и рендеринга статического или редко обновляемого контента. Добавляйте директиву `"use client"` только к компонентам, которым нужна интерактивность (обработчики событий, хуки вроде `useState`, браузерные API). Сохраняя большую часть дерева компонентов как серверные компоненты, вы минимизируете объём клиентского JavaScript, сохраняя богатый интерактивный опыт там, где это действительно важно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Server Component — no "use client" directive, zero JS sent to browser
+// app/products/page.tsx
+import { db } from "@/lib/db";
+import { AddToCartButton } from "./AddToCartButton";
+
+async function ProductPage({ params }: { params: { id: string } }) {
+  // Direct database access — runs only on the server
+  const product = await db.product.findUnique({
+    where: { id: params.id },
+  });
+
+  if (!product) return <p>Product not found</p>;
+
+  return (
+    <article>
+      {/* Static content — rendered on server, no JS cost */}
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+      <span>${product.price}</span>
+
+      {/* Only this component ships JS to the client */}
+      <AddToCartButton productId={product.id} />
+    </article>
+  );
+}
+
+export default ProductPage;
+```
+
+```tsx
+// Client Component — only this small piece needs JavaScript
+// app/products/AddToCartButton.tsx
+"use client";
+
+import { useState } from "react";
+
+export function AddToCartButton({ productId }: { productId: string }) {
+  const [added, setAdded] = useState(false);
+
+  const handleClick = async () => {
+    await fetch("/api/cart", {
+      method: "POST",
+      body: JSON.stringify({ productId }),
+    });
+    setAdded(true);
+  };
+
+  return (
+    <button onClick={handleClick}>
+      {added ? "Added ✓" : "Add to Cart"}
+    </button>
+  );
+}
+```

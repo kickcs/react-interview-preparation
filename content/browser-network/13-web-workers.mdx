@@ -1,0 +1,83 @@
+---
+title: "Что такое Web Workers?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Web Workers** allow JavaScript to run in background threads, separate from the main thread that handles the UI. This prevents heavy computations from blocking user interactions, scrolling, and animations. Workers communicate with the main thread via **message passing** using `postMessage()` and the `message` event — they cannot access the DOM, `window`, or `document` directly.
+
+There are two types of workers. **Dedicated Workers** are tied to a single page and created with `new Worker("worker.js")`. **Shared Workers** can be accessed by multiple pages, tabs, or iframes from the same origin and are created with `new SharedWorker("worker.js")`. Dedicated Workers are far more common because they are simpler to use and cover most use cases.
+
+Web Workers are ideal for CPU-intensive tasks that would otherwise freeze the UI: parsing large JSON files, image processing, data sorting and filtering, complex mathematical computations, or running WebAssembly modules. Data passed between threads is **structured cloned** (deep copied), which can be slow for large data. For performance-critical scenarios, you can use **Transferable objects** (like `ArrayBuffer`) that transfer ownership instead of copying, making the transfer nearly instant.
+
+</Answer>
+<Answer lang="ru">
+
+**Web Workers** позволяют JavaScript выполняться в фоновых потоках, отдельно от основного потока, обрабатывающего UI. Это предотвращает блокировку пользовательских взаимодействий, прокрутки и анимаций тяжёлыми вычислениями. Воркеры общаются с основным потоком через **передачу сообщений** с помощью `postMessage()` и события `message` — они не могут напрямую обращаться к DOM, `window` или `document`.
+
+Есть два типа воркеров. **Dedicated Workers** (выделенные) привязаны к одной странице и создаются через `new Worker("worker.js")`. **Shared Workers** (общие) доступны нескольким страницам, вкладкам или iframe с одного origin и создаются через `new SharedWorker("worker.js")`. Dedicated Workers используются гораздо чаще, так как проще в использовании и покрывают большинство случаев.
+
+Web Workers идеальны для CPU-интенсивных задач, которые иначе заморозили бы UI: парсинг больших JSON-файлов, обработка изображений, сортировка и фильтрация данных, сложные математические вычисления или запуск модулей WebAssembly. Данные между потоками передаются через **структурное клонирование** (глубокое копирование), что может быть медленным для больших данных. Для критичных по производительности сценариев можно использовать **Transferable objects** (например, `ArrayBuffer`), которые передают владение вместо копирования, делая передачу почти мгновенной.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// main.js — create a worker and communicate
+const worker = new Worker("worker.js");
+
+// Send data to worker
+worker.postMessage({ numbers: [5, 3, 8, 1, 9, 2, 7, 4, 6] });
+
+// Receive result from worker
+worker.addEventListener("message", (event) => {
+  console.log("Sorted:", event.data.sorted);
+  // UI stays responsive during heavy computation
+});
+
+worker.addEventListener("error", (error) => {
+  console.error("Worker error:", error.message);
+});
+
+// Terminate when no longer needed
+// worker.terminate();
+```
+
+```javascript
+// worker.js — runs in a separate thread
+self.addEventListener("message", (event) => {
+  const { numbers } = event.data;
+
+  // Simulate heavy computation
+  const sorted = heavySort(numbers);
+
+  // Send result back to main thread
+  self.postMessage({ sorted });
+});
+
+function heavySort(arr) {
+  // Example: sorting with artificial delay for demonstration
+  return [...arr].sort((a, b) => a - b);
+}
+```
+
+```javascript
+// Transferable objects — zero-copy transfer for large data
+const buffer = new ArrayBuffer(1024 * 1024 * 100); // 100 MB
+
+// Transfer ownership (fast — no copy)
+worker.postMessage({ data: buffer }, [buffer]);
+console.log(buffer.byteLength); // 0 — ownership transferred
+
+// Inline worker (no separate file needed)
+const workerCode = `
+  self.onmessage = (e) => {
+    const result = e.data.value * 2;
+    self.postMessage({ result });
+  };
+`;
+const blob = new Blob([workerCode], { type: "application/javascript" });
+const inlineWorker = new Worker(URL.createObjectURL(blob));
+```

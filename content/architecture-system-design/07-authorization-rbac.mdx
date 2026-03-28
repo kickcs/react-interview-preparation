@@ -1,0 +1,91 @@
+---
+title: "Как реализовать авторизацию и RBAC?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Authorization** determines what an authenticated user can do. The simplest model is **Role-Based Access Control (RBAC)**, where users are assigned roles (admin, editor, viewer) and each role has a set of permissions. A more flexible approach is **Permission-Based Access Control**, where you check specific permissions (e.g., `articles:edit`) rather than roles, allowing fine-grained access without role explosion. In practice, roles map to permission sets, combining both approaches.
+
+On the frontend, authorization manifests in three places: **component-level guards** that conditionally render UI elements (hide the "Delete" button if the user lacks `articles:delete`), **route-level guards** that redirect unauthorized users before rendering a page, and **API-level guards** on the backend that enforce permissions regardless of what the frontend shows. The frontend is never the sole enforcer — it provides UX optimization by hiding unavailable actions, but the server must always validate.
+
+Libraries like **CASL** provide a declarative way to define abilities (`can("read", "Article")`) and check them in components. CASL integrates well with React through a context provider and `Can` component or `useAbility` hook. The key architectural decision is where to define abilities: typically the server returns the user's permissions on login, and the frontend builds the CASL ability instance from that list. This keeps the permission source of truth on the server while giving the frontend efficient, local checks.
+
+</Answer>
+<Answer lang="ru">
+
+**Авторизация** определяет, что может делать аутентифицированный пользователь. Простейшая модель — **управление доступом на основе ролей (RBAC)**, где пользователям назначаются роли (admin, editor, viewer), и каждая роль имеет набор разрешений. Более гибкий подход — **управление доступом на основе разрешений**, где проверяются конкретные разрешения (например, `articles:edit`), а не роли, что позволяет точный контроль без «взрыва» ролей. На практике роли маппятся на наборы разрешений, объединяя оба подхода.
+
+На фронтенде авторизация проявляется в трёх местах: **компонентные гарды**, которые условно рендерят элементы UI (скрыть кнопку «Удалить», если у пользователя нет `articles:delete`), **маршрутные гарды**, которые перенаправляют неавторизованных пользователей до рендеринга страницы, и **API-гарды** на бэкенде, которые принудительно проверяют разрешения независимо от того, что показывает фронтенд. Фронтенд никогда не является единственным контролёром — он оптимизирует UX, скрывая недоступные действия, но сервер должен всегда валидировать.
+
+Библиотеки вроде **CASL** предоставляют декларативный способ определения возможностей (`can("read", "Article")`) и проверки в компонентах. CASL хорошо интегрируется с React через провайдер контекста и компонент `Can` или хук `useAbility`. Ключевое архитектурное решение — где определять abilities: обычно сервер возвращает разрешения пользователя при логине, а фронтенд строит экземпляр CASL ability из этого списка. Это сохраняет источник истины разрешений на сервере, при этом давая фронтенду эффективные локальные проверки.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// RBAC implementation with CASL
+
+import { defineAbility, AbilityBuilder } from "@casl/ability";
+import { Can, useAbility } from "@casl/react";
+import { createContext } from "react";
+
+// Define abilities based on user permissions from server
+function defineAbilityFor(user: User) {
+  return defineAbility((can, cannot) => {
+    if (user.role === "admin") {
+      can("manage", "all"); // admin can do everything
+    } else if (user.role === "editor") {
+      can("read", "Article");
+      can("create", "Article");
+      can("update", "Article", { authorId: user.id }); // own articles only
+      cannot("delete", "Article");
+    } else {
+      can("read", "Article"); // viewer: read-only
+    }
+  });
+}
+
+// Provide ability via context
+const AbilityContext = createContext(defineAbility(() => {}));
+
+function AbilityProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const ability = useMemo(
+    () => (user ? defineAbilityFor(user) : defineAbility(() => {})),
+    [user]
+  );
+
+  return (
+    <AbilityContext.Provider value={ability}>
+      {children}
+    </AbilityContext.Provider>
+  );
+}
+
+// Component-level guard with Can component
+function ArticleActions({ article }: { article: Article }) {
+  return (
+    <div>
+      <Can I="update" this={article}>
+        <button>Edit</button>
+      </Can>
+      <Can I="delete" this={article}>
+        <button className="danger">Delete</button>
+      </Can>
+    </div>
+  );
+}
+
+// Route-level guard
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const ability = useAbility(AbilityContext);
+
+  if (!ability.can("manage", "all")) {
+    return <Navigate to="/unauthorized" />;
+  }
+
+  return <>{children}</>;
+}
+```

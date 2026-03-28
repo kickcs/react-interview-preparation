@@ -1,0 +1,127 @@
+---
+title: "Как сохранять состояние между сеансами?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**State persistence** means saving application state to a storage mechanism so it survives page reloads and browser restarts. The most common storage options are: **localStorage** (synchronous, ~5MB limit, persists until cleared), **sessionStorage** (same API but scoped to the browser tab), and **IndexedDB** (asynchronous, much larger capacity, good for complex or binary data). The choice depends on how much data you need to store, whether it should survive tab closure, and performance requirements.
+
+Libraries like **Zustand** and **Redux** provide persist middleware that automates serialization and deserialization. Zustand's `persist` middleware wraps your store and automatically syncs state to storage. It supports **versioning** and **migrations** — essential for production apps where the state shape evolves over time. Without migrations, users with old state structures would encounter errors.
+
+A critical challenge with persistence is **hydration** — when the app loads, there's a moment where the React tree has rendered with default state but the persisted state hasn't been loaded from storage yet. This can cause a **hydration mismatch** in server-rendered apps. The solution is to use a **hydration guard**: render with default values during SSR and the first client render, then switch to persisted values after hydration completes. Zustand's `onRehydrateStorage` callback and manual hydration checks help manage this transition safely.
+
+</Answer>
+<Answer lang="ru">
+
+**Персистентность состояния** означает сохранение состояния приложения в хранилище, чтобы оно переживало перезагрузку страницы и перезапуск браузера. Наиболее распространённые варианты хранения: **localStorage** (синхронный, лимит ~5МБ, сохраняется до очистки), **sessionStorage** (тот же API, но привязан к вкладке браузера) и **IndexedDB** (асинхронный, значительно больший объём, подходит для сложных или бинарных данных). Выбор зависит от объёма данных, необходимости сохранения после закрытия вкладки и требований к производительности.
+
+Библиотеки вроде **Zustand** и **Redux** предоставляют middleware для персистентности, которые автоматизируют сериализацию и десериализацию. Middleware `persist` в Zustand оборачивает хранилище и автоматически синхронизирует состояние с хранилищем. Он поддерживает **версионирование** и **миграции** — это критически важно для продакшн-приложений, где структура состояния меняется со временем. Без миграций пользователи со старой структурой состояния столкнутся с ошибками.
+
+Ключевая проблема персистентности — **гидратация**. При загрузке приложения есть момент, когда React-дерево уже отрендерилось с состоянием по умолчанию, но сохранённое состояние ещё не загружено из хранилища. Это может вызвать **несоответствие гидратации (hydration mismatch)** в серверно-рендеренных приложениях. Решение — использовать **защиту гидратации (hydration guard)**: рендерить значения по умолчанию во время SSR и первого клиентского рендера, а затем переключаться на сохранённые значения после завершения гидратации. Колбэк `onRehydrateStorage` в Zustand и ручные проверки гидратации помогают безопасно управлять этим переходом.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+
+// Zustand store with persist middleware and migration support
+interface SettingsStore {
+  theme: "light" | "dark";
+  fontSize: number;
+  language: string;
+  notifications: { email: boolean; push: boolean };
+  setTheme: (theme: "light" | "dark") => void;
+  setFontSize: (size: number) => void;
+  setLanguage: (lang: string) => void;
+  setNotifications: (n: { email: boolean; push: boolean }) => void;
+}
+
+const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      theme: "light",
+      fontSize: 16,
+      language: "en",
+      notifications: { email: true, push: true },
+      setTheme: (theme) => set({ theme }),
+      setFontSize: (fontSize) => set({ fontSize }),
+      setLanguage: (language) => set({ language }),
+      setNotifications: (notifications) => set({ notifications }),
+    }),
+    {
+      name: "user-settings",    // localStorage key
+      version: 2,               // Current schema version
+      storage: createJSONStorage(() => localStorage),
+
+      // Migration: runs when stored version < current version
+      migrate: (persistedState, version) => {
+        const state = persistedState as Record<string, unknown>;
+
+        if (version < 1) {
+          // v0 → v1: Added language field
+          state.language = "en";
+        }
+        if (version < 2) {
+          // v1 → v2: Restructured notifications from boolean to object
+          state.notifications = { email: true, push: true };
+        }
+
+        return state as SettingsStore;
+      },
+
+      // Select which parts of state to persist (skip functions)
+      partialize: (state) => ({
+        theme: state.theme,
+        fontSize: state.fontSize,
+        language: state.language,
+        notifications: state.notifications,
+      }),
+    }
+  )
+);
+
+// Hydration guard — avoids SSR mismatch
+import { useState, useEffect } from "react";
+
+function useHydrated() {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // Check if Zustand store has finished rehydrating
+    const unsub = useSettingsStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    // If already hydrated (fast storage), set immediately
+    if (useSettingsStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return unsub;
+  }, []);
+
+  return hydrated;
+}
+
+// Usage — safe for SSR
+function ThemeToggle() {
+  const hydrated = useHydrated();
+  const theme = useSettingsStore((s) => s.theme);
+  const setTheme = useSettingsStore((s) => s.setTheme);
+
+  if (!hydrated) {
+    // Render default during SSR and initial hydration
+    return <button>Toggle theme</button>;
+  }
+
+  return (
+    <button onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
+      Current theme: {theme}
+    </button>
+  );
+}
+```

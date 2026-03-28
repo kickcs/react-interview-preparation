@@ -1,0 +1,73 @@
+---
+title: "Как спроектировать архитектуру состояния приложения?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Designing state architecture starts with categorizing your state. **UI state** (modal open, sidebar collapsed) is local and transient. **Server state** (fetched data, cache) has its own lifecycle of loading, error, stale, and fresh. **URL state** (search params, pagination) should be the source of truth for shareable views. **Form state** (field values, validation errors) is often local to the form's lifetime. Mixing these categories into a single global store creates unnecessary complexity.
+
+The decision of where to place state follows a simple hierarchy: start with **local state** (`useState`). If siblings need it, **lift it up**. If distant components share it, consider **context** for low-frequency updates or a **state manager** (Zustand, Jotai) for high-frequency ones. For server data, use a dedicated **server-state library** like TanStack Query or SWR — they handle caching, deduplication, background refetching, and stale-while-revalidate out of the box, which is extremely difficult to replicate manually.
+
+Avoid the trap of putting everything in global state. Global state should be reserved for truly app-wide concerns: authenticated user, theme, locale. Most state is local or server-derived. Over-centralizing state leads to unnecessary re-renders, tight coupling, and difficulty tracing data flow. A well-designed state architecture has minimal global state, colocates UI state with the components that use it, delegates server state to a query library, and keeps the URL as the source of truth for navigation-related data.
+
+</Answer>
+<Answer lang="ru">
+
+Проектирование архитектуры состояния начинается с категоризации. **UI-состояние** (модальное окно открыто, сайдбар свёрнут) — локальное и временное. **Серверное состояние** (полученные данные, кеш) имеет собственный жизненный цикл: загрузка, ошибка, устаревшее, актуальное. **URL-состояние** (параметры поиска, пагинация) должно быть источником истины для разделяемых представлений. **Состояние формы** (значения полей, ошибки валидации) часто локально в пределах жизни формы. Смешение этих категорий в одном глобальном сторе создаёт ненужную сложность.
+
+Решение о размещении состояния следует простой иерархии: начните с **локального состояния** (`useState`). Если оно нужно соседним компонентам — **поднимите его**. Если его разделяют далёкие компоненты — рассмотрите **контекст** для редких обновлений или **менеджер состояния** (Zustand, Jotai) для частых. Для серверных данных используйте специализированную **библиотеку серверного состояния** вроде TanStack Query или SWR — они управляют кешированием, дедупликацией, фоновым обновлением и stale-while-revalidate из коробки, что крайне сложно воспроизвести вручную.
+
+Избегайте ловушки помещения всего в глобальное состояние. Глобальное состояние следует резервировать для действительно общеприложенческих вещей: аутентифицированный пользователь, тема, локаль. Большинство состояния — локальное или серверное. Чрезмерная централизация ведёт к ненужным перерендерам, тесной связанности и сложности отслеживания потока данных. Хорошо спроектированная архитектура состояния минимизирует глобальное состояние, колоцирует UI-состояние с компонентами, делегирует серверное состояние библиотеке запросов и держит URL как источник истины для навигации.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// State architecture: each category managed by the right tool
+
+// 1. UI state — local useState
+function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false);
+  return <nav className={collapsed ? "narrow" : "wide"}>...</nav>;
+}
+
+// 2. Server state — TanStack Query
+function UserList() {
+  const { data: users, isLoading, error } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.getUsers(),
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  });
+
+  if (isLoading) return <Skeleton />;
+  if (error) return <ErrorMessage error={error} />;
+  return <ul>{users.map((u) => <UserCard key={u.id} user={u} />)}</ul>;
+}
+
+// 3. URL state — search params as source of truth
+function ProductFilters() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const category = searchParams.get("category") ?? "all";
+
+  const setCategory = (cat: string) => {
+    setSearchParams((prev) => {
+      prev.set("category", cat);
+      return prev;
+    });
+  };
+
+  return <FilterBar category={category} onChange={setCategory} />;
+}
+
+// 4. Global state — only truly app-wide concerns
+const useAppStore = create<AppState>((set) => ({
+  theme: "light",
+  locale: "en",
+  user: null,
+  setTheme: (theme) => set({ theme }),
+  setLocale: (locale) => set({ locale }),
+  setUser: (user) => set({ user }),
+}));
+```

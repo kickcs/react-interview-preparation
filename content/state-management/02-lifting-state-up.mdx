@@ -1,0 +1,73 @@
+---
+title: "Что такое поднятие состояния вверх?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Lifting state up** is a React pattern where you move shared state from child components to their closest common parent. When two or more sibling components need to reflect the same changing data, instead of trying to synchronize separate local states, you "lift" the state up to the parent and pass it down as props. This ensures a **single source of truth** for that piece of data.
+
+The parent component becomes the owner of the state and passes both the current value and an updater function down to the children. This pattern is called **inverse data flow** because the child communicates changes back to the parent via callback props. The parent then updates its state, which triggers a re-render and propagates the new value to all children that depend on it.
+
+Lifting state up is one of the most fundamental composition patterns in React. It keeps your data flow predictable and unidirectional. However, if you find yourself lifting state through many levels, it may be a sign that you need **Context API** or a dedicated state management library to avoid excessive prop passing.
+
+</Answer>
+<Answer lang="ru">
+
+**Подъём состояния (lifting state up)** — это паттерн в React, при котором общее состояние переносится из дочерних компонентов в их ближайший общий родительский компонент. Когда два или более соседних компонента должны отображать одни и те же изменяющиеся данные, вместо попыток синхронизации отдельных локальных состояний вы «поднимаете» состояние в родитель и передаёте его вниз через пропсы. Это обеспечивает **единый источник истины** для этих данных.
+
+Родительский компонент становится владельцем состояния и передаёт дочерним компонентам как текущее значение, так и функцию обновления. Этот паттерн называется **обратный поток данных (inverse data flow)**, потому что дочерний компонент сообщает об изменениях родителю через колбэк-пропсы. Родитель затем обновляет своё состояние, что вызывает повторный рендер и распространяет новое значение на все зависимые дочерние компоненты.
+
+Подъём состояния — один из самых фундаментальных паттернов композиции в React. Он делает поток данных предсказуемым и однонаправленным. Однако если вы обнаружите, что поднимаете состояние через множество уровней, это может быть сигналом к использованию **Context API** или специализированной библиотеки управления состоянием, чтобы избежать чрезмерной передачи пропсов.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState } from "react";
+
+// Parent owns the shared state
+function TemperatureConverter() {
+  const [celsius, setCelsius] = useState(0);
+
+  const fahrenheit = (celsius * 9) / 5 + 32;
+
+  return (
+    <div>
+      <TemperatureInput
+        label="Celsius"
+        value={celsius}
+        onChange={setCelsius}
+      />
+      <TemperatureInput
+        label="Fahrenheit"
+        value={fahrenheit}
+        onChange={(f) => setCelsius(((f - 32) * 5) / 9)}
+      />
+    </div>
+  );
+}
+
+// Child receives state and updater via props
+function TemperatureInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label>
+      {label}:{" "}
+      <input
+        type="number"
+        value={value.toFixed(1)}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      />
+    </label>
+  );
+}
+```

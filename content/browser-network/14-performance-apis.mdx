@@ -1,0 +1,91 @@
+---
+title: "Что такое Performance API и Intersection Observer?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Performance API** provides precise timing measurements for web applications. **`performance.now()`** returns a high-resolution timestamp (microsecond accuracy) for benchmarking code. **PerformanceObserver** watches for specific performance entries (like `largest-contentful-paint`, `first-input-delay`, `layout-shift`) and fires callbacks when they occur, making it the foundation for measuring Core Web Vitals in the field.
+
+**IntersectionObserver** efficiently detects when an element enters or exits the viewport (or another container). Instead of listening to scroll events and calling `getBoundingClientRect()` (which triggers layout), it uses an asynchronous, browser-optimized callback. This is the standard approach for **lazy loading** images, infinite scrolling, triggering animations on scroll, and tracking element visibility for analytics.
+
+**ResizeObserver** watches for changes in an element's dimensions, which is useful for responsive components that need to adapt to their container size (not just the viewport). **MutationObserver** watches for changes to the DOM tree — attribute modifications, added/removed nodes, or text changes. Together, these observer APIs replace older polling-based approaches with efficient, event-driven patterns that do not block the main thread.
+
+</Answer>
+<Answer lang="ru">
+
+**Performance API** предоставляет точные измерения времени для веб-приложений. **`performance.now()`** возвращает метку времени высокого разрешения (точность до микросекунд) для бенчмаркинга кода. **PerformanceObserver** отслеживает определённые записи производительности (такие как `largest-contentful-paint`, `first-input-delay`, `layout-shift`) и вызывает колбэки при их возникновении, являясь основой для измерения Core Web Vitals в реальных условиях.
+
+**IntersectionObserver** эффективно определяет, когда элемент входит или выходит из области видимости (viewport или другого контейнера). Вместо прослушивания событий прокрутки и вызова `getBoundingClientRect()` (что вызывает layout), он использует асинхронный, оптимизированный браузером колбэк. Это стандартный подход для **ленивой загрузки** изображений, бесконечной прокрутки, запуска анимаций при скролле и отслеживания видимости элементов для аналитики.
+
+**ResizeObserver** отслеживает изменения размеров элемента, что полезно для адаптивных компонентов, которым нужно подстраиваться под размер контейнера (а не только viewport). **MutationObserver** следит за изменениями в дереве DOM — модификация атрибутов, добавление/удаление узлов, изменение текста. Вместе эти API наблюдателей заменяют устаревшие подходы на основе polling эффективными, событийно-ориентированными паттернами, не блокирующими основной поток.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// === Performance API ===
+const start = performance.now();
+expensiveOperation();
+const duration = performance.now() - start;
+console.log(`Operation took ${duration.toFixed(2)}ms`);
+
+// PerformanceObserver — measure Core Web Vitals
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    console.log(`${entry.entryType}: ${entry.startTime.toFixed(0)}ms`);
+  }
+});
+observer.observe({ type: "largest-contentful-paint", buffered: true });
+observer.observe({ type: "layout-shift", buffered: true });
+```
+
+```javascript
+// === IntersectionObserver — lazy loading images ===
+const imageObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        img.src = img.dataset.src; // load real image
+        img.classList.add("loaded");
+        imageObserver.unobserve(img); // stop observing once loaded
+      }
+    });
+  },
+  { rootMargin: "200px" } // start loading 200px before visible
+);
+
+document.querySelectorAll("img[data-src]").forEach((img) => {
+  imageObserver.observe(img);
+});
+```
+
+```javascript
+// === ResizeObserver — responsive component ===
+const resizeObserver = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const { width } = entry.contentRect;
+    const el = entry.target;
+    el.classList.toggle("compact", width < 400);
+    el.classList.toggle("expanded", width >= 400);
+  }
+});
+resizeObserver.observe(document.getElementById("dashboard-panel"));
+
+// === MutationObserver — watch DOM changes ===
+const mutationObserver = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === "childList") {
+      console.log("Nodes added:", mutation.addedNodes.length);
+      console.log("Nodes removed:", mutation.removedNodes.length);
+    }
+  });
+});
+
+mutationObserver.observe(document.getElementById("dynamic-list"), {
+  childList: true,
+  subtree: true,
+});
+```

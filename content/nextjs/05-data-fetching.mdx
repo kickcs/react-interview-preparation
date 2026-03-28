@@ -1,0 +1,110 @@
+---
+title: "Как работает получение данных в Next.js?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Data fetching in the Next.js App Router happens directly inside Server Components using standard `async/await` and the `fetch` API. By default, Next.js extends `fetch` with caching and revalidation options. A request with `{ cache: 'force-cache' }` (or the default behavior for static routes) generates the page at **build time** (Static Generation). Using `{ cache: 'no-store' }` or exporting `const dynamic = 'force-dynamic'` makes the page render on **every request** (Dynamic Rendering).
+
+**Incremental Static Regeneration (ISR)** allows you to update static content after deployment without rebuilding the entire site. By passing `{ next: { revalidate: 60 } }` to fetch, the page is served from cache but revalidated in the background after the specified number of seconds. You can also use **on-demand revalidation** with `revalidatePath()` or `revalidateTag()` to purge specific pages or tagged data when content changes.
+
+For pre-rendering dynamic routes at build time, `generateStaticParams` replaces the old `getStaticPaths`. It returns an array of param objects that Next.js uses to generate static pages. Combined with fetch caching, this gives you fine-grained control over which pages are static and which are dynamic, on a per-request basis rather than per-page.
+
+</Answer>
+<Answer lang="ru">
+
+Загрузка данных в App Router Next.js происходит непосредственно внутри серверных компонентов с использованием стандартного `async/await` и API `fetch`. По умолчанию Next.js расширяет `fetch` опциями кэширования и ревалидации. Запрос с `{ cache: 'force-cache' }` (или поведение по умолчанию для статических маршрутов) генерирует страницу во время **сборки** (статическая генерация). Использование `{ cache: 'no-store' }` или экспорт `const dynamic = 'force-dynamic'` заставляет страницу рендериться при **каждом запросе** (динамический рендеринг).
+
+**Инкрементальная статическая регенерация (ISR)** позволяет обновлять статический контент после деплоя без полной пересборки сайта. Передавая `{ next: { revalidate: 60 } }` в fetch, страница отдаётся из кэша, но ревалидируется в фоне после указанного количества секунд. Также можно использовать **ревалидацию по запросу** с помощью `revalidatePath()` или `revalidateTag()` для очистки конкретных страниц или помеченных данных при изменении контента.
+
+Для пререндеринга динамических маршрутов во время сборки `generateStaticParams` заменяет старый `getStaticPaths`. Он возвращает массив объектов параметров, которые Next.js использует для генерации статических страниц. В сочетании с кэшированием fetch это даёт детальный контроль над тем, какие страницы статические, а какие динамические, на уровне каждого запроса, а не на уровне страницы.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// 1. Static Generation (default) — fetched at build time
+export default async function StaticPage() {
+  const data = await fetch("https://api.example.com/posts", {
+    cache: "force-cache", // default for static routes
+  });
+  const posts = await data.json();
+
+  return <PostList posts={posts} />;
+}
+
+// 2. Dynamic Rendering — fetched on every request
+export default async function DynamicPage() {
+  const data = await fetch("https://api.example.com/live-data", {
+    cache: "no-store",
+  });
+  const liveData = await data.json();
+
+  return <Dashboard data={liveData} />;
+}
+
+// 3. ISR — revalidate every 60 seconds
+export default async function ISRPage() {
+  const data = await fetch("https://api.example.com/articles", {
+    next: { revalidate: 60 },
+  });
+  const articles = await data.json();
+
+  return <ArticleList articles={articles} />;
+}
+```
+
+```tsx
+// 4. generateStaticParams — pre-render dynamic routes at build time
+
+// app/blog/[slug]/page.tsx
+export async function generateStaticParams() {
+  const posts = await fetch("https://api.example.com/posts").then((r) =>
+    r.json()
+  );
+
+  return posts.map((post: { slug: string }) => ({
+    slug: post.slug,
+  }));
+}
+
+export default async function BlogPost({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const post = await fetch(`https://api.example.com/posts/${slug}`, {
+    next: { tags: ["post", slug] },
+  }).then((r) => r.json());
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </article>
+  );
+}
+```
+
+```tsx
+// 5. On-demand revalidation — purge cache when content changes
+// app/api/revalidate/route.ts
+import { revalidatePath, revalidateTag } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  const { path, tag } = await request.json();
+
+  if (tag) {
+    revalidateTag(tag); // Revalidate all fetches with this tag
+  }
+  if (path) {
+    revalidatePath(path); // Revalidate a specific page
+  }
+
+  return NextResponse.json({ revalidated: true, now: Date.now() });
+}
+```

@@ -1,0 +1,108 @@
+---
+title: "Что такое utility типы в TypeScript?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+TypeScript ships with a set of built-in **utility types** that transform existing types into new ones without rewriting them. **Partial\<T\>** makes all properties optional, which is useful for update functions. **Required\<T\>** does the opposite, making all properties required. **Pick\<T, K\>** extracts a subset of properties, while **Omit\<T, K\>** removes them.
+
+**Record\<K, V\>** creates an object type with keys of type `K` and values of type `V` — great for dictionaries and lookup maps. **Readonly\<T\>** makes all properties readonly, preventing mutation. **ReturnType\<T\>** extracts the return type of a function, and **Parameters\<T\>** extracts its parameter types as a tuple. **Awaited\<T\>** unwraps the resolved type of a Promise.
+
+**Extract\<T, U\>** and **Exclude\<T, U\>** work on union types: Extract keeps only members assignable to `U`, while Exclude removes them. These utility types are heavily used in React — for example, `Omit` to remove props handled by a wrapper component, `Partial` for optional update payloads, and `ReturnType` to infer types from hooks or API functions.
+
+</Answer>
+<Answer lang="ru">
+
+TypeScript поставляется с набором встроенных **утилитарных типов**, которые преобразуют существующие типы в новые без их переписывания. **Partial\<T\>** делает все свойства необязательными, что полезно для функций обновления. **Required\<T\>** делает обратное — все свойства обязательными. **Pick\<T, K\>** извлекает подмножество свойств, а **Omit\<T, K\>** удаляет их.
+
+**Record\<K, V\>** создаёт объектный тип с ключами типа `K` и значениями типа `V` — отлично подходит для словарей и таблиц соответствия. **Readonly\<T\>** делает все свойства только для чтения, предотвращая мутацию. **ReturnType\<T\>** извлекает тип возвращаемого значения функции, а **Parameters\<T\>** извлекает типы её параметров в виде кортежа. **Awaited\<T\>** разворачивает разрешённый тип Promise.
+
+**Extract\<T, U\>** и **Exclude\<T, U\>** работают с типами объединения: Extract оставляет только члены, присваиваемые `U`, а Exclude удаляет их. Эти утилитарные типы активно используются в React — например, `Omit` для удаления пропсов, обрабатываемых компонентом-обёрткой, `Partial` для необязательных полезных нагрузок обновления, и `ReturnType` для вывода типов из хуков или API-функций.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+  createdAt: Date;
+}
+
+// Partial — all properties become optional
+type UpdateUserPayload = Partial<User>;
+// { id?: number; name?: string; email?: string; ... }
+
+// Required — all properties become required
+type StrictUser = Required<User>;
+
+// Pick — select specific properties
+type UserPreview = Pick<User, "id" | "name">;
+// { id: number; name: string }
+
+// Omit — remove specific properties
+type CreateUserPayload = Omit<User, "id" | "createdAt">;
+// { name: string; email: string; role: "admin" | "user" }
+
+// Record — create a dictionary type
+type RolePermissions = Record<User["role"], string[]>;
+// { admin: string[]; user: string[] }
+
+// Readonly — prevent mutation
+type FrozenUser = Readonly<User>;
+// const user: FrozenUser = { ... };
+// user.name = "Bob"; // Error: Cannot assign to 'name'
+
+// ReturnType and Parameters
+function createUser(name: string, email: string): User {
+  return { id: 1, name, email, role: "user", createdAt: new Date() };
+}
+
+type CreateUserReturn = ReturnType<typeof createUser>; // User
+type CreateUserParams = Parameters<typeof createUser>; // [string, string]
+
+// Awaited — unwrap Promise
+type UserPromise = Promise<User>;
+type ResolvedUser = Awaited<UserPromise>; // User
+
+// Extract and Exclude — filter union members
+type AllRoles = "admin" | "user" | "moderator" | "guest";
+type PrivilegedRoles = Extract<AllRoles, "admin" | "moderator">; // "admin" | "moderator"
+type PublicRoles = Exclude<AllRoles, "admin" | "moderator">;     // "user" | "guest"
+```
+
+```tsx
+// Practical React usage
+
+// Omit to create wrapper component props
+type InputProps = React.ComponentProps<"input">;
+type CustomInputProps = Omit<InputProps, "className" | "style"> & {
+  label: string;
+  error?: string;
+};
+
+function CustomInput({ label, error, ...inputProps }: CustomInputProps) {
+  return (
+    <div>
+      <label>{label}</label>
+      <input {...inputProps} className={error ? "input-error" : "input"} />
+      {error && <span className="error">{error}</span>}
+    </div>
+  );
+}
+
+// Partial for update functions
+function updateUser(id: number, updates: Partial<Omit<User, "id">>) {
+  // only send changed fields
+  return fetch(`/api/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+updateUser(1, { name: "New Name" }); // only update name
+```

@@ -1,0 +1,73 @@
+---
+title: "Что такое виртуализация списков?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**List virtualization** (also called **windowing**) is a technique where only the items currently visible in the viewport are rendered to the DOM, rather than the entire list. If you have 10,000 items but only 20 fit on screen, virtualization renders just those 20 (plus a small overscan buffer), dramatically reducing DOM node count and improving performance.
+
+Without virtualization, rendering thousands of items creates thousands of DOM nodes, each consuming memory and slowing down layout, paint, and event handling. The browser must manage all of them even though the user can only see a small fraction. This leads to slow initial renders, sluggish scrolling, and high memory usage.
+
+Popular libraries for list virtualization include **`react-window`** (lightweight, by the creator of React's virtual DOM), **`react-virtuoso`**, and **`@tanstack/react-virtual`** (headless, framework-agnostic). These libraries calculate which items are visible based on scroll position and container size, then render only those items with absolute positioning to maintain correct scroll height.
+
+</Answer>
+<Answer lang="ru">
+
+**Виртуализация списков** (также называемая **windowing**) — это техника, при которой в DOM рендерятся только элементы, видимые в области просмотра, а не весь список. Если у вас 10 000 элементов, но на экране помещается только 20, виртуализация рендерит только эти 20 (плюс небольшой буфер), значительно уменьшая количество DOM-узлов и улучшая производительность.
+
+Без виртуализации рендеринг тысяч элементов создаёт тысячи DOM-узлов, каждый из которых потребляет память и замедляет расчёт макета, отрисовку и обработку событий. Браузер должен управлять ими всеми, хотя пользователь видит лишь малую часть. Это приводит к медленному начальному рендерингу, вялому скроллингу и высокому потреблению памяти.
+
+Популярные библиотеки для виртуализации списков включают **`react-window`** (легковесная, от создателя виртуального DOM React), **`react-virtuoso`** и **`@tanstack/react-virtual`** (headless, фреймворк-агностик). Эти библиотеки рассчитывают, какие элементы видимы, на основе позиции скролла и размера контейнера, а затем рендерят только эти элементы с абсолютным позиционированием для поддержания правильной высоты скролла.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef } from "react";
+
+const items = Array.from({ length: 10_000 }, (_, i) => ({
+  id: i,
+  label: `Item #${i + 1}`,
+}));
+
+function VirtualizedList() {
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40, // estimated row height in px
+    overscan: 5,
+  });
+
+  return (
+    <div ref={parentRef} style={{ height: 400, overflow: "auto" }}>
+      <div
+        style={{
+          height: virtualizer.getTotalSize(),
+          position: "relative",
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => (
+          <div
+            key={virtualRow.key}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: virtualRow.size,
+              transform: `translateY(${virtualRow.start}px)`,
+            }}
+          >
+            {items[virtualRow.index].label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```

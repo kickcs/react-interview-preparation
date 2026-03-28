@@ -1,0 +1,70 @@
+---
+title: "Какие стратегии code splitting в React?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Code splitting** is the practice of breaking your JavaScript bundle into smaller chunks that are loaded on demand. Instead of downloading the entire application upfront, the browser only fetches the code needed for the current view. This significantly improves **initial load time** and **Time to Interactive (TTI)**.
+
+The most common strategy is **route-based splitting**, where each route loads its own chunk via `React.lazy` and dynamic `import()`. This is the easiest win because routes are natural boundaries — users expect a brief load when navigating. **Component-based splitting** goes further by lazy-loading heavy components within a page (e.g., a chart library, a rich text editor, or a modal). You can also split by **feature or condition** — for example, only loading admin-specific code for admin users.
+
+Under the hood, bundlers like webpack and Vite create separate chunks for each dynamic import. You can use **magic comments** (`webpackChunkName`, `webpackPrefetch`) to control chunk naming and prefetching behavior. For more advanced scenarios, libraries like `@loadable/components` support server-side rendering with code splitting. The key principle is to identify what code the user needs immediately and defer everything else. Use your bundler's **bundle analyzer** to find large dependencies that should be split out.
+
+</Answer>
+<Answer lang="ru">
+
+**Разделение кода (code splitting)** — это практика разбиения JavaScript-бандла на меньшие части (чанки), которые загружаются по запросу. Вместо загрузки всего приложения целиком, браузер получает только код, необходимый для текущего представления. Это существенно улучшает **время начальной загрузки** и **Time to Interactive (TTI)**.
+
+Наиболее распространённая стратегия — **разделение по маршрутам**, где каждый маршрут загружает свой чанк через `React.lazy` и динамический `import()`. Это самый простой выигрыш, поскольку маршруты являются естественными границами — пользователи ожидают кратковременную загрузку при переходе. **Разделение по компонентам** идёт дальше, лениво загружая тяжёлые компоненты внутри страницы (например, библиотеку графиков, текстовый редактор или модальное окно). Также можно разделять по **функциональности или условию** — например, загружать код администратора только для пользователей-администраторов.
+
+Под капотом сборщики вроде webpack и Vite создают отдельные чанки для каждого динамического импорта. Вы можете использовать **магические комментарии** (`webpackChunkName`, `webpackPrefetch`) для управления именованием чанков и поведением предзагрузки. Для более сложных сценариев библиотеки вроде `@loadable/components` поддерживают серверный рендеринг с разделением кода. Ключевой принцип — определить, какой код нужен пользователю немедленно, и отложить всё остальное. Используйте **анализатор бандлов** вашего сборщика для поиска крупных зависимостей, которые следует вынести в отдельные чанки.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { lazy, Suspense, useState } from "react";
+
+// 1. Route-based splitting
+const Home = lazy(() => import("./pages/Home"));
+const Profile = lazy(() => import("./pages/Profile"));
+
+// 2. Component-based splitting — heavy library loaded only when needed
+const Chart = lazy(() => import("./components/Chart"));
+
+// 3. Conditional splitting — admin code loaded only for admins
+const AdminPanel = lazy(() => import("./components/AdminPanel"));
+
+function App({ user }: { user: { isAdmin: boolean } }) {
+  const [showChart, setShowChart] = useState(false);
+
+  return (
+    <div>
+      {/* Route-based: each page is a separate chunk */}
+      <Suspense fallback={<div>Loading page...</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
+        </Routes>
+      </Suspense>
+
+      {/* Component-based: chart library loaded on demand */}
+      <button onClick={() => setShowChart(true)}>Show Analytics</button>
+      {showChart && (
+        <Suspense fallback={<div>Loading chart...</div>}>
+          <Chart data={analyticsData} />
+        </Suspense>
+      )}
+
+      {/* Conditional: admin bundle never loaded for regular users */}
+      {user.isAdmin && (
+        <Suspense fallback={<div>Loading admin tools...</div>}>
+          <AdminPanel />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+```

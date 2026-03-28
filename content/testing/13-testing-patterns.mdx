@@ -1,0 +1,99 @@
+---
+title: "Какие паттерны тестирования и лучшие практики?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Arrange-Act-Assert (AAA)** pattern is the foundation of well-structured tests. **Arrange** sets up the test conditions (render component, create mocks, prepare data). **Act** performs the action being tested (click a button, call a function). **Assert** verifies the outcome (check DOM changes, validate return values). Keeping these three phases visually separated with blank lines makes tests scannable.
+
+**Test isolation** means each test must be independent. Never rely on the order tests run in or state left behind by a previous test. Use `beforeEach` to reset shared state, create fresh mocks, and re-render components. If tests share setup logic, extract it into a helper function or a custom `renderWithProviders` utility rather than using shared mutable variables.
+
+**Avoid testing implementation details.** Don't assert on internal state, private methods, or specific CSS class names. Instead, test what the user can see and do. If you refactor a component's internals without changing behavior, your tests should still pass. The litmus test: "Would a user notice if this broke?"
+
+**Test factories** help create test data consistently. Instead of hardcoding objects in every test, create a `buildUser()` or `buildTodo()` function that returns a default object with optional overrides. This reduces duplication, makes tests more readable, and makes it easy to update test data when your schema changes.
+
+</Answer>
+<Answer lang="ru">
+
+Паттерн **Arrange-Act-Assert (AAA)** — основа хорошо структурированных тестов. **Arrange** настраивает условия теста (рендеринг компонента, создание моков, подготовка данных). **Act** выполняет тестируемое действие (клик по кнопке, вызов функции). **Assert** проверяет результат (изменения в DOM, возвращаемые значения). Визуальное разделение этих трёх фаз пустыми строками делает тесты легко читаемыми.
+
+**Изоляция тестов** означает, что каждый тест должен быть независимым. Никогда не полагайтесь на порядок выполнения тестов или состояние, оставленное предыдущим тестом. Используйте `beforeEach` для сброса общего состояния, создания свежих моков и повторного рендеринга компонентов. Если тесты имеют общую логику настройки, вынесите её в вспомогательную функцию или утилиту `renderWithProviders`, а не используйте общие мутируемые переменные.
+
+**Избегайте тестирования деталей реализации.** Не проверяйте внутреннее состояние, приватные методы или конкретные CSS-классы. Вместо этого тестируйте то, что пользователь может видеть и делать. Если вы рефакторите внутренности компонента без изменения поведения, тесты должны продолжать проходить. Лакмусовая бумажка: «Заметил бы пользователь, если бы это сломалось?»
+
+**Фабрики тестовых данных** помогают создавать данные единообразно. Вместо хардкода объектов в каждом тесте создайте функцию `buildUser()` или `buildTodo()`, возвращающую объект по умолчанию с опциональными переопределениями. Это уменьшает дублирование, делает тесты читаемее и упрощает обновление тестовых данных при изменении схемы.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+// --- Test Factory ---
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "user";
+}
+
+function buildUser(overrides: Partial<User> = {}): User {
+  return {
+    id: 1,
+    name: "Alice",
+    email: "alice@test.com",
+    role: "user",
+    ...overrides,
+  };
+}
+
+// --- Custom render helper ---
+function renderWithUser(ui: React.ReactElement, { user = buildUser() } = {}) {
+  return render(
+    <UserContext.Provider value={user}>
+      {ui}
+    </UserContext.Provider>
+  );
+}
+
+// --- AAA Pattern Examples ---
+test("shows admin badge for admin users", () => {
+  // Arrange
+  const admin = buildUser({ role: "admin", name: "Bob" });
+
+  // Act
+  renderWithUser(<UserProfile />, { user: admin });
+
+  // Assert
+  expect(screen.getByText("Bob")).toBeInTheDocument();
+  expect(screen.getByText("Admin")).toBeInTheDocument();
+});
+
+test("hides admin badge for regular users", () => {
+  // Arrange
+  const regularUser = buildUser({ role: "user" });
+
+  // Act
+  renderWithUser(<UserProfile />, { user: regularUser });
+
+  // Assert
+  expect(screen.getByText("Alice")).toBeInTheDocument();
+  expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+});
+
+test("logout button calls signOut handler", async () => {
+  // Arrange
+  const user = userEvent.setup();
+  const signOut = vi.fn();
+  render(<Header onSignOut={signOut} />);
+
+  // Act
+  await user.click(screen.getByRole("button", { name: /log out/i }));
+
+  // Assert
+  expect(signOut).toHaveBeenCalledTimes(1);
+});
+```

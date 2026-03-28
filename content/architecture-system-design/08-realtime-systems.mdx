@@ -1,0 +1,109 @@
+---
+title: "Как спроектировать real-time системы во фронтенде?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Real-time frontend systems** require a persistent connection between client and server to push updates without polling. The three main transport mechanisms are **WebSocket** (full-duplex, lowest latency, ideal for chat and collaboration), **Server-Sent Events (SSE)** (server-to-client only, simple HTTP, good for feeds and notifications), and **long polling** (fallback when persistent connections are impractical). WebSocket is the most common choice; libraries like **Socket.io** add reconnection, room management, and protocol fallback automatically.
+
+The architecture challenge is **state synchronization**: keeping the client's local state in sync with server state that other clients may also be changing. **Optimistic UI** updates the local state immediately and reconciles later, providing instant feedback. When multiple users edit simultaneously, you need **conflict resolution** — last-write-wins is simplest but can lose data; operational transforms (OT) or CRDTs handle true collaboration. The choice depends on your consistency requirements and complexity budget.
+
+Structurally, real-time concerns should be isolated in a dedicated layer — a custom hook or service that manages the connection lifecycle, listens for events, and updates the appropriate state store. This keeps components clean: they read from the store and dispatch actions without knowing whether data came from a REST call or a WebSocket event. Always implement **reconnection logic** with exponential backoff and **connection state indicators** so users know when they're disconnected.
+
+</Answer>
+<Answer lang="ru">
+
+**Системы реального времени на фронтенде** требуют постоянного соединения между клиентом и сервером для отправки обновлений без поллинга. Три основных транспортных механизма: **WebSocket** (полный дуплекс, минимальная задержка, идеален для чатов и совместной работы), **Server-Sent Events (SSE)** (только сервер-клиент, простой HTTP, подходит для лент и уведомлений) и **long polling** (запасной вариант, когда постоянные соединения непрактичны). WebSocket — самый распространённый выбор; библиотеки вроде **Socket.io** автоматически добавляют переподключение, управление комнатами и запасные протоколы.
+
+Архитектурная задача — **синхронизация состояния**: поддержание локального состояния клиента в синхронизации с серверным состоянием, которое другие клиенты тоже могут менять. **Оптимистичный UI** обновляет локальное состояние немедленно и сверяет позже, обеспечивая мгновенную обратную связь. Когда несколько пользователей редактируют одновременно, нужно **разрешение конфликтов** — last-write-wins проще всего, но может терять данные; операционные трансформации (OT) или CRDT обеспечивают настоящую совместную работу. Выбор зависит от требований к консистентности и бюджета сложности.
+
+Структурно real-time-логику следует изолировать в отдельном слое — кастомный хук или сервис, управляющий жизненным циклом соединения, слушающий события и обновляющий соответствующий стор. Это сохраняет компоненты чистыми: они читают из стора и диспатчат действия, не зная, пришли данные от REST-запроса или WebSocket-события. Всегда реализуйте **логику переподключения** с экспоненциальной задержкой и **индикаторы состояния соединения**, чтобы пользователи знали, когда они отключены.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Real-time chat architecture with WebSocket
+
+import { useEffect, useRef, useCallback, useState } from "react";
+
+interface Message {
+  id: string;
+  userId: string;
+  text: string;
+  timestamp: number;
+}
+
+type ConnectionStatus = "connected" | "disconnected" | "reconnecting";
+
+function useWebSocket(url: string) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>("disconnected");
+  const retryCount = useRef(0);
+
+  const connect = useCallback(() => {
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      setStatus("connected");
+      retryCount.current = 0;
+    };
+
+    ws.onclose = () => {
+      setStatus("reconnecting");
+      // Exponential backoff reconnection
+      const delay = Math.min(1000 * 2 ** retryCount.current, 30000);
+      retryCount.current++;
+      setTimeout(connect, delay);
+    };
+
+    wsRef.current = ws;
+  }, [url]);
+
+  const send = useCallback((event: string, data: unknown) => {
+    wsRef.current?.send(JSON.stringify({ event, data }));
+  }, []);
+
+  const subscribe = useCallback((event: string, handler: (data: any) => void) => {
+    const listener = (e: MessageEvent) => {
+      const parsed = JSON.parse(e.data);
+      if (parsed.event === event) handler(parsed.data);
+    };
+    wsRef.current?.addEventListener("message", listener);
+    return () => wsRef.current?.removeEventListener("message", listener);
+  }, []);
+
+  useEffect(() => { connect(); return () => wsRef.current?.close(); }, [connect]);
+
+  return { send, subscribe, status };
+}
+
+// Chat component using the real-time hook
+function Chat({ roomId }: { roomId: string }) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const { send, subscribe, status } = useWebSocket(`/ws/chat/${roomId}`);
+
+  useEffect(() => {
+    return subscribe("message", (msg: Message) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+  }, [subscribe]);
+
+  const sendMessage = (text: string) => {
+    // Optimistic UI — add message immediately
+    const optimistic: Message = { id: crypto.randomUUID(), userId: "me", text, timestamp: Date.now() };
+    setMessages((prev) => [...prev, optimistic]);
+    send("message", { text, roomId });
+  };
+
+  return (
+    <div>
+      {status !== "connected" && <ConnectionBanner status={status} />}
+      <MessageList messages={messages} />
+      <MessageInput onSend={sendMessage} />
+    </div>
+  );
+}
+```

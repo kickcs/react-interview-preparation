@@ -1,0 +1,110 @@
+---
+title: "Какие современные CSS функции нужно знать?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Container queries** let you style elements based on their parent container's size rather than the viewport, enabling truly reusable components. By defining a `container-type` on a parent and using `@container` rules on children, components adapt to wherever they are placed in the layout. The **`:has()`** pseudo-class is a "parent selector" — it selects elements that contain specific children or siblings, enabling patterns like styling a card differently when it contains an image.
+
+**CSS nesting** brings Sass-like nesting syntax natively to CSS, allowing you to write related rules inside a parent rule without a preprocessor. The **`@layer`** directive lets you organize styles into explicit layers that control cascade priority regardless of specificity or source order — this is essential for managing styles from third-party libraries. The `color-mix()` function blends two colors in a given color space, perfect for generating hover states or opacity variants without hardcoding values.
+
+**Subgrid** allows a grid item's children to participate in the parent's grid tracks, ensuring alignment across nested grid structures. Other notable features include `text-wrap: balance` for visually balanced headings, `accent-color` for styling native form controls, the `oklch()` color space for perceptually uniform colors, `scroll-snap` for carousel-like scrolling, and `view-transitions` for animated page transitions. Modern CSS has eliminated the need for many JavaScript-based solutions and preprocessor features.
+
+</Answer>
+<Answer lang="ru">
+
+**Container queries** позволяют стилизовать элементы на основе размера их родительского контейнера, а не вьюпорта, что делает компоненты по-настоящему переиспользуемыми. Задав `container-type` на родителе и используя правила `@container` на потомках, компоненты адаптируются к любому месту в макете. Псевдокласс **`:has()`** — это «селектор родителя», он выбирает элементы, содержащие определённых потомков или соседей, позволяя, например, стилизовать карточку по-разному, если в ней есть изображение.
+
+**CSS nesting** привносит синтаксис вложенности в стиле Sass прямо в нативный CSS, позволяя писать связанные правила внутри родительского правила без препроцессора. Директива **`@layer`** позволяет организовать стили в явные слои, которые управляют приоритетом каскада независимо от специфичности или порядка в коде — это критически важно для управления стилями сторонних библиотек. Функция `color-mix()` смешивает два цвета в заданном цветовом пространстве, идеально подходя для генерации hover-состояний или вариантов прозрачности без хардкода значений.
+
+**Subgrid** позволяет потомкам grid-элемента участвовать в треках родительской сетки, обеспечивая выравнивание во вложенных grid-структурах. Другие заметные возможности: `text-wrap: balance` для визуально сбалансированных заголовков, `accent-color` для стилизации нативных элементов форм, цветовое пространство `oklch()` для перцептуально однородных цветов, `scroll-snap` для карусельной прокрутки и `view-transitions` для анимированных переходов между страницами. Современный CSS устранил необходимость во многих JavaScript-решениях и функциях препроцессоров.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Container queries — component adapts to its container */
+.card-wrapper {
+  container-type: inline-size;
+  container-name: card;
+}
+
+@container card (min-width: 400px) {
+  .card {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+  }
+}
+
+/* :has() — parent selector */
+.card:has(img) {
+  grid-template-rows: 200px auto;
+}
+
+.form-group:has(:invalid) {
+  border-color: #ef4444;
+}
+
+/* CSS nesting — no preprocessor needed */
+.nav {
+  display: flex;
+  gap: 1rem;
+
+  & a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      color: #0066cc;
+    }
+  }
+
+  & .active {
+    font-weight: bold;
+  }
+}
+
+/* @layer — control cascade priority */
+@layer base, components, utilities;
+
+@layer base {
+  h1 { font-size: 2rem; }
+}
+
+@layer components {
+  .card { padding: 1rem; }
+}
+
+@layer utilities {
+  .hidden { display: none; }
+}
+
+/* color-mix() — generate color variants */
+.button {
+  --btn-color: #0066cc;
+  background: var(--btn-color);
+
+  &:hover {
+    background: color-mix(in oklch, var(--btn-color), black 20%);
+  }
+
+  &:active {
+    background: color-mix(in oklch, var(--btn-color), black 35%);
+  }
+}
+
+/* Subgrid — children align to parent grid */
+.grid-parent {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.grid-child {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+}
+```

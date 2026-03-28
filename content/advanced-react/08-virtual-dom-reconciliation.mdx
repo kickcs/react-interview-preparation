@@ -1,0 +1,65 @@
+---
+title: "Как работают Virtual DOM и Reconciliation?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Virtual DOM** is a lightweight JavaScript representation of the actual DOM. When state changes, React creates a new virtual DOM tree and compares it with the previous one through a process called **reconciliation** (or "diffing"). Only the differences are applied to the real DOM, minimizing expensive DOM operations.
+
+React's diffing algorithm uses two key **heuristics** to achieve O(n) complexity instead of the theoretical O(n³) for tree comparison. First, elements of **different types** produce entirely different trees — React tears down the old subtree and builds a new one. Second, the developer provides **`key`** props to signal which children are stable across re-renders. Without keys, React compares children by position, which can lead to unnecessary destruction and recreation of components.
+
+The **key** prop is critical for lists. When React reconciles a list, it matches old and new elements by key. If a key is missing from the new list, that element is removed. If a new key appears, a new element is created. If a key exists in both, the element is updated in place. Using array indices as keys is problematic when the list can be reordered, filtered, or items inserted — it leads to incorrect state preservation and subtle bugs. Always use **stable, unique identifiers** as keys.
+
+</Answer>
+<Answer lang="ru">
+
+**Виртуальный DOM** — это легковесное JavaScript-представление реального DOM. При изменении состояния React создаёт новое дерево виртуального DOM и сравнивает его с предыдущим в процессе, называемом **согласованием** (или «диффинг»). К реальному DOM применяются только различия, что минимизирует дорогостоящие операции с DOM.
+
+Алгоритм сравнения React использует две ключевые **эвристики** для достижения сложности O(n) вместо теоретической O(n³) для сравнения деревьев. Во-первых, элементы **разных типов** порождают полностью разные деревья — React сносит старое поддерево и строит новое. Во-вторых, разработчик предоставляет проп **`key`**, чтобы указать, какие дочерние элементы стабильны между перерисовками. Без ключей React сравнивает потомков по позиции, что может привести к ненужному уничтожению и пересозданию компонентов.
+
+Проп **key** критически важен для списков. При согласовании списка React сопоставляет старые и новые элементы по ключу. Если ключ отсутствует в новом списке — элемент удаляется. Если появляется новый ключ — создаётся новый элемент. Если ключ есть в обоих — элемент обновляется на месте. Использование индексов массива в качестве ключей проблематично, когда список может быть переупорядочен, отфильтрован или в него вставляются элементы — это приводит к некорректному сохранению состояния и скрытым багам. Всегда используйте **стабильные уникальные идентификаторы** в качестве ключей.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// How keys affect reconciliation
+
+// BAD: using index as key — reordering breaks state
+function BadList({ items }: { items: { id: string; text: string }[] }) {
+  return (
+    <ul>
+      {items.map((item, index) => (
+        // If items are reordered, React matches by position
+        // and existing component state gets attached to wrong items
+        <li key={index}>
+          <input defaultValue={item.text} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// GOOD: using stable unique id as key
+function GoodList({ items }: { items: { id: string; text: string }[] }) {
+  return (
+    <ul>
+      {items.map((item) => (
+        // React correctly tracks each item across reorders
+        <li key={item.id}>
+          <input defaultValue={item.text} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Using key to reset component state entirely
+function ProfilePage({ userId }: { userId: string }) {
+  // When userId changes, React unmounts old EditForm and mounts a new one
+  // This resets all internal state (form fields, errors, etc.)
+  return <EditForm key={userId} userId={userId} />;
+}
+```

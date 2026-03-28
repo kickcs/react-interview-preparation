@@ -1,0 +1,61 @@
+---
+title: "Что такое React Portals?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React Portals** provide a way to render a child component into a DOM node that exists outside the parent component's DOM hierarchy. You create a portal using **`ReactDOM.createPortal(child, container)`**, where `child` is any renderable React element and `container` is a DOM node where it should be mounted.
+
+The most common use cases for portals are **modals**, **tooltips**, **dropdown menus**, and **toast notifications** — elements that need to visually "break out" of their parent container, which may have `overflow: hidden`, `z-index` stacking issues, or other CSS constraints. By rendering into a different part of the DOM (typically a sibling of the root `<div>`), these components can be positioned freely without being clipped.
+
+An important characteristic of portals is that even though the child is rendered in a different DOM location, it still behaves as a normal React child in every other way. **Event bubbling** works through the React tree (not the DOM tree), meaning events fired inside a portal will propagate to the React parent, not the DOM parent. Context, state, and all other React features continue to work normally across the portal boundary.
+
+</Answer>
+<Answer lang="ru">
+
+**Порталы React** предоставляют способ отрисовки дочернего компонента в DOM-узел, который находится вне DOM-иерархии родительского компонента. Портал создаётся с помощью **`ReactDOM.createPortal(child, container)`**, где `child` — любой отображаемый элемент React, а `container` — DOM-узел, в который он должен быть вмонтирован.
+
+Наиболее распространённые случаи использования порталов — **модальные окна**, **тултипы**, **выпадающие меню** и **уведомления (тосты)** — элементы, которым нужно визуально «выйти» из родительского контейнера, у которого может быть `overflow: hidden`, проблемы с наложением `z-index` или другие CSS-ограничения. Отрисовка в другую часть DOM (обычно соседний элемент корневого `<div>`) позволяет свободно позиционировать эти компоненты без обрезки.
+
+Важная особенность порталов: хотя дочерний элемент отрисовывается в другом месте DOM, он по-прежнему ведёт себя как обычный дочерний элемент React во всех остальных отношениях. **Всплытие событий** работает через дерево React (а не дерево DOM), то есть события, возникшие внутри портала, будут распространяться к родителю в React, а не к родителю в DOM. Контекст, состояние и все остальные возможности React продолжают нормально работать через границу портала.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createPortal } from "react-dom";
+import { useState } from "react";
+
+function Modal({ children, onClose }: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return createPortal(
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()}>
+        {children}
+        <button onClick={onClose}>Close</button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function App() {
+  const [showModal, setShowModal] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setShowModal(true)}>Open Modal</button>
+      {showModal && (
+        <Modal onClose={() => setShowModal(false)}>
+          <h2>Portal Modal</h2>
+          <p>This is rendered outside the root div.</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+```

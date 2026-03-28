@@ -1,0 +1,100 @@
+---
+title: "Как спроектировать архитектуру аутентификации?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Authentication architecture** in a frontend application revolves around securely storing credentials, managing token lifecycle, and protecting routes. The most common approach uses **JWT access tokens** (short-lived, stored in memory) paired with **refresh tokens** (long-lived, stored in an HttpOnly cookie). Storing access tokens in `localStorage` is convenient but vulnerable to XSS; keeping them in memory and relying on a refresh cookie for persistence is more secure.
+
+The **refresh flow** is critical: when an access token expires, the client sends the refresh token to obtain a new access token — transparently, without interrupting the user. This requires an interceptor that queues failed 401 requests, refreshes the token, and retries them. **Protected routes** should check auth state before rendering, redirecting unauthenticated users to login. In SSR frameworks like Next.js, auth checks happen server-side in middleware or layout components, preventing flash of unauthorized content.
+
+For **OAuth/social login**, the frontend typically redirects to the provider's auth page and handles the callback with an authorization code. The backend exchanges the code for tokens, sets the session, and redirects back. **Session management** should handle expiry gracefully: show a "session expired" dialog rather than silently failing, and clear sensitive data on logout. A centralized auth context or store provides `user`, `login`, `logout`, and `isAuthenticated` to the entire app, keeping auth logic in one place.
+
+</Answer>
+<Answer lang="ru">
+
+**Архитектура аутентификации** во фронтенд-приложении строится вокруг безопасного хранения учётных данных, управления жизненным циклом токенов и защиты маршрутов. Наиболее распространённый подход использует **JWT access-токены** (короткоживущие, хранятся в памяти) в паре с **refresh-токенами** (долгоживущие, хранятся в HttpOnly-куке). Хранение access-токенов в `localStorage` удобно, но уязвимо к XSS; хранение в памяти с refresh-кукой для персистентности более безопасно.
+
+**Поток обновления (refresh flow)** критически важен: когда access-токен истекает, клиент отправляет refresh-токен для получения нового access-токена — прозрачно, без прерывания пользователя. Это требует перехватчика, который ставит в очередь неудавшиеся 401-запросы, обновляет токен и повторяет их. **Защищённые маршруты** должны проверять состояние авторизации перед рендерингом, перенаправляя неаутентифицированных пользователей на страницу входа. В SSR-фреймворках вроде Next.js проверки авторизации происходят на сервере в middleware или компонентах layout, предотвращая мелькание неавторизованного контента.
+
+Для **OAuth/социального входа** фронтенд обычно перенаправляет на страницу авторизации провайдера и обрабатывает callback с кодом авторизации. Бэкенд обменивает код на токены, устанавливает сессию и перенаправляет обратно. **Управление сессией** должно корректно обрабатывать истечение: показывать диалог «сессия истекла» вместо молчаливого сбоя и очищать чувствительные данные при выходе. Централизованный контекст или стор авторизации предоставляет `user`, `login`, `logout` и `isAuthenticated` всему приложению, сохраняя логику авторизации в одном месте.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Auth architecture with token refresh and protected routes
+
+// Auth context providing state to the entire app
+interface AuthContextType {
+  user: User | null;
+  login: (credentials: Credentials) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  let accessToken: string | null = null; // In-memory only
+
+  const login = async (credentials: Credentials) => {
+    const response = await api.post<AuthResponse>("/auth/login", credentials);
+    accessToken = response.accessToken;
+    // Refresh token set as HttpOnly cookie by server
+    setUser(response.user);
+  };
+
+  const logout = () => {
+    accessToken = null;
+    setUser(null);
+    api.post("/auth/logout", {});
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// Protected route component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  if (!isAuthenticated) {
+    router.replace("/login");
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
+// Token refresh interceptor
+async function fetchWithRefresh(url: string, options: RequestInit) {
+  let response = await fetch(url, options);
+
+  if (response.status === 401) {
+    const refreshResponse = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include", // sends HttpOnly cookie
+    });
+
+    if (refreshResponse.ok) {
+      const { accessToken } = await refreshResponse.json();
+      // Retry original request with new token
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${accessToken}`,
+      };
+      response = await fetch(url, options);
+    }
+  }
+
+  return response;
+}
+```

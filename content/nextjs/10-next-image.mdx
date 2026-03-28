@@ -1,0 +1,106 @@
+---
+title: "Как next/image оптимизирует изображения?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The `next/image` component (imported from `next/image`) provides **automatic image optimization** in Next.js. It serves images in modern formats like **WebP** and **AVIF**, resizes them on-demand based on the device's viewport, and applies **lazy loading** by default so images outside the viewport aren't fetched until the user scrolls near them. This significantly reduces page weight and improves Core Web Vitals.
+
+The component requires explicit `width` and `height` props (or `fill` for responsive containers) to prevent **Cumulative Layout Shift (CLS)**. For above-the-fold images like hero banners, you should add the `priority` prop to preload them. The `sizes` prop tells the browser which image size to download at different viewport widths, preventing oversized images on mobile devices. You can also use `placeholder="blur"` with a `blurDataURL` for a smooth loading experience.
+
+For external images, you must configure allowed domains in `next.config.ts` under the `images.remotePatterns` property. Next.js caches optimized images and serves them from `/_next/image` with proper cache headers. The image optimizer works on-demand — images are optimized when first requested, not at build time, which keeps build times fast even with many images.
+
+</Answer>
+<Answer lang="ru">
+
+Компонент `next/image` (импортируемый из `next/image`) обеспечивает **автоматическую оптимизацию изображений** в Next.js. Он отдаёт изображения в современных форматах, таких как **WebP** и **AVIF**, изменяет их размер по запросу в зависимости от области просмотра устройства и применяет **ленивую загрузку** по умолчанию, чтобы изображения за пределами экрана не загружались, пока пользователь не прокрутит к ним. Это значительно уменьшает вес страницы и улучшает Core Web Vitals.
+
+Компонент требует явных пропсов `width` и `height` (или `fill` для адаптивных контейнеров) для предотвращения **Cumulative Layout Shift (CLS)**. Для изображений выше линии сгиба, таких как баннеры, следует добавлять проп `priority` для предзагрузки. Проп `sizes` сообщает браузеру, какой размер изображения загружать при разных размерах области просмотра, предотвращая загрузку слишком больших изображений на мобильных устройствах. Также можно использовать `placeholder="blur"` с `blurDataURL` для плавной загрузки.
+
+Для внешних изображений необходимо настроить разрешённые домены в `next.config.ts` в свойстве `images.remotePatterns`. Next.js кэширует оптимизированные изображения и отдаёт их из `/_next/image` с правильными заголовками кэширования. Оптимизатор работает по запросу — изображения оптимизируются при первом обращении, а не при сборке, что сохраняет быструю сборку даже при большом количестве изображений.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Basic usage with fixed dimensions
+import Image from "next/image";
+
+export default function Avatar() {
+  return (
+    <Image
+      src="/avatar.jpg"
+      alt="User avatar"
+      width={64}
+      height={64}
+      className="rounded-full"
+    />
+  );
+}
+```
+
+```tsx
+// Responsive image with sizes and priority
+import Image from "next/image";
+
+export default function HeroBanner() {
+  return (
+    <section>
+      <Image
+        src="/hero.jpg"
+        alt="Welcome to our site"
+        width={1200}
+        height={600}
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+        priority // Preload — no lazy loading for above-the-fold
+        placeholder="blur"
+        blurDataURL="data:image/jpeg;base64,/9j/4AAQ..." // Tiny base64 image
+      />
+    </section>
+  );
+}
+```
+
+```tsx
+// Fill mode for responsive containers
+import Image from "next/image";
+
+export default function Card({ imageUrl }: { imageUrl: string }) {
+  return (
+    <div style={{ position: "relative", width: "100%", aspectRatio: "16/9" }}>
+      <Image
+        src={imageUrl}
+        alt="Card image"
+        fill
+        sizes="(max-width: 768px) 100vw, 33vw"
+        style={{ objectFit: "cover" }}
+      />
+    </div>
+  );
+}
+```
+
+```typescript
+// next.config.ts — Configure remote image domains
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.example.com",
+        pathname: "/images/**",
+      },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
+    ],
+  },
+};
+
+export default nextConfig;
+```

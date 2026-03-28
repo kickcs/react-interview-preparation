@@ -1,0 +1,66 @@
+---
+title: "Какие различия между npm, yarn, pnpm и bun?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Package managers** are tools that automate installing, updating, and removing JavaScript dependencies. The four main options today are **npm**, **yarn**, **pnpm**, and **bun**, each with different approaches to dependency resolution, performance, and workspace support.
+
+**npm** is the default package manager that ships with Node.js. It uses a flat `node_modules` structure and a `package-lock.json` lock file. While it has improved significantly in recent versions, it can still be slower than alternatives for large projects.
+
+**yarn** (Classic and Berry/v2+) introduced lock files and parallel installs before npm adopted them. Yarn Berry supports **Plug'n'Play (PnP)**, which eliminates `node_modules` entirely by resolving packages through a `.pnp.cjs` file. Yarn also has robust **workspace** support for monorepos.
+
+**pnpm** uses a content-addressable store and **symlinks** to avoid duplicating packages across projects. This solves the **phantom dependency** problem — in npm/yarn, a package can accidentally import a transitive dependency it did not declare. pnpm's strict `node_modules` layout prevents this. It is also faster and uses significantly less disk space.
+
+**bun** is an all-in-one JavaScript runtime that includes a package manager. It installs dependencies dramatically faster than all other options because it uses native code (Zig) for resolution and extraction. Bun uses a `bun.lock` file and is compatible with the npm registry.
+
+| Feature | npm | yarn | pnpm | bun |
+|---------|-----|------|------|-----|
+| Lock file | package-lock.json | yarn.lock | pnpm-lock.yaml | bun.lock |
+| Speed | Moderate | Fast | Fast | Fastest |
+| Disk usage | High | High (Classic) | Low (shared store) | Moderate |
+| Phantom deps | Possible | Possible | Prevented | Possible |
+| Workspaces | Yes | Yes | Yes | Yes |
+
+</Answer>
+<Answer lang="ru">
+
+**Пакетные менеджеры** — это инструменты для автоматизации установки, обновления и удаления JavaScript-зависимостей. Четыре основных варианта сегодня: **npm**, **yarn**, **pnpm** и **bun**, каждый со своим подходом к разрешению зависимостей, производительности и поддержке рабочих пространств.
+
+**npm** — пакетный менеджер по умолчанию, поставляемый с Node.js. Он использует плоскую структуру `node_modules` и lock-файл `package-lock.json`. Хотя он значительно улучшился в последних версиях, для больших проектов он всё ещё может быть медленнее альтернатив.
+
+**yarn** (Classic и Berry/v2+) внедрил lock-файлы и параллельную установку раньше npm. Yarn Berry поддерживает **Plug'n'Play (PnP)**, который полностью исключает `node_modules`, разрешая пакеты через файл `.pnp.cjs`. Yarn также имеет надёжную поддержку **workspace** для монорепозиториев.
+
+**pnpm** использует контентно-адресуемое хранилище и **символические ссылки**, чтобы избежать дублирования пакетов между проектами. Это решает проблему **фантомных зависимостей** — в npm/yarn пакет может случайно импортировать транзитивную зависимость, которую он не объявлял. Строгая структура `node_modules` в pnpm предотвращает это. Он также быстрее и использует значительно меньше дискового пространства.
+
+**bun** — это универсальная среда выполнения JavaScript, включающая пакетный менеджер. Он устанавливает зависимости значительно быстрее всех остальных, потому что использует нативный код (Zig) для разрешения и извлечения. Bun использует файл `bun.lock` и совместим с реестром npm.
+
+| Характеристика | npm | yarn | pnpm | bun |
+|---------|-----|------|------|-----|
+| Lock-файл | package-lock.json | yarn.lock | pnpm-lock.yaml | bun.lock |
+| Скорость | Умеренная | Быстрая | Быстрая | Самая быстрая |
+| Использование диска | Высокое | Высокое (Classic) | Низкое (общее хранилище) | Умеренное |
+| Фантомные зависимости | Возможны | Возможны | Предотвращены | Возможны |
+| Workspaces | Да | Да | Да | Да |
+
+</Answer>
+</AnswerGroup>
+
+```json
+{
+  "workspaces": ["packages/*", "apps/*"],
+  "dependencies": {
+    "react": "^19.0.0"
+  }
+}
+```
+
+```bash
+# Install speeds comparison (approximate for a medium project)
+npm install        # ~15s
+yarn install       # ~10s
+pnpm install       # ~8s
+bun install        # ~2s
+```

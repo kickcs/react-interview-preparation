@@ -1,0 +1,93 @@
+---
+title: "Как спроектировать коммуникацию с API для фронтенда?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A well-designed **API communication layer** abstracts HTTP details behind a typed client so that components never deal with raw `fetch` calls. The core abstraction is an **API client class or module** that centralizes base URL configuration, default headers, authentication tokens, and content-type handling. This single point of configuration means changing your auth strategy or API version only requires updating one place.
+
+**Request/response interceptors** are essential for cross-cutting concerns. A request interceptor attaches the auth token to every outgoing request. A response interceptor can handle 401 errors globally by triggering a token refresh or redirect to login. **Error handling** should distinguish between network errors, server errors (5xx), client errors (4xx), and validation errors, transforming them into a consistent shape your UI can display. **Retry logic** with exponential backoff protects against transient failures, and **request cancellation** via `AbortController` prevents stale responses from overwriting fresh data when users navigate away.
+
+Type safety across the API boundary dramatically reduces bugs. Define your request and response types (ideally generated from an OpenAPI spec or GraphQL schema) and use them in both the API client and the consuming components. Combine this typed client with a server-state library like TanStack Query to get automatic caching, deduplication, and background refetching, creating a robust data layer with minimal boilerplate.
+
+</Answer>
+<Answer lang="ru">
+
+Хорошо спроектированный **слой коммуникации с API** абстрагирует детали HTTP за типизированным клиентом, так что компоненты никогда не работают с сырыми вызовами `fetch`. Основная абстракция — это **класс или модуль API-клиента**, который централизует настройку базового URL, заголовков по умолчанию, токенов аутентификации и обработку типов контента. Единая точка конфигурации означает, что изменение стратегии авторизации или версии API требует обновления только одного места.
+
+**Перехватчики запросов и ответов (interceptors)** необходимы для сквозных задач. Перехватчик запроса прикрепляет токен авторизации к каждому исходящему запросу. Перехватчик ответа может глобально обрабатывать ошибки 401, запуская обновление токена или перенаправление на логин. **Обработка ошибок** должна различать сетевые ошибки, серверные ошибки (5xx), клиентские ошибки (4xx) и ошибки валидации, преобразуя их в единообразный формат для отображения. **Логика повторных попыток** с экспоненциальной задержкой защищает от временных сбоев, а **отмена запросов** через `AbortController` предотвращает перезапись свежих данных устаревшими ответами при навигации.
+
+Типобезопасность на границе API кардинально сокращает ошибки. Определите типы запросов и ответов (в идеале сгенерированные из OpenAPI-спецификации или GraphQL-схемы) и используйте их как в API-клиенте, так и в компонентах-потребителях. Объедините типизированный клиент с библиотекой серверного состояния вроде TanStack Query для автоматического кеширования, дедупликации и фонового обновления, создавая надёжный слой данных с минимальным шаблонным кодом.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Typed API client with interceptors and error handling
+
+interface ApiError {
+  status: number;
+  message: string;
+  errors?: Record<string, string[]>;
+}
+
+class ApiClient {
+  private baseUrl: string;
+  private getToken: () => string | null;
+
+  constructor(baseUrl: string, getToken: () => string | null) {
+    this.baseUrl = baseUrl;
+    this.getToken = getToken;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = this.getToken();
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      if (response.status === 401) {
+        // Trigger token refresh or redirect
+        window.dispatchEvent(new CustomEvent("auth:expired"));
+      }
+      throw error;
+    }
+
+    return response.json();
+  }
+
+  get<T>(endpoint: string, signal?: AbortSignal) {
+    return this.request<T>(endpoint, { signal });
+  }
+
+  post<T>(endpoint: string, data: unknown) {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+}
+
+// Usage with TanStack Query
+const api = new ApiClient("/api/v1", () => localStorage.getItem("token"));
+
+function useUsers() {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: ({ signal }) => api.get<User[]>("/users", signal),
+  });
+}
+```

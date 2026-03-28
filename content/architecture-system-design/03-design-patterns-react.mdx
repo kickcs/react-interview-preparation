@@ -1,0 +1,77 @@
+---
+title: "Какие паттерны проектирования используются в React?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Classical **design patterns** appear throughout React codebases, often in adapted forms. The **Observer pattern** is the foundation of React's reactivity: when state changes, all subscribing components re-render. Libraries like Zustand and Redux formalize this with `subscribe` APIs. The **Strategy pattern** lets you swap algorithms at runtime — passing different sort or filter functions as props is a direct application. The **Factory pattern** appears when you dynamically create components based on config, such as a form builder that maps field types to component classes.
+
+The **Singleton pattern** is common in state management: a single store instance (Redux store, Zustand store) shared across the entire app via context or module scope. The **Mediator pattern** shows up in event buses or state managers that coordinate communication between unrelated components without them knowing about each other. The **Adapter pattern** is useful when wrapping third-party libraries to present a consistent interface — for example, wrapping different map providers behind a unified `<Map>` component.
+
+Understanding these patterns helps you recognize recurring solutions and communicate architecture decisions. However, React's functional and compositional nature means you should prefer hooks and composition over class-based pattern implementations. The goal is solving the problem cleanly, not applying patterns for their own sake. Always evaluate whether a simple function or component composition achieves the same result more clearly.
+
+</Answer>
+<Answer lang="ru">
+
+Классические **паттерны проектирования** встречаются повсюду в React-кодовых базах, часто в адаптированных формах. **Паттерн Наблюдатель (Observer)** — основа реактивности React: при изменении состояния все подписанные компоненты перерендериваются. Библиотеки вроде Zustand и Redux формализуют это через API `subscribe`. **Паттерн Стратегия (Strategy)** позволяет подменять алгоритмы в рантайме — передача разных функций сортировки или фильтрации через пропсы является прямым применением. **Паттерн Фабрика (Factory)** появляется при динамическом создании компонентов на основе конфигурации, например в конструкторе форм, который сопоставляет типы полей с компонентами.
+
+**Паттерн Одиночка (Singleton)** типичен для управления состоянием: единственный экземпляр стора (Redux store, Zustand store), разделяемый по всему приложению через контекст или область видимости модуля. **Паттерн Посредник (Mediator)** проявляется в шинах событий или менеджерах состояния, которые координируют коммуникацию между несвязанными компонентами, не зная друг о друге. **Паттерн Адаптер (Adapter)** полезен при оборачивании сторонних библиотек для представления единообразного интерфейса — например, обёртка разных провайдеров карт за единым компонентом `<Map>`.
+
+Понимание этих паттернов помогает распознавать повторяющиеся решения и обсуждать архитектурные решения. Однако функциональная и композиционная природа React означает, что следует предпочитать хуки и композицию классовым реализациям паттернов. Цель — чистое решение проблемы, а не применение паттернов ради паттернов. Всегда оценивайте, достигает ли простая функция или композиция компонентов того же результата более ясно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Observer — Zustand store with subscriptions
+import { create } from "zustand";
+
+const useNotificationStore = create<NotificationState>((set) => ({
+  messages: [],
+  addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+  clear: () => set({ messages: [] }),
+}));
+
+// Strategy — swap rendering strategy via props
+function SortableList<T>({
+  items,
+  sortFn,
+  renderItem,
+}: {
+  items: T[];
+  sortFn: (a: T, b: T) => number;
+  renderItem: (item: T) => React.ReactNode;
+}) {
+  const sorted = [...items].sort(sortFn);
+  return <ul>{sorted.map(renderItem)}</ul>;
+}
+
+// Factory — dynamic component creation from config
+const componentMap: Record<string, React.FC<any>> = {
+  text: TextInput,
+  select: SelectInput,
+  checkbox: CheckboxInput,
+};
+
+function FormBuilder({ fields }: { fields: FieldConfig[] }) {
+  return (
+    <form>
+      {fields.map((field) => {
+        const Component = componentMap[field.type];
+        return Component ? <Component key={field.name} {...field} /> : null;
+      })}
+    </form>
+  );
+}
+
+// Adapter — unified interface for different providers
+function MapAdapter({ provider, ...props }: MapProps) {
+  switch (provider) {
+    case "google": return <GoogleMapWrapper {...props} />;
+    case "mapbox": return <MapboxWrapper {...props} />;
+    default: return <LeafletWrapper {...props} />;
+  }
+}
+```

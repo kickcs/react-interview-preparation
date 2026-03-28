@@ -1,0 +1,47 @@
+---
+title: "Что такое жизненный цикл компонента?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Every React component goes through three main phases: **mounting** (the component is created and inserted into the DOM), **updating** (the component re-renders due to changes in props or state), and **unmounting** (the component is removed from the DOM). Understanding these phases is essential for managing side effects like data fetching, subscriptions, and manual DOM manipulation.
+
+In class components, lifecycle methods correspond directly to these phases: `componentDidMount` runs after the first render, `componentDidUpdate` runs after every subsequent render, and `componentWillUnmount` runs before removal. In functional components, the **useEffect** hook covers all three phases. An effect with an empty dependency array (`[]`) runs once on mount. An effect with dependencies runs on mount and whenever those dependencies change. The cleanup function returned from an effect runs before the effect re-executes and when the component unmounts.
+
+It is important to always clean up side effects to avoid **memory leaks**. Common examples include clearing timers with `clearInterval`, unsubscribing from event listeners or WebSocket connections, and cancelling pending network requests. The cleanup function in `useEffect` is the idiomatic way to handle this in modern React.
+
+</Answer>
+<Answer lang="ru">
+
+Каждый компонент React проходит через три основные фазы: **монтирование** (компонент создаётся и вставляется в DOM), **обновление** (компонент перерисовывается из-за изменений пропсов или состояния) и **размонтирование** (компонент удаляется из DOM). Понимание этих фаз необходимо для управления побочными эффектами, такими как загрузка данных, подписки и ручная работа с DOM.
+
+В классовых компонентах методы жизненного цикла напрямую соответствуют этим фазам: `componentDidMount` выполняется после первого рендера, `componentDidUpdate` — после каждого последующего рендера, а `componentWillUnmount` — перед удалением. В функциональных компонентах хук **useEffect** охватывает все три фазы. Эффект с пустым массивом зависимостей (`[]`) выполняется один раз при монтировании. Эффект с зависимостями выполняется при монтировании и при каждом изменении этих зависимостей. Функция очистки, возвращаемая из эффекта, выполняется перед повторным запуском эффекта и при размонтировании компонента.
+
+Важно всегда очищать побочные эффекты, чтобы избежать **утечек памяти**. Распространённые примеры: очистка таймеров с помощью `clearInterval`, отписка от обработчиков событий или WebSocket-соединений, отмена незавершённых сетевых запросов. Функция очистки в `useEffect` — идиоматический способ справиться с этим в современном React.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useEffect } from "react";
+
+function Timer() {
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    // Runs on mount — start the timer
+    const intervalId = setInterval(() => {
+      setSeconds(prev => prev + 1);
+    }, 1000);
+
+    // Cleanup — runs on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  return <p>Elapsed: {seconds}s</p>;
+}
+```

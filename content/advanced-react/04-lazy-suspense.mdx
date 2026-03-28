@@ -1,0 +1,71 @@
+---
+title: "Как работают React.lazy и Suspense?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React.lazy** is a function that lets you load a component lazily via dynamic `import()`. It takes a function that returns a Promise resolving to a module with a default export. The component is only fetched when it is first rendered, enabling **code splitting** — the browser downloads only the code it needs.
+
+**Suspense** is a component that wraps lazy-loaded (or async) content and displays a **fallback UI** while the content is loading. When a lazy component is loading, React "suspends" rendering of that subtree and shows the fallback until the Promise resolves. You can nest multiple Suspense boundaries to control loading states at different granularity levels.
+
+If the lazy import fails (e.g., network error), React will throw an error. You should wrap your Suspense boundary with an **Error Boundary** to catch these failures and show an error UI. Together, React.lazy, Suspense, and Error Boundaries form a complete pattern for asynchronous component loading with proper loading and error states.
+
+</Answer>
+<Answer lang="ru">
+
+**React.lazy** — это функция, которая позволяет загружать компонент лениво через динамический `import()`. Она принимает функцию, возвращающую промис, который резолвится в модуль с экспортом по умолчанию. Компонент загружается только при первом рендеринге, что обеспечивает **разделение кода** — браузер скачивает только тот код, который ему нужен.
+
+**Suspense** — это компонент, который оборачивает лениво загружаемый (или асинхронный) контент и отображает **запасной UI (fallback)**, пока контент загружается. Когда ленивый компонент загружается, React «приостанавливает» рендеринг этого поддерева и показывает fallback до тех пор, пока промис не разрешится. Вы можете вкладывать несколько Suspense-границ для управления состояниями загрузки на разных уровнях детализации.
+
+Если ленивый импорт завершится ошибкой (например, сетевой сбой), React выбросит исключение. Следует обернуть вашу Suspense-границу **Error Boundary** для перехвата таких сбоев и отображения UI ошибки. Вместе React.lazy, Suspense и Error Boundaries формируют полноценный паттерн для асинхронной загрузки компонентов с корректными состояниями загрузки и ошибки.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+// Lazy-loaded route components — each becomes a separate chunk
+const Home = lazy(() => import("./pages/Home"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Settings = lazy(() => import("./pages/Settings"));
+
+// Error boundary for catching load failures
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <p>Failed to load. Please refresh the page.</p>;
+    }
+    return this.props.children;
+  }
+}
+
+// Usage — Suspense shows spinner while chunks load
+function App() {
+  return (
+    <BrowserRouter>
+      <ErrorBoundary>
+        <Suspense fallback={<div>Loading...</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    </BrowserRouter>
+  );
+}
+```

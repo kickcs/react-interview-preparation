@@ -1,0 +1,88 @@
+---
+title: "Как работают generics в TypeScript?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Generics** allow you to write reusable code that works with any type while preserving type safety. Instead of using `any`, a generic function or interface accepts a **type parameter** (conventionally named `T`) that gets filled in when the code is used. This means you write the logic once and TypeScript infers or enforces the correct types at each call site.
+
+You can add **constraints** to generics using the `extends` keyword to limit what types are acceptable. For example, `<T extends object>` ensures `T` is an object type. Generics can also have **default types**, like `<T = string>`, which are used when no type argument is provided. Generic interfaces and type aliases let you create reusable data structures like `ApiResponse<T>`.
+
+In React, generics are invaluable for creating **reusable hooks and utility functions**. A generic data-fetching hook can return properly typed data without the consumer needing to cast. Generic components (covered in a separate question) extend this pattern to the JSX level.
+
+</Answer>
+<Answer lang="ru">
+
+**Обобщения** (generics) позволяют писать переиспользуемый код, который работает с любым типом, сохраняя при этом типобезопасность. Вместо использования `any` обобщённая функция или интерфейс принимает **параметр типа** (обычно именуемый `T`), который заполняется при использовании кода. Это означает, что вы пишете логику один раз, а TypeScript выводит или проверяет правильные типы в каждом месте вызова.
+
+Вы можете добавлять **ограничения** к обобщениям с помощью ключевого слова `extends`, чтобы ограничить допустимые типы. Например, `<T extends object>` гарантирует, что `T` является объектным типом. Обобщения также могут иметь **типы по умолчанию**, как `<T = string>`, которые используются, когда аргумент типа не предоставлен. Обобщённые интерфейсы и типовые псевдонимы позволяют создавать переиспользуемые структуры данных вроде `ApiResponse<T>`.
+
+В React обобщения бесценны для создания **переиспользуемых хуков и утилитарных функций**. Обобщённый хук для загрузки данных может возвращать правильно типизированные данные без необходимости приведения типов со стороны потребителя. Обобщённые компоненты (рассматриваются в отдельном вопросе) расширяют этот паттерн до уровня JSX.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Basic generic function
+function identity<T>(value: T): T {
+  return value;
+}
+
+const str = identity("hello"); // type: string
+const num = identity(42);      // type: number
+
+// Generic with constraint
+function getProperty<T extends object, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+
+const user = { name: "Alice", age: 30 };
+const name = getProperty(user, "name"); // type: string
+// getProperty(user, "email"); // Error: "email" is not in keyof typeof user
+
+// Generic interface with default type
+interface ApiResponse<T = unknown> {
+  data: T;
+  status: number;
+  message: string;
+}
+
+type UserResponse = ApiResponse<{ name: string; email: string }>;
+type GenericResponse = ApiResponse; // T defaults to unknown
+```
+
+```tsx
+// Generic data fetching hook
+function useFetch<T>(url: string) {
+  const [data, setData] = React.useState<T | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<Error | null>(null);
+
+  React.useEffect(() => {
+    fetch(url)
+      .then((res) => res.json())
+      .then((json: T) => setData(json))
+      .catch((err) => setError(err))
+      .finally(() => setLoading(false));
+  }, [url]);
+
+  return { data, loading, error };
+}
+
+// Usage — data is properly typed
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function UserProfile() {
+  const { data: user, loading } = useFetch<User>("/api/user/1");
+
+  if (loading) return <p>Loading...</p>;
+  // user is User | null here, TypeScript knows the shape
+  return <p>{user?.name}</p>;
+}
+```

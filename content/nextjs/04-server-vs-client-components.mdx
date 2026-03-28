@@ -1,0 +1,104 @@
+---
+title: "Как работают Server и Client Components в Next.js?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+In the Next.js App Router, all components are **Server Components** by default. They run only on the server, have direct access to backend resources (databases, file system, environment variables), and send zero JavaScript to the browser. This significantly reduces the client bundle size and improves performance.
+
+**Client Components** are opted into by adding the `'use client'` directive at the top of a file. They are needed when you use browser APIs, React hooks (`useState`, `useEffect`), event handlers, or third-party libraries that depend on the browser. The `'use client'` directive creates a **boundary** — everything imported into that file becomes part of the client bundle.
+
+A key composition pattern is passing Server Components as `children` to Client Components. Since the Server Component is already rendered on the server, it can be passed as a prop without being pulled into the client bundle. Props passed from Server to Client Components must be **serializable** (no functions, classes, or Date objects). This constraint ensures data can cross the server-client boundary safely.
+
+</Answer>
+<Answer lang="ru">
+
+В App Router Next.js все компоненты по умолчанию являются **серверными компонентами** (Server Components). Они выполняются только на сервере, имеют прямой доступ к бэкенд-ресурсам (базы данных, файловая система, переменные окружения) и не отправляют JavaScript в браузер. Это значительно уменьшает размер клиентского бандла и улучшает производительность.
+
+**Клиентские компоненты** (Client Components) включаются добавлением директивы `'use client'` в начало файла. Они нужны при использовании браузерных API, React-хуков (`useState`, `useEffect`), обработчиков событий или сторонних библиотек, зависящих от браузера. Директива `'use client'` создаёт **границу** — всё, что импортируется в этот файл, становится частью клиентского бандла.
+
+Ключевой паттерн композиции — передача серверных компонентов как `children` в клиентские компоненты. Поскольку серверный компонент уже отрендерен на сервере, он может быть передан как проп без включения в клиентский бандл. Пропсы, передаваемые от серверных к клиентским компонентам, должны быть **сериализуемыми** (никаких функций, классов или объектов Date). Это ограничение гарантирует безопасную передачу данных через границу сервер-клиент.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/posts/page.tsx — Server Component (default, no directive needed)
+
+import { LikeButton } from "./like-button";
+
+async function getPosts() {
+  const res = await fetch("https://api.example.com/posts");
+  return res.json();
+}
+
+export default async function PostsPage() {
+  // Direct async data fetching — only possible in Server Components
+  const posts = await getPosts();
+
+  return (
+    <ul>
+      {posts.map((post: { id: number; title: string }) => (
+        <li key={post.id}>
+          <h2>{post.title}</h2>
+          {/* Client Component for interactivity */}
+          <LikeButton postId={post.id} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+```tsx
+// app/posts/like-button.tsx — Client Component
+"use client";
+
+import { useState } from "react";
+
+export function LikeButton({ postId }: { postId: number }) {
+  const [liked, setLiked] = useState(false);
+
+  return (
+    <button onClick={() => setLiked(!liked)}>
+      {liked ? "❤️" : "🤍"} {liked ? "Liked" : "Like"}
+    </button>
+  );
+}
+```
+
+```tsx
+// Composition pattern: Server Component as children of Client Component
+
+// client-wrapper.tsx
+"use client";
+
+import { useState } from "react";
+
+export function Accordion({ children }: { children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div>
+      <button onClick={() => setIsOpen(!isOpen)}>Toggle</button>
+      {isOpen && children}
+    </div>
+  );
+}
+
+// page.tsx — Server Component
+import { Accordion } from "./client-wrapper";
+
+export default async function Page() {
+  const data = await fetchData(); // Server-side fetch
+
+  return (
+    <Accordion>
+      {/* This Server Component content is pre-rendered on the server */}
+      <div>{data.content}</div>
+    </Accordion>
+  );
+}
+```

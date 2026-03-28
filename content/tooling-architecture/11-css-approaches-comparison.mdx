@@ -1,0 +1,91 @@
+---
+title: "Как сравниваются разные подходы к CSS?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Modern frontend development offers many **CSS approaches**, each with different trade-offs in developer experience, performance, and server-side rendering compatibility.
+
+**CSS Modules** scope class names locally by generating unique identifiers at build time (e.g., `.button` becomes `.Button_button_a1b2c`). They work with any framework, have zero runtime cost, and support SSR perfectly. The downside is that dynamic styling requires combining multiple classes or CSS variables.
+
+**Tailwind CSS** is a **utility-first** framework where you compose styles directly in JSX using predefined classes like `flex`, `p-4`, `text-blue-500`. It eliminates the need to name things and produces small bundles because unused utilities are purged at build time. The learning curve is the class names themselves, but once learned, development speed is excellent.
+
+**CSS-in-JS** libraries like **styled-components** and **Emotion** let you write CSS inside JavaScript, enabling fully dynamic styles based on props. However, they have a **runtime cost** — styles are computed and injected into the DOM at render time. This is especially problematic with React Server Components, where client-side runtime is undesirable. **vanilla-extract** solves this by extracting styles to static CSS files at build time with full TypeScript support, giving you the DX of CSS-in-JS without the runtime overhead.
+
+| Approach | Runtime cost | SSR support | Dynamic styles | TypeScript | Bundle size |
+|----------|-------------|-------------|----------------|------------|-------------|
+| CSS Modules | None | Excellent | Limited | Partial | Small |
+| Tailwind CSS | None | Excellent | Via classes | N/A | Very small |
+| styled-components | High | Requires setup | Full | Yes | Larger |
+| vanilla-extract | None | Excellent | Via vars | Full | Small |
+
+</Answer>
+<Answer lang="ru">
+
+Современная фронтенд-разработка предлагает множество **подходов к CSS**, каждый с разными компромиссами в Developer Experience, производительности и совместимости с серверным рендерингом.
+
+**CSS Modules** ограничивают область видимости имён классов локально, генерируя уникальные идентификаторы во время сборки (например, `.button` становится `.Button_button_a1b2c`). Они работают с любым фреймворком, не имеют затрат во время выполнения и отлично поддерживают SSR. Недостаток в том, что динамическая стилизация требует комбинирования нескольких классов или CSS-переменных.
+
+**Tailwind CSS** — **utility-first** фреймворк, где стили компонуются прямо в JSX с помощью предопределённых классов: `flex`, `p-4`, `text-blue-500`. Он избавляет от необходимости придумывать названия и создаёт маленькие бандлы, потому что неиспользуемые утилиты удаляются при сборке. Кривая обучения — это сами имена классов, но после их освоения скорость разработки превосходна.
+
+Библиотеки **CSS-in-JS**, такие как **styled-components** и **Emotion**, позволяют писать CSS внутри JavaScript, обеспечивая полностью динамические стили на основе пропсов. Однако они имеют **затраты во время выполнения** — стили вычисляются и внедряются в DOM при рендеринге. Это особенно проблематично с React Server Components, где клиентский рантайм нежелателен. **vanilla-extract** решает это, извлекая стили в статические CSS-файлы при сборке с полной поддержкой TypeScript, давая DX CSS-in-JS без накладных расходов рантайма.
+
+| Подход | Рантайм-затраты | Поддержка SSR | Динамические стили | TypeScript | Размер бандла |
+|----------|-------------|-------------|----------------|------------|-------------|
+| CSS Modules | Нет | Отличная | Ограниченные | Частичная | Маленький |
+| Tailwind CSS | Нет | Отличная | Через классы | Н/П | Очень маленький |
+| styled-components | Высокие | Требует настройки | Полные | Да | Больше |
+| vanilla-extract | Нет | Отличная | Через переменные | Полная | Маленький |
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+/* CSS Modules */
+// Button.module.css → import styles from "./Button.module.css"
+// <button className={styles.primary}>Click</button>
+
+/* Tailwind CSS */
+// <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+//   Click
+// </button>
+
+/* styled-components (runtime CSS-in-JS) */
+import styled from "styled-components";
+
+const StyledButton = styled.button<{ $primary?: boolean }>`
+  background: ${(props) => (props.$primary ? "#2563eb" : "#e5e7eb")};
+  color: ${(props) => (props.$primary ? "white" : "#111827")};
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+// <StyledButton $primary>Click</StyledButton>
+```
+
+```typescript
+/* vanilla-extract (zero-runtime CSS-in-JS) */
+// Button.css.ts
+import { style, styleVariants } from "@vanilla-extract/css";
+
+const base = style({
+  padding: "8px 16px",
+  borderRadius: 6,
+  border: "none",
+  cursor: "pointer",
+  ":hover": { opacity: 0.9 },
+});
+
+export const variant = styleVariants({
+  primary: [base, { background: "#2563eb", color: "white" }],
+  secondary: [base, { background: "#e5e7eb", color: "#111827" }],
+});
+```

@@ -1,0 +1,77 @@
+---
+title: "Что такое бюджет производительности?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **performance budget** is a set of quantitative limits on metrics that affect user experience, established before or during development and enforced in CI. Typical budgets cover **bundle size** (e.g., main JS bundle under 200 KB gzipped), **Core Web Vitals** (LCP under 2.5s, CLS under 0.1, INP under 200ms), and **load time** (TTI under 3s on 4G). The budget makes performance a feature, not an afterthought — every new dependency or feature must fit within the constraints.
+
+Setting a budget starts with understanding your users' devices and network conditions. If your audience is on mid-range mobile with 3G, your budget will be much tighter than for desktop users on fiber. Analyze your competitors' performance to set a realistic but ambitious target. Once established, the budget should be **enforced automatically in CI** — builds fail if a bundle exceeds the limit, just like a failing test. Tools like `bundlesize`, `size-limit`, or Lighthouse CI integrate into your pipeline for this.
+
+**Monitoring regression** in production is equally important. Use **Real User Monitoring (RUM)** to track actual performance from real devices and networks — synthetic lab tests alone miss the full picture. Set up alerting when metrics drift above thresholds. When someone introduces a heavy library, the CI check catches it before merge. When a backend change slows an API, RUM catches it in production. Together, budget enforcement and monitoring create a feedback loop that keeps performance on track as the application grows.
+
+</Answer>
+<Answer lang="ru">
+
+**Бюджет производительности** — это набор количественных ограничений на метрики, влияющие на пользовательский опыт, установленных до или во время разработки и применяемых в CI. Типичные бюджеты охватывают **размер бандла** (например, основной JS-бандл до 200 КБ в gzip), **Core Web Vitals** (LCP менее 2.5 сек, CLS менее 0.1, INP менее 200 мс) и **время загрузки** (TTI менее 3 сек на 4G). Бюджет делает производительность фичей, а не запоздалой мыслью — каждая новая зависимость или функция должна вписываться в ограничения.
+
+Установка бюджета начинается с понимания устройств и сетевых условий ваших пользователей. Если ваша аудитория на среднем мобильном с 3G, бюджет будет гораздо жёстче, чем для десктоп-пользователей на оптоволокне. Проанализируйте производительность конкурентов, чтобы установить реалистичную, но амбициозную цель. После установки бюджет должен **автоматически проверяться в CI** — сборка падает, если бандл превышает лимит, точно так же как при падении теста. Инструменты вроде `bundlesize`, `size-limit` или Lighthouse CI интегрируются в ваш пайплайн.
+
+**Мониторинг регрессий** в продакшене не менее важен. Используйте **Real User Monitoring (RUM)** для отслеживания реальной производительности с реальных устройств и сетей — синтетические лабораторные тесты не дают полной картины. Настройте алертинг при превышении порогов. Когда кто-то добавляет тяжёлую библиотеку, CI-проверка ловит это до мержа. Когда изменение бэкенда замедляет API, RUM ловит это в продакшене. Вместе бюджетный контроль и мониторинг создают обратную связь, поддерживающую производительность по мере роста приложения.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// size-limit configuration in package.json
+// Enforced in CI — build fails if budgets are exceeded
+
+// .size-limit.json
+[
+  {
+    "path": "dist/static/js/main.*.js",
+    "limit": "200 kB",
+    "gzip": true
+  },
+  {
+    "path": "dist/static/js/vendor.*.js",
+    "limit": "150 kB",
+    "gzip": true
+  },
+  {
+    "path": "dist/static/css/*.css",
+    "limit": "50 kB",
+    "gzip": true
+  }
+]
+
+// Lighthouse CI configuration — lighthouserc.js
+module.exports = {
+  ci: {
+    collect: {
+      url: ["http://localhost:3000", "http://localhost:3000/products"],
+      numberOfRuns: 3,
+    },
+    assert: {
+      assertions: {
+        "categories:performance": ["error", { minScore: 0.9 }],
+        "first-contentful-paint": ["warn", { maxNumericValue: 1500 }],
+        "largest-contentful-paint": ["error", { maxNumericValue: 2500 }],
+        "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],
+        "total-byte-weight": ["error", { maxNumericValue: 500000 }],
+      },
+    },
+    upload: {
+      target: "temporary-public-storage",
+    },
+  },
+};
+
+// GitHub Actions step for budget enforcement
+// - name: Check bundle size
+//   run: npx size-limit
+// - name: Lighthouse CI
+//   run: npx @lhci/cli autorun
+```

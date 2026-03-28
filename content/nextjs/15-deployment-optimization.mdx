@@ -1,0 +1,131 @@
+---
+title: "Как развернуть и оптимизировать Next.js приложение?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The simplest way to deploy a Next.js app is on **Vercel**, the platform built by the creators of Next.js. Vercel provides zero-configuration deployments with automatic CI/CD from Git, edge network distribution, serverless functions for API routes and Server Components, and built-in analytics. Simply connect your repository, and Vercel handles build, deploy, and preview environments for every pull request.
+
+For **self-hosting**, Next.js supports a `standalone` output mode that bundles only the necessary files for production, dramatically reducing the Docker image size. This is configured with `output: 'standalone'` in `next.config.ts` and produces a self-contained `server.js` that can run with just Node.js. Docker multi-stage builds are the standard approach: one stage installs dependencies and builds, another creates a minimal runtime image with only the standalone output, static files, and public assets.
+
+**Optimization** strategies include: using the **Edge Runtime** for middleware and lightweight route handlers (deploy closer to users with less cold start), configuring **environment variables** properly (prefixing with `NEXT_PUBLIC_` for client-side access), enabling **bundle analysis** with `@next/bundle-analyzer` to find large dependencies, leveraging `next/dynamic` for **code splitting** heavy components, and using the `next/image` component and `next/font` for automatic image and font optimization. Monitoring with **Web Vitals** helps identify performance bottlenecks in production.
+
+</Answer>
+<Answer lang="ru">
+
+Самый простой способ развернуть приложение Next.js — на **Vercel**, платформе, созданной разработчиками Next.js. Vercel обеспечивает деплой без конфигурации с автоматическим CI/CD из Git, дистрибуцию через edge-сеть, serverless-функции для API-маршрутов и серверных компонентов, а также встроенную аналитику. Просто подключите репозиторий, и Vercel возьмёт на себя сборку, деплой и создание preview-окружений для каждого pull request.
+
+Для **самостоятельного хостинга** Next.js поддерживает режим `standalone` вывода, который бандлит только необходимые файлы для продакшена, значительно уменьшая размер Docker-образа. Это настраивается через `output: 'standalone'` в `next.config.ts` и создаёт автономный `server.js`, который может работать с одним Node.js. Docker с многоэтапной сборкой — стандартный подход: один этап устанавливает зависимости и собирает, другой создаёт минимальный runtime-образ только с standalone-выводом, статическими файлами и публичными ресурсами.
+
+Стратегии **оптимизации** включают: использование **Edge Runtime** для middleware и лёгких route handlers (деплой ближе к пользователям с меньшим холодным стартом), правильную настройку **переменных окружения** (префикс `NEXT_PUBLIC_` для клиентского доступа), включение **анализа бандла** с `@next/bundle-analyzer` для поиска тяжёлых зависимостей, использование `next/dynamic` для **разделения кода** тяжёлых компонентов, а также компоненты `next/image` и `next/font` для автоматической оптимизации изображений и шрифтов. Мониторинг через **Web Vitals** помогает выявлять узкие места производительности в продакшене.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// next.config.ts — Production configuration
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: "standalone", // Self-contained build for Docker
+
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "cdn.example.com" },
+    ],
+  },
+
+  // Environment variables (NEXT_PUBLIC_ prefix = available in browser)
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  },
+};
+
+export default nextConfig;
+```
+
+```dockerfile
+# Dockerfile — Multi-stage build for Next.js
+
+# Stage 1: Install dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN npm install -g bun && bun install --frozen-lockfile
+
+# Stage 2: Build the application
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm install -g bun && bun run build
+
+# Stage 3: Production runtime (minimal image)
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy only what's needed for production
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+```
+
+```tsx
+// Code splitting with next/dynamic
+import dynamic from "next/dynamic";
+
+// Heavy component loaded only when needed
+const HeavyChart = dynamic(() => import("@/components/chart"), {
+  loading: () => <div>Loading chart...</div>,
+  ssr: false, // Skip server rendering for browser-only libraries
+});
+
+export default function AnalyticsPage() {
+  return (
+    <div>
+      <h1>Analytics</h1>
+      <HeavyChart />
+    </div>
+  );
+}
+```
+
+```tsx
+// Web Vitals reporting
+// app/layout.tsx
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <SpeedInsights />
+        <Analytics />
+      </body>
+    </html>
+  );
+}
+```

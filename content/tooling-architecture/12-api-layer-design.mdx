@@ -1,0 +1,98 @@
+---
+title: "Как спроектировать слой API в фронтенд приложении?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **API layer** is the part of your frontend that handles all communication with backend services. A well-designed API layer centralizes request logic, enforces consistent error handling, and provides type-safe interfaces that the rest of the application depends on.
+
+The foundation is usually an **API client** — a configured instance of `fetch` or a library like **Axios**. This client sets base URLs, default headers (authentication tokens, content type), and **interceptors** that run before every request or after every response. Common interceptor patterns include automatically attaching auth tokens from storage, refreshing expired tokens, logging requests, and transforming error responses into a consistent format.
+
+For **error handling**, a good API layer distinguishes between network errors (no connection), HTTP errors (4xx, 5xx), and business logic errors (validation failures). Each type requires different handling: retrying network errors, redirecting on 401, showing validation messages for 422. Wrapping all this logic in the API layer prevents it from leaking into UI components.
+
+For large projects, **code generation** from an **OpenAPI** (Swagger) specification eliminates manual type definitions. Tools like **openapi-typescript-codegen** or **orval** read a backend's schema and generate fully typed API functions, request/response types, and even React Query hooks automatically. This ensures the frontend always matches the backend contract.
+
+</Answer>
+<Answer lang="ru">
+
+**API-слой** — это часть фронтенда, отвечающая за всю коммуникацию с бэкенд-сервисами. Хорошо спроектированный API-слой централизует логику запросов, обеспечивает единообразную обработку ошибок и предоставляет типобезопасные интерфейсы, от которых зависит остальная часть приложения.
+
+Основа — обычно **API-клиент**: настроенный экземпляр `fetch` или библиотека вроде **Axios**. Этот клиент задаёт базовые URL, заголовки по умолчанию (токены аутентификации, тип контента) и **перехватчики** (interceptors), выполняемые перед каждым запросом или после каждого ответа. Типичные паттерны перехватчиков: автоматическое прикрепление auth-токенов из хранилища, обновление истёкших токенов, логирование запросов и преобразование ответов с ошибками в единый формат.
+
+Для **обработки ошибок** хороший API-слой различает сетевые ошибки (нет соединения), HTTP-ошибки (4xx, 5xx) и ошибки бизнес-логики (ошибки валидации). Каждый тип требует разной обработки: повтор при сетевых ошибках, редирект при 401, показ сообщений валидации при 422. Инкапсуляция всей этой логики в API-слое предотвращает её проникновение в UI-компоненты.
+
+Для крупных проектов **кодогенерация** из спецификации **OpenAPI** (Swagger) избавляет от ручного создания типов. Инструменты вроде **openapi-typescript-codegen** или **orval** считывают схему бэкенда и генерируют полностью типизированные API-функции, типы запросов/ответов и даже хуки React Query автоматически. Это гарантирует, что фронтенд всегда соответствует контракту бэкенда.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// shared/api/client.ts — Typed API client with interceptors
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+class ApiError extends Error {
+  constructor(
+    public status: number,
+    public data: unknown,
+  ) {
+    super(`API Error: ${status}`);
+  }
+}
+
+async function apiClient<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
+  const token = typeof window !== "undefined"
+    ? localStorage.getItem("token")
+    : null;
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options?.headers,
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+
+    if (response.status === 401) {
+      // Redirect to login or refresh token
+      window.location.href = "/login";
+    }
+
+    throw new ApiError(response.status, data);
+  }
+
+  return response.json();
+}
+
+// Typed API functions
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const usersApi = {
+  getAll: () => apiClient<User[]>("/users"),
+  getById: (id: string) => apiClient<User>(`/users/${id}`),
+  create: (data: Omit<User, "id">) =>
+    apiClient<User>("/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<User>) =>
+    apiClient<User>(`/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiClient<void>(`/users/${id}`, { method: "DELETE" }),
+};
+```

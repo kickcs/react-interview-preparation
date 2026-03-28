@@ -1,0 +1,81 @@
+---
+title: "Как работает file-based routing в Next.js?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**File-based routing** in Next.js means that the URL structure of your application is determined by the file and folder hierarchy inside the `app/` directory. Each folder represents a route segment, and special files like `page.tsx`, `layout.tsx`, `loading.tsx`, and `error.tsx` define the UI for that segment. A route is only publicly accessible if a folder contains a `page.tsx` file.
+
+**Dynamic routes** are created using bracket syntax. A `[param]` folder matches a single dynamic segment (e.g., `/blog/[slug]`). **Catch-all routes** `[...slug]` match any number of segments, while **optional catch-all** `[[...slug]]` also matches the parent route without any segments. These params are passed to your component as props.
+
+**Route groups** use parentheses `(folderName)` to organize routes without affecting the URL structure. This is useful for grouping related routes that share a layout or for separating concerns like `(marketing)` and `(dashboard)`. Additionally, files like `loading.tsx` create automatic Suspense boundaries, and `error.tsx` creates Error Boundaries, giving you granular control over loading and error states at every route level.
+
+</Answer>
+<Answer lang="ru">
+
+**Файловая маршрутизация** в Next.js означает, что структура URL вашего приложения определяется иерархией файлов и папок внутри директории `app/`. Каждая папка представляет сегмент маршрута, а специальные файлы, такие как `page.tsx`, `layout.tsx`, `loading.tsx` и `error.tsx`, определяют UI для этого сегмента. Маршрут становится публично доступным только если папка содержит файл `page.tsx`.
+
+**Динамические маршруты** создаются с помощью синтаксиса квадратных скобок. Папка `[param]` соответствует одному динамическому сегменту (например, `/blog/[slug]`). **Catch-all маршруты** `[...slug]` соответствуют любому количеству сегментов, а **опциональные catch-all** `[[...slug]]` также соответствуют родительскому маршруту без сегментов. Эти параметры передаются в компонент как пропсы.
+
+**Группы маршрутов** используют круглые скобки `(folderName)` для организации маршрутов без влияния на структуру URL. Это удобно для группировки связанных маршрутов с общим макетом или для разделения зон ответственности, таких как `(marketing)` и `(dashboard)`. Кроме того, файлы `loading.tsx` автоматически создают Suspense-границы, а `error.tsx` — Error Boundary, что даёт детальный контроль над состояниями загрузки и ошибок на каждом уровне маршрутизации.
+
+</Answer>
+</AnswerGroup>
+
+```txt
+app/
+├── layout.tsx              # Root layout
+├── page.tsx                # Home → /
+├── about/
+│   └── page.tsx            # → /about
+├── blog/
+│   ├── page.tsx            # → /blog
+│   └── [slug]/
+│       └── page.tsx        # → /blog/my-post (dynamic)
+├── docs/
+│   └── [...slug]/
+│       └── page.tsx        # → /docs/a/b/c (catch-all)
+├── (marketing)/
+│   ├── layout.tsx          # Shared marketing layout
+│   ├── pricing/
+│   │   └── page.tsx        # → /pricing
+│   └── features/
+│       └── page.tsx        # → /features
+└── (dashboard)/
+    ├── layout.tsx          # Shared dashboard layout
+    └── settings/
+        └── page.tsx        # → /settings
+```
+
+```tsx
+// app/blog/[slug]/page.tsx — Dynamic route
+
+interface BlogPostProps {
+  params: Promise<{ slug: string }>;
+}
+
+export default async function BlogPost({ params }: BlogPostProps) {
+  const { slug } = await params;
+
+  return <article>
+    <h1>Post: {slug}</h1>
+  </article>;
+}
+
+// app/docs/[...slug]/page.tsx — Catch-all route
+
+interface DocsProps {
+  params: Promise<{ slug: string[] }>;
+}
+
+export default async function Docs({ params }: DocsProps) {
+  const { slug } = await params;
+  // /docs/a/b/c → slug = ['a', 'b', 'c']
+
+  return <div>
+    <h1>Docs: {slug.join(" / ")}</h1>
+  </div>;
+}
+```

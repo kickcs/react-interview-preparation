@@ -1,0 +1,81 @@
+---
+title: "Что такое псевдо-классы и псевдо-элементы?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Pseudo-classes** select elements based on their state or position in the DOM tree without requiring extra classes in your HTML. They use a single colon syntax (`:`) and include interactive states like `:hover`, `:focus`, and `:active`, structural selectors like `:first-child`, `:last-child`, `:nth-child()`, and `:not()`, as well as form-related ones like `:checked`, `:disabled`, and `:valid`. The `:focus-visible` pseudo-class is especially important for accessibility — it shows focus indicators only for keyboard navigation, not mouse clicks.
+
+**Pseudo-elements** create virtual elements that don't exist in the actual DOM. They use a double colon syntax (`::`) and include `::before` and `::after` (which insert generated content before or after an element's content), `::placeholder` (styles placeholder text in inputs), `::selection` (styles highlighted text), and `::first-line` or `::first-letter` for typographic effects. The `::before` and `::after` pseudo-elements require the `content` property to work, even if it's an empty string.
+
+Combining pseudo-classes and pseudo-elements is a powerful technique. For example, you can style a link's `::after` element differently on `:hover` to create animated underline effects. Modern pseudo-classes like `:is()`, `:where()`, and `:has()` reduce repetitive selectors and enable parent-child-based selections that were previously impossible with CSS alone.
+
+</Answer>
+<Answer lang="ru">
+
+**Псевдоклассы** выбирают элементы на основе их состояния или позиции в DOM-дереве без необходимости добавлять дополнительные классы в HTML. Они используют синтаксис с одним двоеточием (`:`) и включают интерактивные состояния вроде `:hover`, `:focus` и `:active`, структурные селекторы — `:first-child`, `:last-child`, `:nth-child()` и `:not()`, а также связанные с формами — `:checked`, `:disabled` и `:valid`. Псевдокласс `:focus-visible` особенно важен для доступности — он показывает индикаторы фокуса только при навигации с клавиатуры, а не при клике мышью.
+
+**Псевдоэлементы** создают виртуальные элементы, которых нет в реальном DOM. Они используют синтаксис с двойным двоеточием (`::`) и включают `::before` и `::after` (вставляют сгенерированное содержимое до или после содержимого элемента), `::placeholder` (стилизует текст-подсказку в полях ввода), `::selection` (стилизует выделенный текст) и `::first-line` или `::first-letter` для типографических эффектов. Псевдоэлементы `::before` и `::after` требуют свойства `content` для работы, даже если это пустая строка.
+
+Комбинирование псевдоклассов и псевдоэлементов — мощная техника. Например, можно стилизовать элемент `::after` ссылки по-разному при `:hover`, чтобы создать анимированный эффект подчёркивания. Современные псевдоклассы `:is()`, `:where()` и `:has()` сокращают повторяющиеся селекторы и позволяют выбирать на основе отношений родитель-потомок, что ранее было невозможно только средствами CSS.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Pseudo-classes — interactive states */
+a:hover {
+  color: #0066cc;
+}
+a:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Structural pseudo-classes */
+li:first-child {
+  font-weight: bold;
+}
+li:nth-child(even) {
+  background: #f5f5f5;
+}
+li:not(:last-child) {
+  border-bottom: 1px solid #ddd;
+}
+
+/* Pseudo-elements — decorative content */
+.quote::before {
+  content: "\201C"; /* opening curly quote */
+  font-size: 2rem;
+  color: #999;
+}
+
+/* Animated underline with pseudo-element */
+.link {
+  position: relative;
+}
+.link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transition: width 0.3s ease;
+}
+.link:hover::after {
+  width: 100%;
+}
+
+/* Form styling with pseudo-classes */
+input:focus {
+  border-color: #0066cc;
+}
+input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+```

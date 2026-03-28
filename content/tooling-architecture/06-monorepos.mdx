@@ -1,0 +1,72 @@
+---
+title: "Что такое monorepos?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **monorepo** is a single repository that contains multiple packages, applications, or services. Instead of having separate repositories for your frontend, backend, shared libraries, and design system, everything lives in one place. This simplifies dependency management, enables atomic changes across packages, and improves code sharing.
+
+**Turborepo** and **Nx** are the two most popular monorepo build tools. They provide **task orchestration** — running build, test, and lint commands across packages in the correct dependency order. Both support **remote caching**, where build outputs are shared across the team so nobody rebuilds what has already been built.
+
+**Turborepo** focuses on simplicity. You define a `turbo.json` pipeline that describes task dependencies (e.g., building a shared library before the app that imports it). It integrates seamlessly with npm, yarn, pnpm, or bun workspaces.
+
+**Nx** offers more features out of the box: project graph visualization, generators for scaffolding, affected-only testing (runs tests only for packages impacted by a change), and plugins for specific frameworks like React, Next.js, and Angular.
+
+The **workspace protocol** (e.g., `"shared-ui": "workspace:*"`) lets packages reference each other by name without publishing to npm. Package managers resolve these to local paths automatically.
+
+</Answer>
+<Answer lang="ru">
+
+**Монорепозиторий** (monorepo) — это единый репозиторий, содержащий несколько пакетов, приложений или сервисов. Вместо отдельных репозиториев для фронтенда, бэкенда, общих библиотек и дизайн-системы, всё находится в одном месте. Это упрощает управление зависимостями, позволяет делать атомарные изменения между пакетами и улучшает переиспользование кода.
+
+**Turborepo** и **Nx** — два самых популярных инструмента сборки для монорепозиториев. Они обеспечивают **оркестрацию задач** — запуск команд build, test и lint по всем пакетам в правильном порядке зависимостей. Оба поддерживают **удалённое кеширование**, при котором результаты сборки используются всей командой, чтобы никто не пересобирал то, что уже было собрано.
+
+**Turborepo** делает акцент на простоте. Вы описываете пайплайн в `turbo.json`, указывая зависимости задач (например, собрать общую библиотеку перед приложением, которое её импортирует). Он бесшовно интегрируется с npm, yarn, pnpm или bun workspaces.
+
+**Nx** предлагает больше возможностей из коробки: визуализация графа проектов, генераторы для скаффолдинга, тестирование только затронутых пакетов (запускает тесты лишь для пакетов, на которые повлияли изменения), а также плагины для фреймворков — React, Next.js и Angular.
+
+**Workspace-протокол** (например, `"shared-ui": "workspace:*"`) позволяет пакетам ссылаться друг на друга по имени без публикации в npm. Пакетные менеджеры автоматически разрешают их в локальные пути.
+
+</Answer>
+</AnswerGroup>
+
+```json
+// turbo.json — Turborepo pipeline configuration
+{
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**"]
+    },
+    "test": {
+      "dependsOn": ["build"]
+    },
+    "lint": {},
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+```
+
+```
+# Monorepo project structure
+my-monorepo/
+├── apps/
+│   ├── web/              # Next.js frontend
+│   │   └── package.json
+│   └── api/              # Express backend
+│       └── package.json
+├── packages/
+│   ├── shared-ui/        # Reusable React components
+│   │   └── package.json
+│   ├── config/           # Shared ESLint/TS configs
+│   │   └── package.json
+│   └── utils/            # Shared utility functions
+│       └── package.json
+├── turbo.json
+└── package.json          # Root with workspaces config
+```

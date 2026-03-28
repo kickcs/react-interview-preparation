@@ -1,0 +1,91 @@
+---
+title: "Как тестировать асинхронный код?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Asynchronous operations like API calls, timers, and animations are a natural part of React apps. To test them, you write **async test functions** and use utilities that wait for the DOM to update. The two most important tools are **findBy queries** and **waitFor**.
+
+**findBy** queries (e.g., `screen.findByText("Loaded")`) return a promise that resolves when the matching element appears in the DOM. They are perfect for testing loading-to-success transitions. Under the hood, `findBy` polls the DOM with a configurable timeout (default 1000ms).
+
+**waitFor** is more flexible — it repeatedly runs a callback until it stops throwing. Use it when you need to assert on multiple conditions or wait for side effects that don't directly render elements: `await waitFor(() => expect(mockFn).toHaveBeenCalled())`.
+
+For mocking network requests, **Mock Service Worker (MSW)** intercepts requests at the network level, so your components use their real `fetch` or `axios` calls. This gives higher confidence than mocking the fetch function directly. Define request handlers with `http.get()` or `http.post()`, then set up an MSW server in your test setup file.
+
+</Answer>
+<Answer lang="ru">
+
+Асинхронные операции — вызовы API, таймеры и анимации — естественная часть React-приложений. Для их тестирования используйте **асинхронные тестовые функции** и утилиты ожидания обновления DOM. Два ключевых инструмента — **запросы findBy** и **waitFor**.
+
+Запросы **findBy** (например, `screen.findByText("Loaded")`) возвращают промис, который резолвится при появлении элемента в DOM. Они идеальны для тестирования переходов из загрузки в успешное состояние. Под капотом `findBy` опрашивает DOM с настраиваемым таймаутом (по умолчанию 1000мс).
+
+**waitFor** более гибок — он повторно выполняет колбэк, пока тот не перестанет выбрасывать ошибку. Используйте его для проверки нескольких условий или ожидания побочных эффектов, которые не рендерят элементы напрямую: `await waitFor(() => expect(mockFn).toHaveBeenCalled())`.
+
+Для мокирования сетевых запросов **Mock Service Worker (MSW)** перехватывает запросы на сетевом уровне, поэтому компоненты используют настоящие вызовы `fetch` или `axios`. Это даёт больше уверенности, чем мокирование самой функции fetch. Определите обработчики запросов через `http.get()` или `http.post()`, затем настройте сервер MSW в файле настройки тестов.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import { useEffect, useState } from "react";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
+
+// Component that fetches data
+function UserProfile({ userId }: { userId: string }) {
+  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/users/${userId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .then(setUser)
+      .catch((err) => setError(err.message));
+  }, [userId]);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!user) return <p>Loading...</p>;
+  return <h1>Hello, {user.name}</h1>;
+}
+
+// MSW server setup
+const server = setupServer(
+  http.get("/api/users/:id", () => {
+    return HttpResponse.json({ name: "Alice" });
+  })
+);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+test("displays user name after loading", async () => {
+  render(<UserProfile userId="1" />);
+
+  // Initially shows loading
+  expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+  // Wait for the user name to appear
+  const heading = await screen.findByRole("heading", { name: /hello, alice/i });
+  expect(heading).toBeInTheDocument();
+});
+
+test("displays error on fetch failure", async () => {
+  server.use(
+    http.get("/api/users/:id", () => {
+      return new HttpResponse(null, { status: 500 });
+    })
+  );
+
+  render(<UserProfile userId="1" />);
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("Failed to fetch");
+});
+```

@@ -1,0 +1,102 @@
+---
+title: "Как спроектировать SEO архитектуру для веб-приложений?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**SEO architecture** for modern web apps starts with the rendering strategy. Search engines need fully rendered HTML to index content effectively. **Server-Side Rendering (SSR)** generates HTML on each request, ideal for dynamic pages with frequently changing content. **Static Site Generation (SSG)** pre-renders pages at build time, delivering the fastest response and best crawlability. **Incremental Static Regeneration (ISR)** combines both — serving cached static pages while revalidating in the background. Choose the strategy per route: SSG for blog posts and landing pages, SSR for user-specific or real-time content.
+
+**Structured data** (JSON-LD) helps search engines understand your content semantically — product prices, article authors, FAQ sections. **Meta tags** managed with `generateMetadata` in Next.js ensure each page has unique titles, descriptions, and Open Graph tags for social sharing. A **sitemap.xml** tells crawlers which pages exist and when they were last modified, while **robots.txt** controls crawler access. **Canonical URLs** prevent duplicate content penalties when the same content is accessible via multiple URLs.
+
+**Core Web Vitals** directly impact search rankings. LCP, CLS, and INP are Google ranking factors, making performance optimization an SEO concern. Optimize images with next/image (automatic format selection, lazy loading, responsive sizes), use font-display swap to prevent layout shifts from web fonts, and minimize JavaScript that blocks rendering. Test with Google Search Console and Lighthouse, and monitor real user performance — Google uses field data (CrUX), not just lab tests, for ranking decisions.
+
+</Answer>
+<Answer lang="ru">
+
+**SEO-архитектура** для современных веб-приложений начинается со стратегии рендеринга. Поисковым системам нужен полностью отрендеренный HTML для эффективной индексации. **Server-Side Rendering (SSR)** генерирует HTML при каждом запросе, идеален для динамических страниц с часто меняющимся контентом. **Static Site Generation (SSG)** пререндерит страницы при сборке, обеспечивая самый быстрый ответ и лучшую индексируемость. **Incremental Static Regeneration (ISR)** объединяет оба подхода — отдаёт кешированные статические страницы, ревалидируя в фоне. Выбирайте стратегию для каждого маршрута: SSG для статей и лендингов, SSR для пользовательского или реал-тайм контента.
+
+**Структурированные данные** (JSON-LD) помогают поисковикам семантически понимать контент — цены товаров, авторы статей, FAQ-разделы. **Мета-теги**, управляемые через `generateMetadata` в Next.js, обеспечивают уникальные заголовки, описания и Open Graph теги для каждой страницы. **Sitemap.xml** сообщает краулерам, какие страницы существуют и когда были обновлены, а **robots.txt** контролирует доступ краулеров. **Канонические URL** предотвращают штрафы за дублированный контент, когда один контент доступен по нескольким URL.
+
+**Core Web Vitals** напрямую влияют на поисковый рейтинг. LCP, CLS и INP — факторы ранжирования Google, что делает оптимизацию производительности заботой SEO. Оптимизируйте изображения с next/image (автоматический выбор формата, ленивая загрузка, адаптивные размеры), используйте font-display swap для предотвращения сдвигов от веб-шрифтов и минимизируйте JavaScript, блокирующий рендеринг. Тестируйте через Google Search Console и Lighthouse, мониторьте реальную производительность — Google использует полевые данные (CrUX), а не только лабораторные тесты, для ранжирования.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// SEO-optimized Next.js setup
+
+// app/products/[slug]/page.tsx
+import type { Metadata } from "next";
+
+// Static params for SSG
+export async function generateStaticParams() {
+  const products = await getProducts();
+  return products.map((p) => ({ slug: p.slug }));
+}
+
+// Dynamic metadata per page
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  return {
+    title: `${product.name} | MyStore`,
+    description: product.description.slice(0, 160),
+    alternates: { canonical: `https://mystore.com/products/${slug}` },
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: [{ url: product.imageUrl, width: 1200, height: 630 }],
+    },
+  };
+}
+
+// JSON-LD structured data
+function ProductJsonLd({ product }: { product: Product }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    image: product.imageUrl,
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "USD",
+      availability: product.inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+    },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  return (
+    <>
+      <ProductJsonLd product={product} />
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+    </>
+  );
+}
+```

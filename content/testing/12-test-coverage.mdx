@@ -1,0 +1,69 @@
+---
+title: "Что такое покрытие тестами и как его использовать?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Test coverage** measures how much of your source code is executed when tests run. It answers the question: "Which lines, branches, and functions are touched by my test suite?" Coverage tools like **Istanbul** and **V8** instrument your code and produce reports after tests complete.
+
+There are four main coverage metrics. **Line coverage** measures the percentage of executed lines. **Branch coverage** tracks whether both paths of `if/else`, ternary operators, and switch statements are tested. **Function coverage** checks whether each function was called at least once. **Statement coverage** counts individual statements (a single line can contain multiple statements).
+
+To enable coverage in Vitest, add a `coverage` section to your config and run `vitest --coverage`. Vitest supports both **Istanbul** (source-level instrumentation) and **V8** (engine-level, faster) providers. You can set **thresholds** to fail CI if coverage drops below a minimum — typically 80% for lines and branches.
+
+However, **high coverage does not guarantee quality tests**. 100% line coverage means every line ran, but it doesn't prove the assertions are meaningful. A test that renders a component without any `expect` statements still adds coverage but catches no bugs. Focus on **meaningful coverage**: cover critical business logic, edge cases, and error paths. Use coverage reports to find untested areas, not as a quality metric to chase blindly.
+
+</Answer>
+<Answer lang="ru">
+
+**Покрытие тестами** измеряет, какая часть исходного кода выполняется при запуске тестов. Оно отвечает на вопрос: «Какие строки, ветки и функции затрагивает мой набор тестов?» Инструменты покрытия, такие как **Istanbul** и **V8**, инструментируют код и создают отчёты после выполнения тестов.
+
+Существует четыре основные метрики покрытия. **Покрытие строк** (line coverage) измеряет процент выполненных строк. **Покрытие веток** (branch coverage) отслеживает, проверены ли оба пути `if/else`, тернарных операторов и switch-конструкций. **Покрытие функций** (function coverage) проверяет, была ли каждая функция вызвана хотя бы раз. **Покрытие выражений** (statement coverage) считает отдельные выражения (одна строка может содержать несколько выражений).
+
+Чтобы включить покрытие в Vitest, добавьте секцию `coverage` в конфигурацию и запустите `vitest --coverage`. Vitest поддерживает провайдеры **Istanbul** (инструментирование на уровне исходного кода) и **V8** (на уровне движка, быстрее). Можно установить **пороговые значения**, чтобы CI падал при снижении покрытия ниже минимума — обычно 80% для строк и веток.
+
+Однако **высокое покрытие не гарантирует качественных тестов**. 100% покрытие строк означает, что каждая строка выполнилась, но не доказывает осмысленность утверждений. Тест, который рендерит компонент без единого `expect`, увеличивает покрытие, но не ловит баги. Сосредоточьтесь на **осмысленном покрытии**: покрывайте критичную бизнес-логику, граничные случаи и пути ошибок. Используйте отчёты покрытия для поиска непротестированных областей, а не как метрику качества, за которой нужно гнаться вслепую.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// vitest.config.ts — coverage configuration
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    coverage: {
+      // Use V8 for faster coverage collection
+      provider: "v8",
+
+      // Files to include in coverage
+      include: ["src/**/*.{ts,tsx}"],
+
+      // Files to exclude
+      exclude: [
+        "src/**/*.d.ts",
+        "src/**/*.test.{ts,tsx}",
+        "src/**/index.ts", // barrel files
+        "src/types/**",
+      ],
+
+      // Coverage reporters
+      reporter: ["text", "html", "lcov"],
+
+      // Fail CI if coverage drops below thresholds
+      thresholds: {
+        lines: 80,
+        branches: 75,
+        functions: 80,
+        statements: 80,
+      },
+    },
+  },
+});
+```

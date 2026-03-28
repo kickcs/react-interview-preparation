@@ -1,0 +1,73 @@
+---
+title: "Как useMemo и useCallback улучшают производительность?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**`useMemo`** and **`useCallback`** are React hooks that memoize values and functions respectively, preventing unnecessary recalculations and re-renders. `useMemo` caches the result of an expensive computation and only recalculates when its dependencies change. `useCallback` caches a function reference so it remains stable across renders.
+
+The primary use case is **referential equality**. In JavaScript, `{} !== {}` and `() => {} !== () => {}`. When you pass objects or functions as props to a memoized child component (`React.memo`), new references on every render break memoization. `useMemo` and `useCallback` solve this by returning the same reference when dependencies have not changed.
+
+However, these hooks are not free. They consume memory to store the cached value, and React must compare dependencies on every render. **Over-optimization** — wrapping every value in `useMemo` or every handler in `useCallback` — adds complexity without measurable benefit. Use them only when you have identified a performance bottleneck: expensive computations, props passed to memoized children, or values used as dependencies in other hooks.
+
+</Answer>
+<Answer lang="ru">
+
+**`useMemo`** и **`useCallback`** — это хуки React, которые мемоизируют значения и функции соответственно, предотвращая ненужные пересчёты и повторные рендеры. `useMemo` кэширует результат тяжёлого вычисления и пересчитывает его только при изменении зависимостей. `useCallback` кэширует ссылку на функцию, чтобы она оставалась стабильной между рендерами.
+
+Основной случай использования — **ссылочное равенство**. В JavaScript `{} !== {}` и `() => {} !== () => {}`. Когда вы передаёте объекты или функции как пропсы мемоизированному дочернему компоненту (`React.memo`), новые ссылки при каждом рендере ломают мемоизацию. `useMemo` и `useCallback` решают эту проблему, возвращая ту же ссылку, пока зависимости не изменились.
+
+Однако эти хуки не бесплатны. Они потребляют память для хранения кэшированного значения, и React должен сравнивать зависимости при каждом рендере. **Чрезмерная оптимизация** — оборачивание каждого значения в `useMemo` или каждого обработчика в `useCallback` — добавляет сложность без измеримой пользы. Используйте их только когда вы определили узкое место в производительности: дорогие вычисления, пропсы для мемоизированных дочерних компонентов или значения, используемые как зависимости в других хуках.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { memo, useCallback, useMemo, useState } from "react";
+
+interface Item {
+  id: number;
+  label: string;
+}
+
+const ListItem = memo(function ListItem({
+  item,
+  onClick,
+}: {
+  item: Item;
+  onClick: (id: number) => void;
+}) {
+  console.log(`Rendering item ${item.id}`);
+  return <li onClick={() => onClick(item.id)}>{item.label}</li>;
+});
+
+function OptimizedList({ items }: { items: Item[] }) {
+  const [filter, setFilter] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
+
+  // Memoize filtered list — recalculates only when items or filter change
+  const filteredItems = useMemo(
+    () => items.filter((item) => item.label.includes(filter)),
+    [items, filter]
+  );
+
+  // Stable function reference — ListItem won't re-render due to handler change
+  const handleClick = useCallback((id: number) => {
+    setSelected(id);
+  }, []);
+
+  return (
+    <div>
+      <input value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <p>Selected: {selected}</p>
+      <ul>
+        {filteredItems.map((item) => (
+          <ListItem key={item.id} item={item} onClick={handleClick} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+```

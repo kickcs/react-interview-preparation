@@ -1,0 +1,48 @@
+---
+title: "Что такое React.Fragment?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React.Fragment** lets you group multiple elements without adding an extra DOM node. Every React component must return a single root element, and before fragments existed, developers often wrapped siblings in a `<div>`, polluting the DOM structure and sometimes breaking CSS layouts (especially with Flexbox and Grid) or table semantics.
+
+There are two syntaxes: the explicit `<Fragment>` import and the shorthand **`<>`** (empty tags). Both produce no DOM output. The key difference is that the shorthand syntax does not support attributes, so when you need to assign a **key** to a fragment (e.g., when mapping over a list that returns multiple elements per item), you must use the explicit `<Fragment key={id}>` syntax.
+
+Fragments are lightweight and have no impact on performance. They are a simple but important tool for keeping your DOM tree clean and semantic, which benefits accessibility, styling, and debugging.
+
+</Answer>
+<Answer lang="ru">
+
+**React.Fragment** позволяет группировать несколько элементов без добавления лишнего DOM-узла. Каждый компонент React должен возвращать один корневой элемент, и до появления фрагментов разработчики часто оборачивали соседние элементы в `<div>`, засоряя структуру DOM и иногда ломая CSS-раскладки (особенно с Flexbox и Grid) или семантику таблиц.
+
+Существует два синтаксиса: явный импорт `<Fragment>` и сокращённая запись **`<>`** (пустые теги). Оба не создают DOM-элементов. Ключевое различие в том, что сокращённый синтаксис не поддерживает атрибуты, поэтому когда нужно назначить **key** фрагменту (например, при итерации по списку, возвращающему несколько элементов на каждый пункт), необходимо использовать явный синтаксис `<Fragment key={id}>`.
+
+Фрагменты легковесны и не влияют на производительность. Это простой, но важный инструмент для поддержания чистого и семантичного дерева DOM, что полезно для доступности, стилизации и отладки.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { Fragment } from "react";
+
+interface Item {
+  id: string;
+  term: string;
+  description: string;
+}
+
+function Glossary({ items }: { items: Item[] }) {
+  return (
+    <dl>
+      {items.map(item => (
+        <Fragment key={item.id}>
+          <dt>{item.term}</dt>
+          <dd>{item.description}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+```

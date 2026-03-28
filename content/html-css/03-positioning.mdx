@@ -1,0 +1,66 @@
+---
+title: "Как работает CSS позиционирование?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS positioning** controls how elements are placed in the document flow. The `position` property accepts five values: **static** (default, normal document flow), **relative** (offset from its normal position but still occupies original space), **absolute** (removed from flow, positioned relative to the nearest positioned ancestor), **fixed** (removed from flow, positioned relative to the viewport), and **sticky** (switches between relative and fixed based on scroll position).
+
+When elements are positioned with anything other than `static`, they can use the `top`, `right`, `bottom`, and `left` properties to adjust placement. The **z-index** property controls stacking order among positioned elements. A **stacking context** is created by elements with a position value other than static combined with a z-index, or by certain CSS properties like `opacity` less than 1, `transform`, or `filter`.
+
+Understanding how stacking contexts nest is crucial — a child's z-index only competes with siblings within the same stacking context, not with elements outside it. The `sticky` value is especially useful for navigation bars that stick to the top of the viewport on scroll.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS-позиционирование** управляет размещением элементов в потоке документа. Свойство `position` принимает пять значений: **static** (по умолчанию, обычный поток документа), **relative** (смещён от своей обычной позиции, но продолжает занимать исходное место), **absolute** (убран из потока, позиционируется относительно ближайшего позиционированного предка), **fixed** (убран из потока, позиционируется относительно окна просмотра) и **sticky** (переключается между relative и fixed в зависимости от прокрутки).
+
+Когда элементы позиционированы не как `static`, можно использовать свойства `top`, `right`, `bottom` и `left` для настройки размещения. Свойство **z-index** управляет порядком наложения среди позиционированных элементов. **Контекст наложения** создаётся элементами со значением position, отличным от static, в сочетании с z-index, а также некоторыми CSS-свойствами вроде `opacity` меньше 1, `transform` или `filter`.
+
+Понимание вложенности контекстов наложения крайне важно — z-index дочернего элемента конкурирует только с соседними элементами внутри того же контекста наложения, а не с элементами за его пределами. Значение `sticky` особенно полезно для навигационных панелей, которые прилипают к верхнему краю окна при прокрутке.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Static — default, no special positioning */
+.static {
+  position: static;
+}
+
+/* Relative — offset from normal position */
+.relative {
+  position: relative;
+  top: 10px;
+  left: 20px;
+}
+
+/* Absolute — relative to nearest positioned ancestor */
+.parent {
+  position: relative;
+}
+.absolute {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Fixed — relative to viewport */
+.fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+}
+
+/* Sticky — sticks on scroll */
+.sticky-nav {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+```

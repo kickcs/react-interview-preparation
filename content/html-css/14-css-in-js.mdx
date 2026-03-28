@@ -1,0 +1,74 @@
+---
+title: "Что такое CSS-in-JS подходы?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS-in-JS** is a broad term for techniques that write styles in JavaScript rather than separate CSS files. The main approaches include **runtime CSS-in-JS** libraries like styled-components and Emotion that generate unique class names and inject styles at runtime, **CSS Modules** that scope class names at build time via file naming convention (`*.module.css`), **utility-first frameworks** like Tailwind CSS that use pre-defined utility classes directly in markup, and **zero-runtime** solutions like vanilla-extract and Linaria that extract styles at build time.
+
+**styled-components** and **Emotion** offer dynamic styling based on props, automatic vendor prefixing, and colocated styles with components. However, they add runtime overhead because styles are generated and injected on the client. **CSS Modules** provide scoping without runtime cost — the bundler transforms class names to unique hashes, preventing global conflicts. **Tailwind CSS** takes a different approach entirely, providing atomic utility classes that are purged at build time, resulting in very small CSS bundles.
+
+The choice depends on your priorities: runtime CSS-in-JS offers the most flexibility for dynamic styles but has performance implications (especially with React Server Components where it's not supported without workarounds). CSS Modules provide a good balance of scoping and performance. Tailwind CSS delivers the smallest bundle size and fastest runtime but requires learning its class vocabulary. For React Server Components and modern Next.js, build-time solutions like CSS Modules or Tailwind are preferred over runtime alternatives.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS-in-JS** — это общий термин для техник написания стилей в JavaScript, а не в отдельных CSS-файлах. Основные подходы включают **runtime CSS-in-JS** библиотеки вроде styled-components и Emotion, которые генерируют уникальные имена классов и внедряют стили во время выполнения, **CSS Modules** со скопированными именами классов на этапе сборки через соглашение об именовании файлов (`*.module.css`), **utility-first фреймворки** вроде Tailwind CSS, использующие предопределённые утилитарные классы прямо в разметке, и **zero-runtime** решения вроде vanilla-extract и Linaria, извлекающие стили на этапе сборки.
+
+**styled-components** и **Emotion** предлагают динамическую стилизацию на основе пропсов, автоматические вендорные префиксы и стили, расположенные рядом с компонентами. Однако они добавляют runtime-нагрузку, поскольку стили генерируются и внедряются на клиенте. **CSS Modules** обеспечивают изоляцию без затрат на runtime — сборщик трансформирует имена классов в уникальные хеши, предотвращая глобальные конфликты. **Tailwind CSS** использует совершенно другой подход, предоставляя атомарные утилитарные классы, которые очищаются на этапе сборки, что приводит к очень маленьким CSS-бандлам.
+
+Выбор зависит от ваших приоритетов: runtime CSS-in-JS даёт максимальную гибкость для динамических стилей, но влияет на производительность (особенно с React Server Components, где он не поддерживается без обходных решений). CSS Modules обеспечивают хороший баланс изоляции и производительности. Tailwind CSS даёт наименьший размер бандла и быстрейшее время выполнения, но требует изучения его словаря классов. Для React Server Components и современного Next.js предпочтительны решения на этапе сборки — CSS Modules или Tailwind — вместо runtime-альтернатив.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// styled-components
+import styled from "styled-components";
+
+const Button = styled.button<{ $primary?: boolean }>`
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: ${(props) => (props.$primary ? "#0066cc" : "#e0e0e0")};
+  color: ${(props) => (props.$primary ? "white" : "#333")};
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+// Usage: <Button $primary>Click me</Button>
+```
+
+```tsx
+// CSS Modules (Button.module.css)
+// .button { padding: 0.5rem 1rem; border-radius: 8px; }
+// .primary { background: #0066cc; color: white; }
+
+import styles from "./Button.module.css";
+
+function Button({ primary, children }: { primary?: boolean; children: React.ReactNode }) {
+  return (
+    <button className={`${styles.button} ${primary ? styles.primary : ""}`}>
+      {children}
+    </button>
+  );
+}
+```
+
+```tsx
+// Tailwind CSS — utility classes in markup
+function Button({ primary, children }: { primary?: boolean; children: React.ReactNode }) {
+  return (
+    <button
+      className={`px-4 py-2 rounded-lg transition-opacity hover:opacity-90 ${
+        primary ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+```

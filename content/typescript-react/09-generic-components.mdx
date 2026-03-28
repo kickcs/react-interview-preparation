@@ -1,0 +1,113 @@
+---
+title: "Как создать generic React компоненты?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Generic React components** accept a type parameter that flows through their props, making them reusable across different data types while maintaining full type safety. The syntax uses a generic function declaration: `function MyComponent<T>(props: Props<T>)`. TypeScript infers `T` from the actual props you pass, so consumers rarely need to specify the type explicitly.
+
+You can add **constraints** to the generic parameter using `extends`. For example, `<T extends { id: string }>` ensures that whatever type is passed must have an `id` property. This is essential for components like lists or selects that need to access specific fields on the items they render. Constraints give you the flexibility of generics while still guaranteeing certain properties exist.
+
+When using **forwardRef** with generic components, you lose the generic parameter because `forwardRef` has a fixed signature. The common workaround is to cast the result or use a wrapper pattern. Note that with React 19, `ref` is a regular prop and `forwardRef` is no longer needed, which eliminates this issue entirely.
+
+</Answer>
+<Answer lang="ru">
+
+**Обобщённые React-компоненты** принимают параметр типа, который проходит через их пропсы, делая компоненты переиспользуемыми для разных типов данных с сохранением полной типобезопасности. Синтаксис использует объявление обобщённой функции: `function MyComponent<T>(props: Props<T>)`. TypeScript выводит `T` из фактически переданных пропсов, поэтому потребителям редко нужно указывать тип явно.
+
+Можно добавлять **ограничения** к обобщённому параметру с помощью `extends`. Например, `<T extends { id: string }>` гарантирует, что переданный тип должен иметь свойство `id`. Это необходимо для компонентов вроде списков или выпадающих списков, которым нужно обращаться к определённым полям отображаемых элементов. Ограничения дают гибкость обобщений, при этом гарантируя наличие определённых свойств.
+
+При использовании **forwardRef** с обобщёнными компонентами вы теряете параметр обобщения, потому что `forwardRef` имеет фиксированную сигнатуру. Обычное решение — привести результат или использовать паттерн обёртки. Обратите внимание, что в React 19 `ref` является обычным пропсом и `forwardRef` больше не нужен, что полностью устраняет эту проблему.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Generic List component
+interface ListProps<T> {
+  items: T[];
+  renderItem: (item: T, index: number) => React.ReactNode;
+  keyExtractor: (item: T) => string;
+}
+
+function List<T>({ items, renderItem, keyExtractor }: ListProps<T>) {
+  return (
+    <ul>
+      {items.map((item, index) => (
+        <li key={keyExtractor(item)}>{renderItem(item, index)}</li>
+      ))}
+    </ul>
+  );
+}
+
+// Usage — T is inferred as User
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+<List
+  items={users}
+  renderItem={(user) => <span>{user.name} ({user.email})</span>}
+  keyExtractor={(user) => user.id}
+/>
+```
+
+```tsx
+// Generic Select with constraint
+interface SelectProps<T extends { id: string; label: string }> {
+  options: T[];
+  value: T | null;
+  onChange: (item: T) => void;
+  placeholder?: string;
+}
+
+function Select<T extends { id: string; label: string }>({
+  options,
+  value,
+  onChange,
+  placeholder = "Select...",
+}: SelectProps<T>) {
+  return (
+    <select
+      value={value?.id ?? ""}
+      onChange={(e) => {
+        const selected = options.find((opt) => opt.id === e.target.value);
+        if (selected) onChange(selected);
+      }}
+    >
+      <option value="" disabled>
+        {placeholder}
+      </option>
+      {options.map((option) => (
+        <option key={option.id} value={option.id}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// Usage — T is inferred as Country
+interface Country {
+  id: string;
+  label: string;
+  code: string;
+  population: number;
+}
+
+const countries: Country[] = [
+  { id: "1", label: "United States", code: "US", population: 331000000 },
+  { id: "2", label: "Japan", code: "JP", population: 125800000 },
+];
+
+// onChange receives Country, not just { id, label }
+<Select
+  options={countries}
+  value={selectedCountry}
+  onChange={(country) => console.log(country.code, country.population)}
+/>
+```

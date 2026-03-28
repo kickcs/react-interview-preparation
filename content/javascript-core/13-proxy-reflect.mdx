@@ -1,0 +1,93 @@
+---
+title: "Что такое Proxy и Reflect?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **Proxy** wraps an object and intercepts fundamental operations on it — property access, assignment, deletion, function invocation, and more — through customizable functions called **traps**. You create a proxy with `new Proxy(target, handler)`, where the handler is an object containing trap methods like `get`, `set`, `has`, `deleteProperty`, `apply`, and others. When an operation is performed on the proxy, the corresponding trap is called instead of the default behavior.
+
+The **Reflect** API provides static methods that mirror every proxy trap — `Reflect.get()`, `Reflect.set()`, `Reflect.has()`, and so on. These methods perform the default behavior for each operation, making it easy to forward operations to the original target from within a trap. Using Reflect inside traps is considered best practice because it properly handles the receiver parameter and returns meaningful boolean results.
+
+Proxies enable powerful patterns such as **validation** (rejecting invalid assignments), **logging and debugging** (tracking property access), **reactive systems** (triggering UI updates on state changes, as in Vue.js), **negative array indices**, **default property values**, and **access control**. However, proxies have a performance cost compared to direct object operations, so they should be used judiciously in performance-critical paths.
+
+</Answer>
+<Answer lang="ru">
+
+**Proxy** оборачивает объект и перехватывает фундаментальные операции с ним — доступ к свойствам, присвоение, удаление, вызов функций и другие — через настраиваемые функции, называемые **ловушками** (traps). Прокси создаётся через `new Proxy(target, handler)`, где handler — это объект, содержащий методы-ловушки: `get`, `set`, `has`, `deleteProperty`, `apply` и другие. Когда операция выполняется над прокси, вместо стандартного поведения вызывается соответствующая ловушка.
+
+**Reflect API** предоставляет статические методы, зеркально отражающие каждую ловушку прокси — `Reflect.get()`, `Reflect.set()`, `Reflect.has()` и так далее. Эти методы выполняют стандартное поведение для каждой операции, что упрощает проброс операций к исходному объекту изнутри ловушки. Использование Reflect внутри ловушек считается лучшей практикой, так как он правильно обрабатывает параметр receiver и возвращает осмысленные булевы результаты.
+
+Прокси позволяют реализовать мощные паттерны: **валидация** (отклонение некорректных присвоений), **логирование и отладка** (отслеживание доступа к свойствам), **реактивные системы** (обновление UI при изменении состояния, как в Vue.js), **отрицательные индексы массивов**, **значения свойств по умолчанию** и **контроль доступа**. Однако прокси имеют накладные расходы по производительности по сравнению с прямыми операциями с объектами, поэтому их следует использовать с осторожностью в критичных к производительности местах.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Validation proxy
+const validator = {
+  set(target, property, value) {
+    if (property === "age") {
+      if (typeof value !== "number" || value < 0 || value > 150) {
+        throw new TypeError("Age must be a number between 0 and 150");
+      }
+    }
+    return Reflect.set(target, property, value);
+  },
+};
+
+const person = new Proxy({}, validator);
+person.name = "Alice"; // OK
+person.age = 30;       // OK
+// person.age = -5;    // TypeError: Age must be a number between 0 and 150
+
+// Logging proxy
+function createLogger(target) {
+  return new Proxy(target, {
+    get(target, prop, receiver) {
+      console.log(`GET ${String(prop)}`);
+      return Reflect.get(target, prop, receiver);
+    },
+    set(target, prop, value, receiver) {
+      console.log(`SET ${String(prop)} = ${JSON.stringify(value)}`);
+      return Reflect.set(target, prop, value, receiver);
+    },
+  });
+}
+
+const logged = createLogger({ x: 1, y: 2 });
+logged.x;     // logs: GET x
+logged.y = 5; // logs: SET y = 5
+
+// Default values proxy
+const withDefaults = (target, defaults) =>
+  new Proxy(target, {
+    get(obj, prop) {
+      return prop in obj ? obj[prop] : defaults[prop];
+    },
+  });
+
+const config = withDefaults(
+  { theme: "dark" },
+  { theme: "light", lang: "en", debug: false }
+);
+console.log(config.theme); // "dark" (own property)
+console.log(config.lang);  // "en" (from defaults)
+console.log(config.debug); // false (from defaults)
+
+// Negative array index proxy
+function negativeArray(arr) {
+  return new Proxy(arr, {
+    get(target, prop, receiver) {
+      const index = Number(prop);
+      if (index < 0) return target[target.length + index];
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
+const arr = negativeArray([10, 20, 30, 40]);
+console.log(arr[-1]); // 40
+console.log(arr[-2]); // 30
+```

@@ -1,0 +1,55 @@
+---
+title: "Как работают code splitting и lazy loading?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Code splitting** is the technique of breaking your JavaScript bundle into smaller chunks that are loaded on demand rather than all at once. By default, bundlers like webpack or Turbopack create a single large bundle. Code splitting produces multiple smaller bundles, reducing the initial load time of your application.
+
+**`React.lazy`** enables component-level code splitting by wrapping a dynamic `import()` call. The component's code is only fetched when it is first rendered. You must wrap lazy components in a **`Suspense`** boundary that shows a fallback UI while the chunk is loading. The most common pattern is **route-based splitting**, where each page is a separate chunk — this is natural because users expect a brief loading state during navigation.
+
+Beyond route-level splitting, you can apply **component-based splitting** to heavy UI sections like modals, charts, or rich text editors that are not needed on initial render. This keeps the critical path lean. Modern frameworks like Next.js handle route-based splitting automatically, but explicit `React.lazy` is still useful for non-route components in client-side code.
+
+</Answer>
+<Answer lang="ru">
+
+**Разделение кода** (code splitting) — это техника разбиения JavaScript-бандла на более мелкие части, которые загружаются по требованию, а не все сразу. По умолчанию бандлеры вроде webpack или Turbopack создают один большой бандл. Разделение кода создаёт несколько меньших бандлов, уменьшая время начальной загрузки приложения.
+
+**`React.lazy`** позволяет разделять код на уровне компонентов, оборачивая динамический вызов `import()`. Код компонента загружается только при его первом рендере. Вы должны обернуть ленивые компоненты в границу **`Suspense`**, которая показывает запасной UI, пока чанк загружается. Самый распространённый паттерн — **разделение на уровне маршрутов**, где каждая страница — отдельный чанк. Это естественно, потому что пользователи ожидают кратковременную загрузку при навигации.
+
+Помимо разделения на уровне маршрутов, вы можете применять **разделение на уровне компонентов** для тяжёлых частей UI, таких как модальные окна, графики или редакторы форматированного текста, которые не нужны при начальном рендере. Это сохраняет критический путь лёгким. Современные фреймворки вроде Next.js автоматически разделяют код по маршрутам, но явный `React.lazy` по-прежнему полезен для компонентов вне маршрутов в клиентском коде.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+
+// Each page is loaded only when the user navigates to it
+const Home = lazy(() => import("./pages/Home"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Settings = lazy(() => import("./pages/Settings"));
+
+function App() {
+  return (
+    <BrowserRouter>
+      <nav>
+        <Link to="/">Home</Link>
+        <Link to="/dashboard">Dashboard</Link>
+        <Link to="/settings">Settings</Link>
+      </nav>
+
+      <Suspense fallback={<div>Loading page...</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+```

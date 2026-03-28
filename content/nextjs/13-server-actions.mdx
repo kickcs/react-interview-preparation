@@ -1,0 +1,147 @@
+---
+title: "Что такое Server Actions?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Server Actions** are asynchronous functions that run on the server and can be called directly from Client or Server Components. They are defined with the `'use server'` directive — either at the top of a file to mark all exports as Server Actions, or inline within a Server Component. Server Actions replace the need for separate API routes for form submissions and data mutations, providing a more streamlined developer experience.
+
+When used with HTML `<form>` elements via the `action` prop, Server Actions provide **progressive enhancement** — forms work even without JavaScript. The `useActionState` hook (from React) integrates Server Actions with form state management, providing pending states, error handling, and the action's return value. You can also use `useFormStatus` to show loading indicators while the action is processing.
+
+Server Actions support **validation** on both client and server sides — always validate on the server since the client can be bypassed. For **optimistic updates**, React's `useOptimistic` hook lets you update the UI immediately before the server response arrives, then reconcile with the actual result. Server Actions automatically integrate with the Next.js caching system — calling `revalidatePath` or `revalidateTag` inside a Server Action updates both the server-side and client-side caches.
+
+</Answer>
+<Answer lang="ru">
+
+**Server Actions** — это асинхронные функции, выполняющиеся на сервере, которые можно вызывать напрямую из клиентских или серверных компонентов. Они определяются директивой `'use server'` — либо в начале файла, чтобы пометить все экспорты как серверные действия, либо inline внутри серверного компонента. Server Actions заменяют необходимость в отдельных API-маршрутах для отправки форм и мутаций данных, предоставляя более удобный опыт разработки.
+
+При использовании с HTML-элементами `<form>` через проп `action` серверные действия обеспечивают **прогрессивное улучшение** — формы работают даже без JavaScript. Хук `useActionState` (из React) интегрирует серверные действия с управлением состоянием формы, предоставляя состояния ожидания, обработку ошибок и возвращаемое значение действия. Также можно использовать `useFormStatus` для отображения индикаторов загрузки во время обработки действия.
+
+Server Actions поддерживают **валидацию** как на клиенте, так и на сервере — всегда валидируйте на сервере, так как клиент можно обойти. Для **оптимистичных обновлений** хук `useOptimistic` из React позволяет обновить UI немедленно до получения ответа сервера, а затем сверить с реальным результатом. Серверные действия автоматически интегрируются с системой кэширования Next.js — вызов `revalidatePath` или `revalidateTag` внутри Server Action обновляет как серверный, так и клиентский кэши.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/actions.ts — Server Actions file
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+interface ActionState {
+  message: string;
+  errors?: { title?: string; content?: string };
+}
+
+export async function createPost(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const title = formData.get("title") as string;
+  const content = formData.get("content") as string;
+
+  // Server-side validation (always validate here!)
+  if (!title || title.length < 3) {
+    return { message: "", errors: { title: "Title must be at least 3 characters" } };
+  }
+
+  if (!content) {
+    return { message: "", errors: { content: "Content is required" } };
+  }
+
+  // Save to database
+  await db.post.create({ data: { title, content } });
+
+  // Revalidate the posts page
+  revalidatePath("/posts");
+
+  return { message: "Post created successfully!" };
+}
+```
+
+```tsx
+// app/posts/new/page.tsx — Form with useActionState
+"use client";
+
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { createPost } from "@/app/actions";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? "Creating..." : "Create Post"}
+    </button>
+  );
+}
+
+export default function NewPostPage() {
+  const [state, formAction] = useActionState(createPost, { message: "" });
+
+  return (
+    <form action={formAction}>
+      <div>
+        <label htmlFor="title">Title</label>
+        <input id="title" name="title" type="text" required />
+        {state.errors?.title && (
+          <p className="text-red-500">{state.errors.title}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="content">Content</label>
+        <textarea id="content" name="content" required />
+        {state.errors?.content && (
+          <p className="text-red-500">{state.errors.content}</p>
+        )}
+      </div>
+
+      <SubmitButton />
+
+      {state.message && <p className="text-green-500">{state.message}</p>}
+    </form>
+  );
+}
+```
+
+```tsx
+// Optimistic updates with useOptimistic
+"use client";
+
+import { useOptimistic } from "react";
+import { toggleLike } from "@/app/actions";
+
+interface Post {
+  id: number;
+  liked: boolean;
+  likeCount: number;
+}
+
+export function LikeButton({ post }: { post: Post }) {
+  const [optimisticPost, setOptimisticPost] = useOptimistic(
+    post,
+    (current, newLiked: boolean) => ({
+      ...current,
+      liked: newLiked,
+      likeCount: current.likeCount + (newLiked ? 1 : -1),
+    })
+  );
+
+  async function handleLike() {
+    setOptimisticPost(!optimisticPost.liked);
+    await toggleLike(post.id);
+  }
+
+  return (
+    <form action={handleLike}>
+      <button type="submit">
+        {optimisticPost.liked ? "❤️" : "🤍"} {optimisticPost.likeCount}
+      </button>
+    </form>
+  );
+}
+```

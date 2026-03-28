@@ -1,0 +1,144 @@
+---
+title: "Как работать с метаданными и SEO в Next.js?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Next.js provides a built-in **Metadata API** for managing SEO-related tags. You can export a static `metadata` object or an async `generateMetadata` function from any `layout.tsx` or `page.tsx` file. Metadata is automatically merged from parent layouts to child pages, so you can set defaults in the root layout and override them in specific pages. The framework handles rendering `<title>`, `<meta>`, `<link>`, and other head elements.
+
+The `generateMetadata` function is powerful for **dynamic metadata** — it receives the route params and can fetch data to build page-specific titles and descriptions. It also supports **Open Graph** and **Twitter Card** tags for rich social media previews. Next.js automatically deduplicates metadata tags, so if both a layout and a page define the same tag, the page's value takes precedence.
+
+Beyond the Metadata API, Next.js supports special files for SEO: `opengraph-image.tsx` generates dynamic OG images, `sitemap.ts` generates XML sitemaps programmatically, and `robots.ts` creates the robots.txt file. For structured data, you can add **JSON-LD** by rendering a `<script>` tag with `type="application/ld+json"` directly in your Server Components. These features together give you comprehensive SEO control without third-party libraries.
+
+</Answer>
+<Answer lang="ru">
+
+Next.js предоставляет встроенный **Metadata API** для управления SEO-тегами. Вы можете экспортировать статический объект `metadata` или асинхронную функцию `generateMetadata` из любого файла `layout.tsx` или `page.tsx`. Метаданные автоматически объединяются от родительских макетов к дочерним страницам, поэтому можно задать значения по умолчанию в корневом макете и переопределить их на конкретных страницах. Фреймворк сам рендерит `<title>`, `<meta>`, `<link>` и другие элементы head.
+
+Функция `generateMetadata` эффективна для **динамических метаданных** — она получает параметры маршрута и может загружать данные для формирования заголовков и описаний конкретной страницы. Она также поддерживает теги **Open Graph** и **Twitter Card** для красивых превью в социальных сетях. Next.js автоматически дедуплицирует теги метаданных, поэтому если и макет, и страница определяют одинаковый тег, приоритет получает значение страницы.
+
+Помимо Metadata API, Next.js поддерживает специальные файлы для SEO: `opengraph-image.tsx` генерирует динамические OG-изображения, `sitemap.ts` программно создаёт XML-карты сайта, а `robots.ts` формирует файл robots.txt. Для структурированных данных можно добавить **JSON-LD**, рендеря тег `<script>` с `type="application/ld+json"` прямо в серверных компонентах. Эти возможности вместе обеспечивают полный контроль над SEO без сторонних библиотек.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/layout.tsx — Static metadata in root layout
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: {
+    default: "My App",
+    template: "%s | My App", // Child pages: "About | My App"
+  },
+  description: "A modern web application built with Next.js",
+  metadataBase: new URL("https://example.com"),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "My App",
+  },
+};
+```
+
+```tsx
+// app/blog/[slug]/page.tsx — Dynamic metadata with generateMetadata
+import type { Metadata } from "next";
+
+interface Props {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await fetch(`https://api.example.com/posts/${slug}`).then((r) =>
+    r.json()
+  );
+
+  return {
+    title: post.title,
+    description: post.excerpt,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      images: [{ url: post.coverImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
+    },
+  };
+}
+
+export default async function BlogPost({ params }: Props) {
+  const { slug } = await params;
+  const post = await fetch(`https://api.example.com/posts/${slug}`).then((r) =>
+    r.json()
+  );
+
+  // JSON-LD structured data
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    datePublished: post.publishedAt,
+    author: { "@type": "Person", name: post.author },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <article>
+        <h1>{post.title}</h1>
+        <p>{post.content}</p>
+      </article>
+    </>
+  );
+}
+```
+
+```tsx
+// app/sitemap.ts — Dynamic sitemap generation
+import type { MetadataRoute } from "next";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const posts = await fetch("https://api.example.com/posts").then((r) =>
+    r.json()
+  );
+
+  const postEntries = posts.map((post: { slug: string; updatedAt: string }) => ({
+    url: `https://example.com/blog/${post.slug}`,
+    lastModified: new Date(post.updatedAt),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
+
+  return [
+    { url: "https://example.com", lastModified: new Date(), priority: 1.0 },
+    { url: "https://example.com/about", lastModified: new Date(), priority: 0.5 },
+    ...postEntries,
+  ];
+}
+```
+
+```tsx
+// app/robots.ts — Robots.txt generation
+import type { MetadataRoute } from "next";
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/api/", "/admin/"],
+    },
+    sitemap: "https://example.com/sitemap.xml",
+  };
+}
+```

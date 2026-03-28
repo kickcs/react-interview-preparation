@@ -1,0 +1,97 @@
+---
+title: "Что такое useTransition и useDeferredValue?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useTransition** and **useDeferredValue** are concurrent rendering hooks introduced in React 18 that let you mark certain state updates as non-urgent, keeping the UI responsive during expensive renders. They solve the problem of slow renders blocking user input — for example, typing in a search field that triggers filtering of thousands of items.
+
+**useTransition** returns a `[isPending, startTransition]` pair. You wrap non-urgent state updates inside `startTransition(() => setState(newValue))`. React will process the update with lower priority — if a more urgent update (like typing) comes in, React interrupts the transition to handle it first. The `isPending` boolean lets you show a loading indicator while the transition is in progress.
+
+**useDeferredValue** takes a value and returns a deferred copy. During urgent updates, the deferred value lags behind the actual value, letting React render the urgent update first and then re-render with the deferred value in the background. It is essentially a way to tell React "it's okay to show stale data for this value while you catch up." This is useful when you don't control the state update (e.g., a value coming from props).
+
+The key difference: use `useTransition` when you **control** the state update and can wrap it in `startTransition`. Use `useDeferredValue` when you **receive** a value from outside (props, external store) and want to defer its downstream rendering. Both hooks require concurrent features enabled in React 18+.
+
+</Answer>
+<Answer lang="ru">
+
+**useTransition** и **useDeferredValue** — это хуки конкурентного рендеринга, введённые в React 18, которые позволяют пометить определённые обновления состояния как несрочные, сохраняя отзывчивость UI во время дорогих рендеров. Они решают проблему медленных рендеров, блокирующих пользовательский ввод — например, набор текста в поисковом поле, которое запускает фильтрацию тысяч элементов.
+
+**useTransition** возвращает пару `[isPending, startTransition]`. Вы оборачиваете несрочные обновления состояния в `startTransition(() => setState(newValue))`. React обрабатывает обновление с более низким приоритетом — если поступает более срочное обновление (например, ввод текста), React прерывает переход для его обработки. Булево значение `isPending` позволяет показать индикатор загрузки, пока переход в процессе.
+
+**useDeferredValue** принимает значение и возвращает его отложенную копию. Во время срочных обновлений отложенное значение отстаёт от фактического, позволяя React сначала отрендерить срочное обновление, а затем перерендерить с отложенным значением в фоне. По сути, это способ сказать React: «можно показывать устаревшие данные для этого значения, пока догоняешь». Это полезно, когда вы не контролируете обновление состояния (например, значение приходит из пропсов).
+
+Ключевое различие: используйте `useTransition`, когда вы **контролируете** обновление состояния и можете обернуть его в `startTransition`. Используйте `useDeferredValue`, когда вы **получаете** значение извне (пропсы, внешнее хранилище) и хотите отложить его нисходящий рендеринг. Оба хука требуют конкурентных возможностей, включённых в React 18+.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useTransition, useDeferredValue, memo } from "react";
+
+// Expensive list component
+const FilteredList = memo(function FilteredList({
+  query,
+  items,
+}: {
+  query: string;
+  items: string[];
+}) {
+  const filtered = items.filter((item) =>
+    item.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <ul>
+      {filtered.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+});
+
+// Approach 1: useTransition — you control the state update
+function SearchWithTransition({ items }: { items: string[] }) {
+  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Urgent: update the input immediately
+    setInput(e.target.value);
+
+    // Non-urgent: defer the expensive filtering
+    startTransition(() => {
+      setQuery(e.target.value);
+    });
+  };
+
+  return (
+    <div>
+      <input value={input} onChange={handleChange} placeholder="Search..." />
+      {isPending && <p>Updating list...</p>}
+      <FilteredList query={query} items={items} />
+    </div>
+  );
+}
+
+// Approach 2: useDeferredValue — the value comes from outside
+function SearchWithDeferredValue({
+  items,
+  query,
+}: {
+  items: string[];
+  query: string;
+}) {
+  const deferredQuery = useDeferredValue(query);
+  const isStale = query !== deferredQuery;
+
+  return (
+    <div style={{ opacity: isStale ? 0.6 : 1 }}>
+      <FilteredList query={deferredQuery} items={items} />
+    </div>
+  );
+}
+```

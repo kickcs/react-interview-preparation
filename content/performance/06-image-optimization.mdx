@@ -1,0 +1,58 @@
+---
+title: "Как оптимизировать изображения в веб-приложениях?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Image optimization is critical because images typically account for the largest portion of page weight. The first step is choosing the right **format**: **WebP** offers 25-35% smaller files than JPEG with similar quality, and **AVIF** provides even better compression. Use modern formats with fallbacks for older browsers.
+
+**Lazy loading** defers offscreen images until the user scrolls near them, reducing initial page load. The native `loading="lazy"` attribute handles this without JavaScript. **Responsive images** via `srcset` and `sizes` attributes let the browser pick the right resolution for the device, avoiding downloading a 4K image on a mobile screen.
+
+In Next.js, the **`next/image`** component automates most of these optimizations: it serves images in WebP/AVIF, generates multiple sizes, lazy loads by default, and prevents **Cumulative Layout Shift** (CLS) by reserving space. Beyond the component level, using a **CDN** (Content Delivery Network) for image serving reduces latency, and tools like `sharp` or `squoosh` compress images during the build process.
+
+</Answer>
+<Answer lang="ru">
+
+Оптимизация изображений критически важна, потому что изображения обычно составляют наибольшую часть веса страницы. Первый шаг — выбор правильного **формата**: **WebP** даёт файлы на 25-35% меньше, чем JPEG при аналогичном качестве, а **AVIF** обеспечивает ещё лучшее сжатие. Используйте современные форматы с фолбэками для старых браузеров.
+
+**Ленивая загрузка** (lazy loading) откладывает загрузку изображений за пределами экрана до тех пор, пока пользователь не прокрутит страницу к ним, уменьшая начальную загрузку. Нативный атрибут `loading="lazy"` обрабатывает это без JavaScript. **Адаптивные изображения** через атрибуты `srcset` и `sizes` позволяют браузеру выбрать правильное разрешение для устройства, избегая загрузки 4K-изображения на мобильном экране.
+
+В Next.js компонент **`next/image`** автоматизирует большинство этих оптимизаций: он отдаёт изображения в WebP/AVIF, генерирует несколько размеров, лениво загружает по умолчанию и предотвращает **сдвиг макета** (CLS), резервируя место. Помимо компонентного уровня, использование **CDN** (сети доставки контента) для раздачи изображений снижает задержку, а инструменты вроде `sharp` или `squoosh` сжимают изображения во время сборки.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Responsive image with modern formats and lazy loading
+function ResponsiveImage() {
+  return (
+    <picture>
+      {/* AVIF — best compression, limited support */}
+      <source
+        srcSet="/images/hero-400.avif 400w, /images/hero-800.avif 800w, /images/hero-1200.avif 1200w"
+        sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
+        type="image/avif"
+      />
+      {/* WebP — good compression, wide support */}
+      <source
+        srcSet="/images/hero-400.webp 400w, /images/hero-800.webp 800w, /images/hero-1200.webp 1200w"
+        sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
+        type="image/webp"
+      />
+      {/* JPEG fallback */}
+      <img
+        src="/images/hero-800.jpg"
+        srcSet="/images/hero-400.jpg 400w, /images/hero-800.jpg 800w, /images/hero-1200.jpg 1200w"
+        sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
+        alt="Hero banner"
+        loading="lazy"
+        decoding="async"
+        width={1200}
+        height={600}
+      />
+    </picture>
+  );
+}
+```

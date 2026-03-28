@@ -1,0 +1,119 @@
+---
+title: "Как работают loading и error состояния в Next.js?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Next.js provides special files for handling **loading** and **error** states at every route level. The `loading.tsx` file creates an automatic **React Suspense boundary** around its sibling `page.tsx`. While the page is loading (e.g., fetching data in an async Server Component), Next.js renders the loading UI instantly, enabling streaming and progressive rendering.
+
+The `error.tsx` file creates a **React Error Boundary** that catches runtime errors in its child route segment. It must be a Client Component (with `'use client'`) because Error Boundaries require lifecycle methods. The component receives `error` and `reset` props — `error` contains the error details, and `reset` is a function to retry rendering. For the root layout, use `global-error.tsx` since `error.tsx` doesn't catch errors thrown in the same-level `layout.tsx`.
+
+The `not-found.tsx` file handles 404 states, either triggered automatically or manually via the `notFound()` function from `next/navigation`. Together, these special files give you **granular, hierarchical control** over loading and error states without writing custom Suspense or Error Boundary wrappers. Each nested route segment can have its own loading and error UI, so a failure in one section doesn't take down the entire page.
+
+</Answer>
+<Answer lang="ru">
+
+Next.js предоставляет специальные файлы для обработки состояний **загрузки** и **ошибок** на каждом уровне маршрута. Файл `loading.tsx` создаёт автоматическую границу **React Suspense** вокруг соседнего `page.tsx`. Пока страница загружается (например, при получении данных в асинхронном серверном компоненте), Next.js мгновенно рендерит UI загрузки, обеспечивая стриминг и прогрессивный рендеринг.
+
+Файл `error.tsx` создаёт **React Error Boundary**, перехватывающий ошибки времени выполнения в дочернем сегменте маршрута. Он должен быть клиентским компонентом (с `'use client'`), так как Error Boundary требуют методов жизненного цикла. Компонент получает пропсы `error` и `reset` — `error` содержит детали ошибки, а `reset` — функцию для повторной попытки рендеринга. Для корневого макета используйте `global-error.tsx`, поскольку `error.tsx` не перехватывает ошибки, возникающие в `layout.tsx` того же уровня.
+
+Файл `not-found.tsx` обрабатывает состояния 404, срабатывающие автоматически или вручную через функцию `notFound()` из `next/navigation`. Вместе эти специальные файлы дают **детальный, иерархический контроль** над состояниями загрузки и ошибок без написания пользовательских обёрток Suspense или Error Boundary. Каждый вложенный сегмент маршрута может иметь собственный UI загрузки и ошибок, так что сбой в одной секции не обрушивает всю страницу.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/dashboard/loading.tsx — Automatic Suspense boundary
+
+export default function DashboardLoading() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-8 bg-gray-200 rounded w-1/3 mb-4" />
+      <div className="h-4 bg-gray-200 rounded w-full mb-2" />
+      <div className="h-4 bg-gray-200 rounded w-2/3" />
+    </div>
+  );
+}
+```
+
+```tsx
+// app/dashboard/error.tsx — Error Boundary (must be Client Component)
+"use client";
+
+import { useEffect } from "react";
+
+export default function DashboardError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error("Dashboard error:", error);
+  }, [error]);
+
+  return (
+    <div role="alert">
+      <h2>Something went wrong!</h2>
+      <p>{error.message}</p>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  );
+}
+```
+
+```tsx
+// app/global-error.tsx — Catches errors in root layout
+"use client";
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <html>
+      <body>
+        <h2>Something went wrong!</h2>
+        <button onClick={() => reset()}>Try again</button>
+      </body>
+    </html>
+  );
+}
+```
+
+```tsx
+// app/blog/[slug]/not-found.tsx — Custom 404 for a route segment
+
+export default function PostNotFound() {
+  return (
+    <div>
+      <h2>Post Not Found</h2>
+      <p>The blog post you are looking for does not exist.</p>
+    </div>
+  );
+}
+
+// app/blog/[slug]/page.tsx — Triggering not-found
+import { notFound } from "next/navigation";
+
+export default async function BlogPost({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+
+  if (!post) {
+    notFound(); // Renders the nearest not-found.tsx
+  }
+
+  return <article>{post.title}</article>;
+}
+```

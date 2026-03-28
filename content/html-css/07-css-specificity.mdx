@@ -1,0 +1,67 @@
+---
+title: "Как работает специфичность CSS и каскад?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**CSS specificity** is the algorithm browsers use to determine which CSS rule applies when multiple rules target the same element. Specificity is calculated as a tuple of three categories: **ID selectors** (highest weight), **class selectors, attribute selectors, and pseudo-classes** (medium weight), and **element selectors and pseudo-elements** (lowest weight). Inline styles override all selector-based specificity, and `!important` overrides everything including inline styles.
+
+The **cascade** is the broader algorithm that determines which styles apply. It considers, in order: origin and importance (user-agent, user, author styles, each with normal and `!important` variants), specificity, and source order (later rules win when specificity is equal). The `!important` flag should be used sparingly because it makes styles difficult to override and maintain.
+
+**Inheritance** is another factor — some properties like `color`, `font-family`, and `line-height` are inherited from parent elements by default, while layout properties like `width`, `margin`, and `padding` are not. You can force inheritance with the `inherit` keyword or reset a property with `unset` (inherits if the property is normally inherited, otherwise uses the initial value). Understanding specificity helps you write maintainable CSS without resorting to `!important` or excessive nesting.
+
+</Answer>
+<Answer lang="ru">
+
+**CSS-специфичность** — это алгоритм, с помощью которого браузеры определяют, какое CSS-правило применяется, когда несколько правил нацелены на один и тот же элемент. Специфичность вычисляется как кортеж из трёх категорий: **ID-селекторы** (наивысший вес), **селекторы классов, атрибутов и псевдоклассы** (средний вес) и **селекторы элементов и псевдоэлементы** (наименьший вес). Inline-стили перекрывают любую специфичность селекторов, а `!important` перекрывает всё, включая inline-стили.
+
+**Каскад** — это более широкий алгоритм, определяющий, какие стили применяются. Он учитывает по порядку: происхождение и важность (стили браузера, пользователя, автора — каждый с обычным и `!important` вариантами), специфичность и порядок в исходном коде (при равной специфичности побеждают правила, объявленные позже). Флаг `!important` следует использовать редко, поскольку он затрудняет переопределение и поддержку стилей.
+
+**Наследование** — ещё один фактор: некоторые свойства, такие как `color`, `font-family` и `line-height`, наследуются от родительских элементов по умолчанию, тогда как свойства компоновки вроде `width`, `margin` и `padding` — нет. Можно принудительно наследовать значение с помощью ключевого слова `inherit` или сбросить свойство через `unset` (наследует, если свойство обычно наследуемое, иначе использует начальное значение). Понимание специфичности помогает писать поддерживаемый CSS без злоупотребления `!important` или чрезмерной вложенности.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Specificity: (0, 0, 1) — one element selector */
+p {
+  color: black;
+}
+
+/* Specificity: (0, 1, 0) — one class selector */
+.text {
+  color: blue;
+}
+
+/* Specificity: (0, 1, 1) — one class + one element */
+p.text {
+  color: green;
+}
+
+/* Specificity: (1, 0, 0) — one ID selector */
+#intro {
+  color: red;
+}
+
+/* Specificity: (1, 1, 1) — ID + class + element */
+#intro p.text {
+  color: purple;
+}
+
+/* !important overrides all specificity (avoid if possible) */
+.override {
+  color: orange !important;
+}
+
+/* Inheritance example */
+body {
+  font-family: "Inter", sans-serif; /* inherited by children */
+  color: #333;                      /* inherited by children */
+}
+
+.reset-example {
+  color: unset; /* resets to inherited value */
+}
+```

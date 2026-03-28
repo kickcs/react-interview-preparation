@@ -1,0 +1,53 @@
+---
+title: "Как работает условный рендеринг в React?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Conditional rendering** in React works the same way conditions work in JavaScript. You can use standard JavaScript operators and expressions to decide which elements to render based on the current state or props. React will update the DOM to match the output of your component.
+
+The most common patterns include **if/else** statements for early returns, the **ternary operator** (`condition ? a : b`) for inline conditional rendering, and the **logical AND** (`&&`) operator for rendering something or nothing. You can also use **switch/case** when dealing with multiple conditions. Each pattern has its best use case: if/else is great for guard clauses and early returns, ternary works well when toggling between two pieces of UI, and `&&` is ideal when you only need to show something conditionally without an else branch.
+
+One important caveat with the `&&` operator: if the left-hand side is `0` or `NaN`, React will render that value instead of skipping it. To avoid this, ensure the condition always evaluates to a boolean, for example by using `items.length > 0 &&` instead of `items.length &&`.
+
+</Answer>
+<Answer lang="ru">
+
+**Условный рендеринг** в React работает так же, как условия в JavaScript. Вы можете использовать стандартные операторы и выражения JavaScript, чтобы решать, какие элементы отображать в зависимости от текущего состояния или пропсов. React обновит DOM в соответствии с результатом вашего компонента.
+
+Наиболее распространённые паттерны: инструкции **if/else** для раннего возврата, **тернарный оператор** (`condition ? a : b`) для встроенного условного рендеринга и оператор **логического И** (`&&`) для отображения чего-либо или ничего. Также можно использовать **switch/case** при работе с несколькими условиями. Каждый паттерн имеет свою область применения: if/else подходит для защитных проверок и раннего возврата, тернарный оператор удобен при переключении между двумя фрагментами UI, а `&&` идеален, когда нужно показать что-то условно без ветки else.
+
+Важный нюанс с оператором `&&`: если левая часть равна `0` или `NaN`, React отобразит это значение вместо того, чтобы пропустить его. Чтобы избежать этого, убедитесь, что условие всегда вычисляется в булево значение, например используя `items.length > 0 &&` вместо `items.length &&`.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+function Dashboard({ user, notifications }: {
+  user: { name: string; isAdmin: boolean } | null;
+  notifications: string[];
+}) {
+  // Early return with if/else
+  if (!user) {
+    return <p>Please log in.</p>;
+  }
+
+  return (
+    <div>
+      {/* Ternary operator */}
+      <h1>{user.isAdmin ? "Admin Dashboard" : "User Dashboard"}</h1>
+
+      {/* Logical AND */}
+      {notifications.length > 0 && (
+        <ul>
+          {notifications.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```

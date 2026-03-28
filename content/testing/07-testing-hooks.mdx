@@ -1,0 +1,91 @@
+---
+title: "Как тестировать custom hooks?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Custom hooks can't be called outside a React component, so you need a special utility to test them. **renderHook** from `@testing-library/react` creates a minimal wrapper component, calls your hook inside it, and gives you access to the hook's return value through `result.current`.
+
+When your hook triggers state updates, you need to wrap those updates in **act()**. However, if you use `renderHook` and `userEvent` from Testing Library, most `act()` calls are handled automatically. You only need explicit `act()` when calling a returned function directly from the test: `act(() => { result.current.increment(); })`.
+
+For hooks that depend on **context providers**, pass a `wrapper` option to `renderHook`. This is common when testing hooks that rely on React Query, Redux, or your own context. The wrapper is a component that renders `children` inside the required providers.
+
+To test hooks that accept **dependencies** (like a custom `useFetch(url)` that re-fetches when `url` changes), use the `rerender` function returned by `renderHook`. Call `rerender({ url: "/new" })` to simulate prop changes and verify the hook responds correctly. Always await async hooks with `waitFor` to avoid act warnings.
+
+</Answer>
+<Answer lang="ru">
+
+Кастомные хуки нельзя вызвать вне React-компонента, поэтому для тестирования нужна специальная утилита. **renderHook** из `@testing-library/react` создаёт минимальный компонент-обёртку, вызывает хук внутри него и предоставляет доступ к возвращаемому значению через `result.current`.
+
+Когда хук вызывает обновление состояния, эти обновления нужно оборачивать в **act()**. Однако если вы используете `renderHook` и `userEvent` из Testing Library, большинство вызовов `act()` обрабатываются автоматически. Явный `act()` нужен только при прямом вызове возвращённой функции из теста: `act(() => { result.current.increment(); })`.
+
+Для хуков, зависящих от **провайдеров контекста**, передайте опцию `wrapper` в `renderHook`. Это часто нужно при тестировании хуков, использующих React Query, Redux или собственный контекст. Обёртка — это компонент, который рендерит `children` внутри нужных провайдеров.
+
+Для тестирования хуков с **зависимостями** (например, `useFetch(url)`, который перезапрашивает данные при изменении `url`), используйте функцию `rerender`, возвращаемую `renderHook`. Вызовите `rerender({ url: "/new" })` для имитации изменения пропсов и проверки реакции хука. Всегда ожидайте асинхронные хуки через `waitFor`, чтобы избежать предупреждений об act.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { renderHook, act } from "@testing-library/react";
+import { useState, useCallback } from "react";
+
+// Custom hook to test
+function useCounter(initialValue = 0) {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = useCallback(() => setCount((c) => c + 1), []);
+  const decrement = useCallback(() => setCount((c) => c - 1), []);
+  const reset = useCallback(() => setCount(initialValue), [initialValue]);
+
+  return { count, increment, decrement, reset };
+}
+
+describe("useCounter", () => {
+  it("starts with the initial value", () => {
+    const { result } = renderHook(() => useCounter(10));
+
+    expect(result.current.count).toBe(10);
+  });
+
+  it("defaults to 0", () => {
+    const { result } = renderHook(() => useCounter());
+
+    expect(result.current.count).toBe(0);
+  });
+
+  it("increments the counter", () => {
+    const { result } = renderHook(() => useCounter());
+
+    act(() => {
+      result.current.increment();
+    });
+
+    expect(result.current.count).toBe(1);
+  });
+
+  it("decrements the counter", () => {
+    const { result } = renderHook(() => useCounter(5));
+
+    act(() => {
+      result.current.decrement();
+    });
+
+    expect(result.current.count).toBe(4);
+  });
+
+  it("resets to initial value", () => {
+    const { result } = renderHook(() => useCounter(10));
+
+    act(() => {
+      result.current.increment();
+      result.current.increment();
+      result.current.reset();
+    });
+
+    expect(result.current.count).toBe(10);
+  });
+});
+```

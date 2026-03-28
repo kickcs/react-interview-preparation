@@ -1,0 +1,75 @@
+---
+title: "Что такое React Server Components?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React Server Components (RSC)** are components that run exclusively on the server. They can directly access databases, file systems, and other server-side resources. Their code is never sent to the browser, resulting in **zero bundle size** for the component itself and its server-only dependencies.
+
+By default, components in frameworks like Next.js App Router are Server Components. To make a component interactive (use state, effects, or browser APIs), you must add the **`'use client'`** directive at the top of the file. This creates a boundary — everything imported into a Client Component also becomes part of the client bundle. Server Components can be **async**, letting you `await` data directly inside the component without useEffect or separate data-fetching layers.
+
+Server Components have important **limitations**: they cannot use hooks like `useState` or `useEffect`, cannot attach event handlers, and cannot access browser-only APIs. The mental model is a clear split — Server Components handle data fetching and static rendering, while Client Components handle interactivity. You should push the `'use client'` boundary as far down the tree as possible to minimize the client JavaScript bundle.
+
+</Answer>
+<Answer lang="ru">
+
+**React Server Components (RSC)** — это компоненты, которые выполняются исключительно на сервере. Они могут напрямую обращаться к базам данных, файловой системе и другим серверным ресурсам. Их код никогда не отправляется в браузер, что обеспечивает **нулевой размер бандла** для самого компонента и его серверных зависимостей.
+
+По умолчанию компоненты в фреймворках вроде Next.js App Router являются серверными. Чтобы сделать компонент интерактивным (использовать состояние, эффекты или браузерные API), нужно добавить директиву **`'use client'`** в начало файла. Это создаёт границу — всё, что импортируется в клиентский компонент, также попадает в клиентский бандл. Серверные компоненты могут быть **асинхронными**, позволяя использовать `await` непосредственно внутри компонента без useEffect или отдельных слоёв получения данных.
+
+У серверных компонентов есть важные **ограничения**: они не могут использовать хуки вроде `useState` или `useEffect`, не могут назначать обработчики событий и не имеют доступа к браузерным API. Ментальная модель — чёткое разделение: серверные компоненты отвечают за получение данных и статический рендеринг, а клиентские — за интерактивность. Следует опускать границу `'use client'` как можно ниже по дереву, чтобы минимизировать клиентский JavaScript-бандл.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/users/page.tsx — Server Component (default, no directive needed)
+import { db } from "@/lib/database";
+
+async function UsersPage() {
+  // Direct database access — this code never reaches the browser
+  const users = await db.query("SELECT id, name, email FROM users");
+
+  return (
+    <div>
+      <h1>Users</h1>
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>
+            {user.name} — {user.email}
+            {/* Client Component handles interactivity */}
+            <DeleteButton userId={user.id} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default UsersPage;
+```
+
+```tsx
+// components/DeleteButton.tsx — Client Component
+"use client";
+
+import { useState } from "react";
+
+export function DeleteButton({ userId }: { userId: number }) {
+  const [pending, setPending] = useState(false);
+
+  const handleDelete = async () => {
+    setPending(true);
+    await fetch(`/api/users/${userId}`, { method: "DELETE" });
+    setPending(false);
+  };
+
+  return (
+    <button onClick={handleDelete} disabled={pending}>
+      {pending ? "Deleting..." : "Delete"}
+    </button>
+  );
+}
+```

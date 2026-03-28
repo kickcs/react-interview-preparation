@@ -1,0 +1,83 @@
+---
+title: "В чём разница между Pages Router и App Router?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Pages Router** was the original routing system in Next.js, where each file in the `pages/` directory became a route. It used special functions like `getServerSideProps`, `getStaticProps`, and `getStaticPaths` for data fetching. Every component was a Client Component by default, and layouts required manual implementation with wrapper patterns.
+
+The **App Router**, introduced in Next.js 13.4, is the modern approach built on React Server Components. It uses the `app/` directory with special file conventions (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`). Components are Server Components by default, layouts are natively supported and preserve state across navigations, and data fetching happens directly in components using `async/await`.
+
+Key differences include: the App Router supports **streaming** and **partial rendering**, has built-in **Suspense** integration via `loading.tsx`, uses **React Server Components** to reduce client-side JavaScript, and provides **nested layouts** that persist across navigations. The Pages Router still works and is maintained, but the App Router is the recommended approach for new projects. Migration can be done incrementally since both routers can coexist in the same project.
+
+</Answer>
+<Answer lang="ru">
+
+**Pages Router** был оригинальной системой маршрутизации в Next.js, где каждый файл в директории `pages/` становился маршрутом. Он использовал специальные функции `getServerSideProps`, `getStaticProps` и `getStaticPaths` для загрузки данных. Все компоненты по умолчанию были клиентскими, а макеты требовали ручной реализации через паттерны обёрток.
+
+**App Router**, представленный в Next.js 13.4, — это современный подход, построенный на React Server Components. Он использует директорию `app/` со специальными файловыми конвенциями (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`). Компоненты по умолчанию являются серверными, макеты поддерживаются нативно и сохраняют состояние при навигации, а загрузка данных происходит непосредственно в компонентах с помощью `async/await`.
+
+Ключевые различия: App Router поддерживает **стриминг** и **частичный рендеринг**, имеет встроенную интеграцию с **Suspense** через `loading.tsx`, использует **React Server Components** для уменьшения клиентского JavaScript и предоставляет **вложенные макеты**, сохраняющиеся при навигации. Pages Router всё ещё работает и поддерживается, но App Router — рекомендуемый подход для новых проектов. Миграция может выполняться поэтапно, так как оба роутера могут сосуществовать в одном проекте.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// ===== Pages Router (pages/) =====
+
+// pages/posts/[id].tsx
+import { GetStaticProps, GetStaticPaths } from "next";
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const posts = await fetchPosts();
+  return {
+    paths: posts.map((post) => ({ params: { id: post.id } })),
+    fallback: false,
+  };
+};
+
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const post = await fetchPost(params!.id as string);
+  return { props: { post } };
+};
+
+export default function Post({ post }: { post: Post }) {
+  return <h1>{post.title}</h1>;
+}
+
+// ===== App Router (app/) =====
+
+// app/posts/[id]/page.tsx — Server Component by default
+export async function generateStaticParams() {
+  const posts = await fetchPosts();
+  return posts.map((post) => ({ id: post.id }));
+}
+
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const post = await fetchPost(id);
+
+  return <h1>{post.title}</h1>;
+}
+```
+
+```txt
+Feature Comparison:
+
+| Feature              | Pages Router         | App Router              |
+|----------------------|----------------------|-------------------------|
+| Directory            | pages/               | app/                    |
+| Components           | Client by default    | Server by default       |
+| Data Fetching        | getServerSideProps   | async/await in component|
+| Layouts              | Manual wrappers      | Native layout.tsx       |
+| Loading States       | Custom per page      | Built-in loading.tsx    |
+| Error Handling       | _error.tsx global    | Granular error.tsx      |
+| Streaming            | Not supported        | Built-in support        |
+| React Server Comp.   | Not supported        | Default                 |
+```

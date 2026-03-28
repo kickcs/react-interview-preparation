@@ -1,0 +1,82 @@
+---
+title: "Что такое Streaming SSR?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Streaming SSR** is a rendering approach where the server sends HTML to the browser in chunks as it becomes ready, rather than waiting for the entire page to render before sending anything. React 18 introduced `renderToPipeableStream` (Node.js) and `renderToReadableStream` (Web Streams) to enable this.
+
+In traditional SSR with `renderToString`, the server must complete all data fetching and rendering before sending any HTML. This means the **Time to First Byte (TTFB)** is determined by the slowest data source. With streaming, React sends the initial shell (layout, navigation, static content) immediately and **streams in** the remaining content as each Suspense boundary resolves. The browser can start parsing and displaying HTML while the server is still rendering.
+
+When a Suspense boundary resolves on the server, React sends the HTML fragment along with a small inline `<script>` that swaps the fallback placeholder with the actual content. This happens progressively — fast data sources appear first, and slow ones fill in later. Combined with **selective hydration**, React can make early parts of the page interactive while later parts are still streaming in. This architecture dramatically improves perceived performance, especially for pages with multiple independent data sources of varying speed.
+
+</Answer>
+<Answer lang="ru">
+
+**Потоковый SSR (Streaming SSR)** — это подход к рендерингу, при котором сервер отправляет HTML в браузер частями по мере их готовности, а не ждёт полного завершения рендеринга всей страницы. React 18 представил `renderToPipeableStream` (Node.js) и `renderToReadableStream` (Web Streams) для реализации этого.
+
+При традиционном SSR с `renderToString` сервер должен завершить все запросы данных и рендеринг, прежде чем отправить хоть какой-то HTML. Это означает, что **Time to First Byte (TTFB)** определяется самым медленным источником данных. При потоковом подходе React сразу отправляет начальный каркас (лейаут, навигацию, статический контент) и **потоково подгружает** оставшийся контент по мере разрешения каждой Suspense-границы. Браузер может начинать парсинг и отображение HTML, пока сервер ещё рендерит.
+
+Когда Suspense-граница разрешается на сервере, React отправляет HTML-фрагмент вместе с небольшим встроенным `<script>`, который заменяет fallback-заглушку реальным контентом. Это происходит прогрессивно — быстрые источники данных появляются первыми, а медленные заполняются позже. В сочетании с **селективной гидратацией** React может делать ранние части страницы интерактивными, пока поздние ещё стримятся. Эта архитектура кардинально улучшает воспринимаемую производительность, особенно для страниц с несколькими независимыми источниками данных разной скорости.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Server-side streaming setup with renderToPipeableStream
+import { renderToPipeableStream } from "react-dom/server";
+
+function handleRequest(req: Request, res: Response) {
+  const { pipe } = renderToPipeableStream(
+    <App />,
+    {
+      bootstrapScripts: ["/static/client.js"],
+      onShellReady() {
+        // Shell (everything outside Suspense) is ready
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/html");
+        pipe(res); // Start streaming
+      },
+      onShellError(error) {
+        // Shell failed — send fallback HTML
+        res.statusCode = 500;
+        res.send("<h1>Something went wrong</h1>");
+      },
+      onError(error) {
+        console.error(error); // Log streaming errors
+      },
+    }
+  );
+}
+
+// The App uses Suspense boundaries to define streaming chunks
+function App() {
+  return (
+    <html>
+      <body>
+        <header>Site Header</header> {/* Sent immediately */}
+        <Suspense fallback={<p>Loading feed...</p>}>
+          <NewsFeed /> {/* Streams in when data is ready */}
+        </Suspense>
+        <Suspense fallback={<p>Loading sidebar...</p>}>
+          <Sidebar /> {/* Streams independently */}
+        </Suspense>
+      </body>
+    </html>
+  );
+}
+
+// Async server component — resolves when data is fetched
+async function NewsFeed() {
+  const posts = await fetchPosts(); // Could take 200ms
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  );
+}
+```

@@ -1,0 +1,88 @@
+---
+title: "Что такое Feature-Sliced Design (FSD)?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Feature-Sliced Design (FSD)** is an architectural methodology for organizing frontend project code. It divides the application into **layers**, **slices**, and **segments**, providing clear rules about what code goes where and what can import what.
+
+FSD defines seven layers, ordered from most global to most specific: **app** (initialization, providers, routing), **processes** (deprecated, multi-page workflows), **pages** (route-level components), **widgets** (composite UI blocks), **features** (user interactions), **entities** (business domain objects), and **shared** (reusable utilities, UI primitives, configs). Each layer can only import from layers below it — a feature can use entities and shared, but never widgets or pages.
+
+Within each layer, code is organized into **slices** — domain-specific folders (e.g., `entities/user`, `features/auth`). Each slice contains **segments**: `ui/` for components, `model/` for state and logic, `api/` for data fetching, `lib/` for utilities, and `config/` for constants. Every slice exposes a **public API** through an `index.ts` file — other parts of the app can only import from this file, not from internal files.
+
+The main benefit of FSD is **scalability** for large applications. It prevents spaghetti imports, makes refactoring safer (you only change the internal implementation behind a public API), and provides a shared vocabulary for team discussions. While it adds more structure than needed for small projects, it pays off significantly as the codebase grows.
+
+</Answer>
+<Answer lang="ru">
+
+**Feature-Sliced Design (FSD)** — это архитектурная методология для организации кода фронтенд-проекта. Она разделяет приложение на **слои**, **слайсы** и **сегменты**, устанавливая чёткие правила о том, где какой код находится и что может импортировать что.
+
+FSD определяет семь слоёв, упорядоченных от наиболее глобального к наиболее специфичному: **app** (инициализация, провайдеры, роутинг), **processes** (устарело, многостраничные процессы), **pages** (компоненты на уровне маршрутов), **widgets** (составные UI-блоки), **features** (пользовательские взаимодействия), **entities** (объекты бизнес-домена) и **shared** (переиспользуемые утилиты, UI-примитивы, конфиги). Каждый слой может импортировать только из нижележащих слоёв — feature может использовать entities и shared, но никогда widgets или pages.
+
+Внутри каждого слоя код организуется в **слайсы** — доменно-специфичные папки (например, `entities/user`, `features/auth`). Каждый слайс содержит **сегменты**: `ui/` для компонентов, `model/` для состояния и логики, `api/` для запросов данных, `lib/` для утилит и `config/` для констант. Каждый слайс предоставляет **публичный API** через файл `index.ts` — другие части приложения могут импортировать только из этого файла, а не из внутренних файлов.
+
+Главное преимущество FSD — **масштабируемость** для больших приложений. Он предотвращает спагетти-импорты, делает рефакторинг безопаснее (вы меняете только внутреннюю реализацию за публичным API) и создаёт общий словарь для обсуждений в команде. Хотя для небольших проектов он добавляет избыточную структуру, он значительно окупается по мере роста кодовой базы.
+
+</Answer>
+</AnswerGroup>
+
+```
+# FSD project structure
+src/
+├── app/                    # Layer: App initialization
+│   ├── providers/
+│   ├── styles/
+│   └── index.tsx
+├── pages/                  # Layer: Route-level components
+│   ├── home/
+│   │   └── ui/
+│   └── profile/
+│       └── ui/
+├── widgets/                # Layer: Composite UI blocks
+│   ├── header/
+│   │   ├── ui/
+│   │   └── index.ts        # Public API
+│   └── sidebar/
+│       ├── ui/
+│       └── index.ts
+├── features/               # Layer: User interactions
+│   ├── auth/
+│   │   ├── ui/
+│   │   ├── model/
+│   │   ├── api/
+│   │   └── index.ts
+│   └── theme-toggle/
+│       ├── ui/
+│       └── index.ts
+├── entities/               # Layer: Business domain
+│   ├── user/
+│   │   ├── ui/
+│   │   ├── model/
+│   │   ├── api/
+│   │   └── index.ts
+│   └── post/
+│       ├── ui/
+│       ├── model/
+│       └── index.ts
+└── shared/                 # Layer: Reusable code
+    ├── ui/                 # UI kit (Button, Input, Modal)
+    ├── lib/                # Utilities
+    ├── api/                # API client
+    └── config/             # Constants, env
+```
+
+```typescript
+// entities/user/index.ts — Public API
+// Only these exports are accessible to other slices
+export { UserCard } from "./ui/UserCard";
+export { useUser } from "./model/useUser";
+export type { User } from "./model/types";
+
+// WRONG: importing internal files directly
+// import { formatUserName } from "@/entities/user/lib/format"; ❌
+
+// CORRECT: importing from public API
+// import { UserCard } from "@/entities/user"; ✅
+```

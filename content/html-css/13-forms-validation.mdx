@@ -1,0 +1,95 @@
+---
+title: "Как работают HTML формы и валидация?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**HTML forms** are built with the `<form>` element and various input controls. Modern HTML5 provides a rich set of **input types** beyond text: `email`, `url`, `tel`, `number`, `date`, `time`, `color`, `range`, `search`, and `file`. Each type provides appropriate keyboard layouts on mobile devices and built-in validation behavior. Other form elements include `<select>` for dropdowns, `<textarea>` for multiline text, `<fieldset>` and `<legend>` for grouping related controls, and `<datalist>` for autocomplete suggestions.
+
+**HTML5 validation attributes** enable client-side validation without JavaScript: `required` ensures a field isn't empty, `minlength` and `maxlength` control text length, `min` and `max` set numeric or date boundaries, `pattern` accepts a regular expression for custom validation, and `type="email"` validates email format automatically. The browser provides default error messages and prevents form submission when validation fails. The `:valid`, `:invalid`, `:required`, and `:placeholder-shown` pseudo-classes allow you to style fields based on their validation state.
+
+The **Constraint Validation API** in JavaScript gives finer control: `checkValidity()` triggers validation programmatically, `reportValidity()` shows validation messages, `setCustomValidity()` sets custom error messages, and the `validity` object provides details about why a field is invalid (e.g., `valueMissing`, `typeMismatch`, `patternMismatch`). For complex forms, you might disable the default browser validation with `novalidate` on the form and handle everything in JavaScript for a consistent cross-browser experience.
+
+</Answer>
+<Answer lang="ru">
+
+**HTML-формы** создаются с помощью элемента `<form>` и различных элементов ввода. Современный HTML5 предоставляет богатый набор **типов input** помимо text: `email`, `url`, `tel`, `number`, `date`, `time`, `color`, `range`, `search` и `file`. Каждый тип обеспечивает подходящую клавиатуру на мобильных устройствах и встроенное поведение валидации. Другие элементы форм включают `<select>` для выпадающих списков, `<textarea>` для многострочного текста, `<fieldset>` и `<legend>` для группировки связанных элементов и `<datalist>` для подсказок автозаполнения.
+
+**Атрибуты валидации HTML5** позволяют выполнять клиентскую проверку без JavaScript: `required` гарантирует, что поле не пустое, `minlength` и `maxlength` контролируют длину текста, `min` и `max` устанавливают числовые или датовые границы, `pattern` принимает регулярное выражение для пользовательской валидации, а `type="email"` автоматически проверяет формат email. Браузер выводит сообщения об ошибках по умолчанию и предотвращает отправку формы при неудачной валидации. Псевдоклассы `:valid`, `:invalid`, `:required` и `:placeholder-shown` позволяют стилизовать поля в зависимости от состояния валидации.
+
+**Constraint Validation API** в JavaScript даёт более тонкий контроль: `checkValidity()` запускает валидацию программно, `reportValidity()` показывает сообщения валидации, `setCustomValidity()` устанавливает пользовательские сообщения об ошибках, а объект `validity` предоставляет информацию о причине невалидности поля (например, `valueMissing`, `typeMismatch`, `patternMismatch`). Для сложных форм можно отключить стандартную браузерную валидацию атрибутом `novalidate` на форме и обработать всё в JavaScript для единообразного кроссбраузерного опыта.
+
+</Answer>
+</AnswerGroup>
+
+```html
+<form id="registration" novalidate>
+  <fieldset>
+    <legend>Registration</legend>
+
+    <div class="field">
+      <label for="username">Username</label>
+      <input
+        id="username"
+        type="text"
+        required
+        minlength="3"
+        maxlength="20"
+        pattern="[a-zA-Z0-9_]+"
+        placeholder="e.g. john_doe"
+      />
+      <span class="error" aria-live="polite"></span>
+    </div>
+
+    <div class="field">
+      <label for="reg-email">Email</label>
+      <input
+        id="reg-email"
+        type="email"
+        required
+        placeholder="john@example.com"
+      />
+      <span class="error" aria-live="polite"></span>
+    </div>
+
+    <div class="field">
+      <label for="age">Age</label>
+      <input id="age" type="number" min="18" max="120" required />
+    </div>
+
+    <div class="field">
+      <label for="website">Website</label>
+      <input id="website" type="url" placeholder="https://example.com" />
+    </div>
+
+    <button type="submit">Register</button>
+  </fieldset>
+</form>
+```
+
+```css
+/* Validation styles — show only after interaction */
+input:not(:placeholder-shown):valid {
+  border-color: #22c55e;
+}
+
+input:not(:placeholder-shown):invalid {
+  border-color: #ef4444;
+}
+
+/* Required field indicator */
+label:has(+ input:required)::after {
+  content: " *";
+  color: #ef4444;
+}
+
+/* Error message styling */
+.field .error {
+  display: block;
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+```

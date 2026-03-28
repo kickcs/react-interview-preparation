@@ -1,0 +1,90 @@
+---
+title: "Какие основные концепции Redux?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Redux** is a predictable state management library based on three fundamental principles: **single source of truth** (one store holds the entire app state), **state is read-only** (the only way to change state is by dispatching an action), and **changes are made with pure functions** (reducers take the previous state and an action, returning a new state without mutations).
+
+The core building blocks are: the **store** which holds the state tree, **actions** which are plain objects describing what happened (with a `type` field and optional payload), **reducers** which are pure functions specifying how state changes in response to actions, **dispatch** which is the method to send actions to the store, and **selectors** which are functions to extract specific pieces of state.
+
+Redux enforces **unidirectional data flow**: the UI dispatches an action, the reducer processes it and produces new state, the store notifies subscribers, and the UI re-renders with the new state. This strict cycle makes state changes predictable and easy to debug. Every state transition is traceable through actions, enabling powerful developer tools like time-travel debugging and action replay.
+
+While the original Redux API required significant boilerplate, modern Redux development uses **Redux Toolkit** which dramatically simplifies the setup. Understanding these core concepts, however, is essential for working effectively with any Redux-based codebase.
+
+</Answer>
+<Answer lang="ru">
+
+**Redux** — это библиотека предсказуемого управления состоянием, основанная на трёх фундаментальных принципах: **единый источник истины** (одно хранилище содержит всё состояние приложения), **состояние только для чтения** (единственный способ изменить состояние — отправить действие), и **изменения выполняются чистыми функциями** (редьюсеры принимают предыдущее состояние и действие, возвращая новое состояние без мутаций).
+
+Основные строительные блоки: **store (хранилище)**, которое содержит дерево состояния, **actions (действия)** — простые объекты, описывающие произошедшее событие (с полем `type` и необязательной полезной нагрузкой), **reducers (редьюсеры)** — чистые функции, определяющие, как состояние меняется в ответ на действия, **dispatch (диспетчеризация)** — метод отправки действий в хранилище, и **selectors (селекторы)** — функции для извлечения определённых частей состояния.
+
+Redux обеспечивает **однонаправленный поток данных**: UI отправляет действие, редьюсер обрабатывает его и создаёт новое состояние, хранилище уведомляет подписчиков, и UI перерендеривается с новым состоянием. Этот строгий цикл делает изменения состояния предсказуемыми и удобными для отладки. Каждый переход состояния отслеживается через действия, что позволяет использовать мощные инструменты разработчика, такие как отладка с путешествием во времени и воспроизведение действий.
+
+Хотя оригинальный API Redux требовал значительного количества шаблонного кода, современная разработка с Redux использует **Redux Toolkit**, который кардинально упрощает настройку. Тем не менее понимание базовых концепций необходимо для эффективной работы с любой кодовой базой на Redux.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createStore } from "redux";
+
+// Action types
+const INCREMENT = "counter/increment";
+const DECREMENT = "counter/decrement";
+const RESET = "counter/reset";
+
+// Action creators
+function increment() {
+  return { type: INCREMENT } as const;
+}
+function decrement() {
+  return { type: DECREMENT } as const;
+}
+function reset() {
+  return { type: RESET } as const;
+}
+
+type CounterAction =
+  | ReturnType<typeof increment>
+  | ReturnType<typeof decrement>
+  | ReturnType<typeof reset>;
+
+// Reducer — a pure function: (state, action) => newState
+function counterReducer(state = { value: 0 }, action: CounterAction) {
+  switch (action.type) {
+    case INCREMENT:
+      return { value: state.value + 1 };
+    case DECREMENT:
+      return { value: state.value - 1 };
+    case RESET:
+      return { value: 0 };
+    default:
+      return state;
+  }
+}
+
+// Store — single source of truth
+const store = createStore(counterReducer);
+
+// Selectors — extract specific data from state
+const selectCount = (state: { value: number }) => state.value;
+
+// Unidirectional data flow:
+// 1. UI dispatches an action
+store.dispatch(increment());
+
+// 2. Reducer processes the action and returns new state
+// 3. Store updates and notifies subscribers
+store.subscribe(() => {
+  // 4. UI reads new state via selectors
+  console.log("Count:", selectCount(store.getState()));
+});
+
+// Dispatch more actions
+store.dispatch(increment());  // Count: 2
+store.dispatch(decrement());  // Count: 1
+store.dispatch(reset());      // Count: 0
+```

@@ -1,0 +1,97 @@
+---
+title: "Как работает useReducer?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useReducer** is a hook for managing complex state logic using the reducer pattern. Instead of calling a setter directly, you **dispatch** an action object that describes what happened, and a **reducer function** determines how the state should change. The hook returns the current state and a `dispatch` function: `const [state, dispatch] = useReducer(reducer, initialState)`.
+
+The reducer function takes the current state and an action, then returns a new state. It must be a **pure function** — no side effects, no mutations. Each action typically has a `type` string and an optional `payload`. This pattern centralizes state transitions in one place, making them predictable and easy to test. It is especially useful when state has multiple sub-values that change together, or when the next state depends on the previous one in complex ways.
+
+Use `useReducer` over `useState` when you have **related state transitions** (like a form with validation), when the state logic is complex enough to benefit from centralization, or when you want to pass `dispatch` down instead of multiple callback props. The `dispatch` function has a stable identity across renders, so it never causes re-renders when passed as a prop — unlike inline callbacks.
+
+**Lazy initialization** is supported via a third argument: `useReducer(reducer, initialArg, init)`. The `init` function receives `initialArg` and returns the actual initial state, which is useful for computing initial state from props or performing expensive setup only once.
+
+</Answer>
+<Answer lang="ru">
+
+**useReducer** — это хук для управления сложной логикой состояния с использованием паттерна редюсер. Вместо прямого вызова сеттера вы **диспатчите** объект-действие (action), описывающий произошедшее, а **функция-редюсер** определяет, как должно измениться состояние. Хук возвращает текущее состояние и функцию `dispatch`: `const [state, dispatch] = useReducer(reducer, initialState)`.
+
+Функция-редюсер принимает текущее состояние и действие, затем возвращает новое состояние. Она должна быть **чистой функцией** — без побочных эффектов и мутаций. Каждое действие обычно имеет строку `type` и необязательный `payload`. Этот паттерн централизует переходы состояния в одном месте, делая их предсказуемыми и простыми для тестирования. Он особенно полезен, когда состояние имеет несколько подзначений, изменяющихся вместе, или когда следующее состояние зависит от предыдущего сложным образом.
+
+Используйте `useReducer` вместо `useState`, когда у вас есть **связанные переходы состояния** (например, форма с валидацией), когда логика состояния достаточно сложна для централизации, или когда вы хотите передавать `dispatch` вниз вместо множества колбэк-пропсов. Функция `dispatch` имеет стабильную идентичность между рендерами, поэтому никогда не вызывает ре-рендеры при передаче как проп — в отличие от инлайн-колбэков.
+
+**Ленивая инициализация** поддерживается через третий аргумент: `useReducer(reducer, initialArg, init)`. Функция `init` получает `initialArg` и возвращает фактическое начальное состояние, что полезно для вычисления начального состояния из пропсов или выполнения дорогой настройки только один раз.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useReducer } from "react";
+
+interface Todo {
+  id: number;
+  text: string;
+  completed: boolean;
+}
+
+type Action =
+  | { type: "ADD"; text: string }
+  | { type: "TOGGLE"; id: number }
+  | { type: "DELETE"; id: number };
+
+function todoReducer(state: Todo[], action: Action): Todo[] {
+  switch (action.type) {
+    case "ADD":
+      return [
+        ...state,
+        { id: Date.now(), text: action.text, completed: false },
+      ];
+    case "TOGGLE":
+      return state.map((todo) =>
+        todo.id === action.id
+          ? { ...todo, completed: !todo.completed }
+          : todo
+      );
+    case "DELETE":
+      return state.filter((todo) => todo.id !== action.id);
+    default:
+      return state;
+  }
+}
+
+function TodoApp() {
+  const [todos, dispatch] = useReducer(todoReducer, []);
+
+  const handleAdd = () => {
+    const text = prompt("New todo:");
+    if (text) dispatch({ type: "ADD", text });
+  };
+
+  return (
+    <div>
+      <button onClick={handleAdd}>Add Todo</button>
+      <ul>
+        {todos.map((todo) => (
+          <li key={todo.id}>
+            <span
+              onClick={() => dispatch({ type: "TOGGLE", id: todo.id })}
+              style={{
+                textDecoration: todo.completed ? "line-through" : "none",
+                cursor: "pointer",
+              }}
+            >
+              {todo.text}
+            </span>
+            <button onClick={() => dispatch({ type: "DELETE", id: todo.id })}>
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```

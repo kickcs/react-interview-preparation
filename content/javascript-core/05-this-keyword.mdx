@@ -1,0 +1,72 @@
+---
+title: "Как работает ключевое слово `this`?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **`this`** keyword in JavaScript refers to the object that is executing the current function. Its value is determined by *how* a function is called, not where it is defined. This is one of the most confusing aspects of the language, as the same function can have different `this` values depending on the calling context.
+
+In the **global context**, `this` refers to the global object (`window` in browsers, `globalThis` in Node.js). When a function is called as a **method** of an object, `this` refers to that object. In a **constructor** (called with `new`), `this` refers to the newly created instance. **Arrow functions** do not have their own `this` — they inherit `this` from the enclosing lexical scope, making them ideal for callbacks.
+
+You can explicitly set `this` using **`bind`**, **`call`**, and **`apply`**. `call` and `apply` invoke the function immediately with a specified `this` (the difference is that `apply` takes arguments as an array), while `bind` returns a new function with `this` permanently bound. In strict mode (`"use strict"`), `this` in a standalone function call is `undefined` rather than the global object.
+
+</Answer>
+<Answer lang="ru">
+
+Ключевое слово **`this`** в JavaScript ссылается на объект, который выполняет текущую функцию. Его значение определяется тем, *как* функция вызвана, а не тем, где она определена. Это один из самых запутанных аспектов языка, так как одна и та же функция может иметь разные значения `this` в зависимости от контекста вызова.
+
+В **глобальном контексте** `this` ссылается на глобальный объект (`window` в браузерах, `globalThis` в Node.js). Когда функция вызывается как **метод** объекта, `this` ссылается на этот объект. В **конструкторе** (вызванном с `new`) `this` ссылается на вновь созданный экземпляр. **Стрелочные функции** не имеют собственного `this` — они наследуют `this` из окружающей лексической области видимости, что делает их идеальными для колбэков.
+
+Вы можете явно задать `this` с помощью **`bind`**, **`call`** и **`apply`**. `call` и `apply` вызывают функцию немедленно с указанным `this` (разница в том, что `apply` принимает аргументы в виде массива), тогда как `bind` возвращает новую функцию с постоянно привязанным `this`. В строгом режиме (`"use strict"`) `this` при обычном вызове функции равен `undefined`, а не глобальный объект.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// 1. Global context
+console.log(this); // window (browser) or globalThis (Node.js)
+
+// 2. Object method
+const user = {
+  name: "Alice",
+  greet() {
+    return `Hi, I'm ${this.name}`;
+  },
+};
+console.log(user.greet()); // "Hi, I'm Alice"
+
+// 3. Lost context
+const greetFn = user.greet;
+// console.log(greetFn()); // "Hi, I'm undefined" (this is global)
+
+// 4. Arrow function — inherits this from outer scope
+const team = {
+  name: "Dev Team",
+  members: ["Alice", "Bob"],
+  listMembers() {
+    return this.members.map(
+      (member) => `${member} belongs to ${this.name}` // arrow inherits `this`
+    );
+  },
+};
+console.log(team.listMembers());
+// ["Alice belongs to Dev Team", "Bob belongs to Dev Team"]
+
+// 5. bind / call / apply
+function introduce(greeting) {
+  return `${greeting}, I'm ${this.name}`;
+}
+console.log(introduce.call({ name: "Bob" }, "Hello"));   // "Hello, I'm Bob"
+console.log(introduce.apply({ name: "Eve" }, ["Hey"]));   // "Hey, I'm Eve"
+const boundFn = introduce.bind({ name: "Charlie" });
+console.log(boundFn("Hi")); // "Hi, I'm Charlie"
+
+// 6. Constructor
+function Person(name) {
+  this.name = name;
+}
+const p = new Person("Dan");
+console.log(p.name); // "Dan"
+```

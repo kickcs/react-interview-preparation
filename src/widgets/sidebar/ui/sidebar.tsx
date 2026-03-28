@@ -10,7 +10,7 @@ interface SidebarProps {
 
 export function Sidebar({ categories, questionsByCategory }: SidebarProps) {
   return (
-    <aside className="sticky top-0 h-screen hidden w-[280px] shrink-0 border-r border-border md:block">
+    <aside className="sticky top-0 h-screen hidden w-[320px] shrink-0 border-r border-border md:block">
       <div className="border-b border-border px-5 py-4">
         <div className="text-lg font-bold">React Interview</div>
         <div className="mt-1 text-xs text-muted-foreground">

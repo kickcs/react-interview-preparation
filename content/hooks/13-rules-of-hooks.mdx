@@ -1,0 +1,90 @@
+---
+title: "Какие правила использования Hooks?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Rules of Hooks** are two fundamental constraints that every hook must follow. **Rule 1: Only call hooks at the top level** — never inside loops, conditions, or nested functions. **Rule 2: Only call hooks from React functions** — either function components or custom hooks, never from regular JavaScript functions or class components.
+
+These rules exist because of how React tracks hooks internally. React maintains a **linked list** of hook calls for each component instance. On every render, React walks through this list in order, matching each hook call to its stored state. If you call a hook conditionally, the list shifts — hook call number 3 might receive the state that belonged to hook call number 2 on the previous render, causing corrupted state and impossible-to-debug errors.
+
+The `eslint-plugin-react-hooks` package enforces these rules statically with two rules: `rules-of-hooks` (error) and `exhaustive-deps` (warning). The first prevents conditional or nested hook calls. The second warns when dependencies of `useEffect`, `useMemo`, or `useCallback` are missing or incorrect. The plugin is included by default in Create React App and most Next.js setups.
+
+If you need conditional logic, move it **inside** the hook. Call the hook unconditionally, but use conditions within the effect or return early. For loops, extract the hook into a separate component and render that component in a loop instead.
+
+</Answer>
+<Answer lang="ru">
+
+**Правила хуков** — это два фундаментальных ограничения, которые должен соблюдать каждый хук. **Правило 1: Вызывайте хуки только на верхнем уровне** — никогда внутри циклов, условий или вложенных функций. **Правило 2: Вызывайте хуки только из React-функций** — из функциональных компонентов или пользовательских хуков, но не из обычных JavaScript-функций или классовых компонентов.
+
+Эти правила существуют из-за того, как React отслеживает хуки внутри. React поддерживает **связный список** (linked list) вызовов хуков для каждого экземпляра компонента. При каждом рендере React проходит по этому списку по порядку, сопоставляя каждый вызов хука с его сохранённым состоянием. Если вы вызовете хук условно, список сдвинется — вызов хука номер 3 может получить состояние, принадлежавшее вызову номер 2 при предыдущем рендере, что приведёт к повреждению состояния и ошибкам, которые невозможно отладить.
+
+Пакет `eslint-plugin-react-hooks` статически применяет эти правила с помощью двух правил: `rules-of-hooks` (ошибка) и `exhaustive-deps` (предупреждение). Первое предотвращает условные или вложенные вызовы хуков. Второе предупреждает, когда зависимости `useEffect`, `useMemo` или `useCallback` отсутствуют или некорректны. Плагин включён по умолчанию в Create React App и большинство конфигураций Next.js.
+
+Если нужна условная логика, поместите её **внутрь** хука. Вызывайте хук безусловно, но используйте условия внутри эффекта или ранний возврат. Для циклов выделите хук в отдельный компонент и рендерите этот компонент в цикле.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useEffect } from "react";
+
+// ❌ WRONG: Hook inside a condition
+function BadExample({ isLoggedIn }: { isLoggedIn: boolean }) {
+  if (isLoggedIn) {
+    // This breaks the Rules of Hooks!
+    const [user, setUser] = useState(null); // eslint error
+  }
+  return <div />;
+}
+
+// ✅ CORRECT: Condition inside the hook
+function GoodExample({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const [user, setUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Move the condition inside the effect
+    if (!isLoggedIn) return;
+
+    fetch("/api/user")
+      .then((res) => res.json())
+      .then(setUser);
+  }, [isLoggedIn]);
+
+  return <div>{user}</div>;
+}
+
+// ❌ WRONG: Hook inside a loop
+function BadList({ ids }: { ids: number[] }) {
+  // Cannot call hooks in a loop!
+  for (const id of ids) {
+    const [data, setData] = useState(null); // eslint error
+  }
+  return <div />;
+}
+
+// ✅ CORRECT: Extract into a component
+function ListItem({ id }: { id: number }) {
+  const [data, setData] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/items/${id}`)
+      .then((res) => res.json())
+      .then(setData);
+  }, [id]);
+
+  return <li>{data}</li>;
+}
+
+function GoodList({ ids }: { ids: number[] }) {
+  return (
+    <ul>
+      {ids.map((id) => (
+        <ListItem key={id} id={id} />
+      ))}
+    </ul>
+  );
+}
+```

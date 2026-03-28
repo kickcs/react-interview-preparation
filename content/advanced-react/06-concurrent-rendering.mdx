@@ -1,0 +1,66 @@
+---
+title: "Что такое Concurrent Rendering?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Concurrent Rendering** is a foundational capability in React 18+ that allows React to prepare multiple versions of the UI simultaneously. Unlike the old synchronous rendering model, concurrent rendering is **interruptible** — React can pause work on a low-priority update, handle a high-priority update (like user input), and then resume the paused work.
+
+The key API is **`startTransition`**, which marks a state update as non-urgent. React keeps the current UI responsive while computing the new state in the background. If a new update comes in before the transition finishes, React discards the incomplete work and starts fresh. The `useTransition` hook provides a `isPending` flag to show loading indicators during transitions.
+
+Concurrent rendering works hand-in-hand with **Suspense**. When a component suspends during a transition, React does not show the fallback immediately — it keeps showing the previous UI until the new content is ready. This eliminates jarring loading flickers. Other concurrent features include `useDeferredValue` for deferring expensive re-renders and automatic batching of state updates across async boundaries. Concurrent rendering does not require code changes — it is enabled automatically when you use concurrent features.
+
+</Answer>
+<Answer lang="ru">
+
+**Конкурентный рендеринг (Concurrent Rendering)** — это фундаментальная возможность React 18+, которая позволяет React подготавливать несколько версий UI одновременно. В отличие от старой синхронной модели рендеринга, конкурентный рендеринг **прерываем** — React может приостановить работу над низкоприоритетным обновлением, обработать высокоприоритетное (например, пользовательский ввод), а затем возобновить приостановленную работу.
+
+Ключевой API — **`startTransition`**, который помечает обновление состояния как несрочное. React сохраняет текущий UI отзывчивым, пока вычисляет новое состояние в фоне. Если новое обновление поступит до завершения перехода, React отбросит незавершённую работу и начнёт заново. Хук `useTransition` предоставляет флаг `isPending` для отображения индикаторов загрузки во время переходов.
+
+Конкурентный рендеринг тесно связан с **Suspense**. Когда компонент приостанавливается во время перехода, React не показывает fallback сразу — он продолжает отображать предыдущий UI до тех пор, пока новый контент не будет готов. Это устраняет раздражающие мелькания загрузки. Другие конкурентные функции включают `useDeferredValue` для отложенных дорогостоящих повторных рендеров и автоматическую группировку обновлений состояния через асинхронные границы. Конкурентный рендеринг не требует изменений кода — он активируется автоматически при использовании конкурентных возможностей.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useTransition } from "react";
+
+function SearchPage() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<string[]>([]);
+  const [isPending, startTransition] = useTransition();
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    // Urgent: update input field immediately
+    setQuery(value);
+
+    // Non-urgent: update filtered results in the background
+    startTransition(() => {
+      const filtered = heavyFilterOperation(value);
+      setResults(filtered);
+    });
+  };
+
+  return (
+    <div>
+      <input value={query} onChange={handleChange} placeholder="Search..." />
+      {isPending && <p>Updating results...</p>}
+      <ul>
+        {results.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function heavyFilterOperation(query: string): string[] {
+  // Simulates an expensive computation
+  const items = Array.from({ length: 10000 }, (_, i) => `Item ${i}`);
+  return items.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
+}
+```

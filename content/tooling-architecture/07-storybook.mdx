@@ -1,0 +1,76 @@
+---
+title: "Что такое Storybook и component-driven development?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Storybook** is a tool for developing, testing, and documenting UI components in isolation. Instead of navigating through your app to see a specific component state, you write **stories** — small functions that render a component with specific props. Each story represents one visual state of a component.
+
+**Component-driven development (CDD)** is the methodology behind Storybook. You build UI from the bottom up: start with the smallest primitives (buttons, inputs), compose them into larger elements (forms, cards), and assemble those into pages. This approach leads to more reusable, testable, and maintainable components.
+
+Storybook supports **args** — a declarative way to define component props that powers interactive controls in the UI. **Decorators** wrap stories with context providers, layouts, or themes. **Addons** extend functionality: `@storybook/addon-a11y` runs accessibility checks, `@storybook/addon-interactions` enables interaction testing, and `@storybook/addon-docs` auto-generates documentation pages from your stories and TypeScript types.
+
+For **visual testing**, tools like **Chromatic** (created by the Storybook team) take screenshots of every story and compare them against baselines, catching unintended visual regressions. This complements unit tests by verifying what the component actually looks like.
+
+</Answer>
+<Answer lang="ru">
+
+**Storybook** — это инструмент для разработки, тестирования и документирования UI-компонентов в изоляции. Вместо того чтобы переходить по приложению для просмотра конкретного состояния компонента, вы пишете **stories** (истории) — небольшие функции, рендерящие компонент с определёнными пропсами. Каждая story представляет одно визуальное состояние компонента.
+
+**Компонентно-ориентированная разработка (CDD)** — методология, лежащая в основе Storybook. UI строится снизу вверх: начиная с мельчайших примитивов (кнопки, поля ввода), составляя из них более крупные элементы (формы, карточки) и собирая их в страницы. Такой подход ведёт к более переиспользуемым, тестируемым и поддерживаемым компонентам.
+
+Storybook поддерживает **args** — декларативный способ определения пропсов компонента, который управляет интерактивными контролами в UI. **Декораторы** оборачивают stories контекст-провайдерами, макетами или темами. **Аддоны** расширяют функциональность: `@storybook/addon-a11y` проверяет доступность, `@storybook/addon-interactions` позволяет тестировать взаимодействия, а `@storybook/addon-docs` автоматически генерирует страницы документации из stories и TypeScript-типов.
+
+Для **визуального тестирования** инструменты вроде **Chromatic** (созданного командой Storybook) делают скриншоты каждой story и сравнивают с эталонами, выявляя непреднамеренные визуальные регрессии. Это дополняет модульные тесты, проверяя, как компонент реально выглядит.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Button.stories.tsx
+import type { Meta, StoryObj } from "@storybook/react";
+import { Button } from "./Button";
+
+const meta: Meta<typeof Button> = {
+  title: "UI/Button",
+  component: Button,
+  tags: ["autodocs"],
+  argTypes: {
+    variant: {
+      control: "select",
+      options: ["primary", "secondary", "destructive"],
+    },
+    size: {
+      control: "select",
+      options: ["sm", "md", "lg"],
+    },
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof Button>;
+
+export const Primary: Story = {
+  args: {
+    variant: "primary",
+    children: "Click me",
+  },
+};
+
+export const Secondary: Story = {
+  args: {
+    variant: "secondary",
+    children: "Cancel",
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    variant: "primary",
+    children: "Saving...",
+    disabled: true,
+  },
+};
+```

@@ -1,0 +1,37 @@
+---
+title: "Что такое React StrictMode?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React.StrictMode** is a development-only tool that helps you find potential problems in your application. It does not render any visible UI and does not affect the production build — it only activates additional checks and warnings during development.
+
+StrictMode performs several important checks. It **double-invokes** certain functions like component bodies, initializers, and updaters to help detect impure rendering. It runs **effects twice** (mount, unmount, mount) to verify that your cleanup logic is correct and that effects can safely re-run. It also warns about usage of **deprecated APIs** such as legacy string refs, legacy context, and `findDOMNode`.
+
+You can wrap your entire app or specific subtrees with `<StrictMode>`. The double-rendering behavior only happens in development mode and helps you catch side effects that should be pure. If your component behaves differently on the second render, it is a sign that you have an unintentional side effect. Fixing these issues early leads to more resilient code that works correctly with features like concurrent rendering.
+
+</Answer>
+<Answer lang="ru">
+
+**React.StrictMode** — это инструмент, работающий только в режиме разработки, который помогает находить потенциальные проблемы в приложении. Он не отображает видимый UI и не влияет на продакшен-сборку — он лишь активирует дополнительные проверки и предупреждения во время разработки.
+
+StrictMode выполняет несколько важных проверок. Он **вызывает дважды** определённые функции, такие как тела компонентов, инициализаторы и функции обновления, чтобы обнаружить нечистый рендеринг. Он запускает **эффекты дважды** (монтирование, размонтирование, монтирование) для проверки корректности логики очистки и безопасности повторного выполнения эффектов. Он также предупреждает об использовании **устаревших API**, таких как строковые рефы, устаревший контекст и `findDOMNode`.
+
+Вы можете обернуть всё приложение или отдельные поддеревья в `<StrictMode>`. Двойной рендеринг происходит только в режиме разработки и помогает обнаружить побочные эффекты, которые должны быть чистыми. Если компонент ведёт себя по-разному при втором рендере, это признак непреднамеренного побочного эффекта. Раннее исправление таких проблем приводит к более устойчивому коду, который корректно работает с функциями вроде конкурентного рендеринга.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+```

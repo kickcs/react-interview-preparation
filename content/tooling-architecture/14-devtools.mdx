@@ -1,0 +1,92 @@
+---
+title: "Какие инструменты разработчика должен знать React разработчик?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A React developer should be proficient with several categories of **developer tools** that help with debugging, performance analysis, and productivity.
+
+**React DevTools** is the most essential extension. It adds two panels to your browser: **Components** (inspect the component tree, view props, state, hooks, and context for any component) and **Profiler** (record renders, see which components re-rendered and why, measure render duration). The Profiler is invaluable for finding performance bottlenecks — it highlights components that render unnecessarily.
+
+The **browser DevTools** built into Chrome and Firefox are indispensable. The **Performance** panel records runtime activity to identify long tasks, layout thrashing, and JavaScript bottlenecks. The **Network** panel shows all HTTP requests with timing, headers, and payloads — essential for debugging API issues. The **Memory** panel helps find memory leaks by taking heap snapshots and comparing them over time. The **Application** panel inspects localStorage, sessionStorage, cookies, and service workers.
+
+**Lighthouse** (built into Chrome) audits your page for performance, accessibility, best practices, and SEO, providing actionable recommendations with scores. For state management debugging, **Redux DevTools** (also works with Zustand when configured) lets you inspect state changes, time-travel through actions, and replay state transitions.
+
+For the development environment, **VS Code extensions** boost productivity significantly: **ESLint** and **Prettier** for inline feedback, **TypeScript** for type checking, **GitLens** for blame annotations, **Error Lens** for inline error display, and **Tailwind CSS IntelliSense** for class name autocomplete. Using these tools effectively is what separates productive developers from those who debug by guessing.
+
+</Answer>
+<Answer lang="ru">
+
+React-разработчик должен уверенно владеть несколькими категориями **инструментов разработчика**, помогающих в отладке, анализе производительности и продуктивности.
+
+**React DevTools** — самое важное расширение. Оно добавляет две панели в браузер: **Components** (просмотр дерева компонентов, пропсов, состояния, хуков и контекста любого компонента) и **Profiler** (запись рендеров, просмотр того, какие компоненты перерендерились и почему, измерение длительности рендера). Profiler незаменим для поиска узких мест — он подсвечивает компоненты, рендерящиеся без необходимости.
+
+Встроенные в Chrome и Firefox **инструменты разработчика браузера** незаменимы. Панель **Performance** записывает активность во время выполнения для выявления долгих задач, layout thrashing и узких мест JavaScript. Панель **Network** показывает все HTTP-запросы с таймингами, заголовками и телом — незаменима для отладки API. Панель **Memory** помогает находить утечки памяти, делая снимки кучи и сравнивая их во времени. Панель **Application** позволяет просматривать localStorage, sessionStorage, cookies и service workers.
+
+**Lighthouse** (встроен в Chrome) проводит аудит страницы по производительности, доступности, лучшим практикам и SEO, предоставляя действенные рекомендации с оценками. Для отладки управления состоянием **Redux DevTools** (также работает с Zustand при соответствующей настройке) позволяет просматривать изменения состояния, перемещаться по действиям во времени и воспроизводить переходы состояний.
+
+Для среды разработки **расширения VS Code** значительно повышают продуктивность: **ESLint** и **Prettier** для встроенной обратной связи, **TypeScript** для проверки типов, **GitLens** для аннотаций авторства, **Error Lens** для отображения ошибок прямо в коде и **Tailwind CSS IntelliSense** для автодополнения имён классов. Эффективное использование этих инструментов — это то, что отличает продуктивных разработчиков от тех, кто отлаживает код наугад.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// React DevTools — Profiler usage tips
+
+// 1. "Why did this render?" — enable in Profiler settings
+// Shows if a component re-rendered due to props, state, or parent
+
+// 2. Highlight updates — toggle in React DevTools settings
+// Visually flashes components when they re-render
+
+// 3. Component filters — hide third-party components
+// Filter by name to focus on your own components
+```
+
+```javascript
+// Zustand store with Redux DevTools support
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+const useStore = create(
+  devtools(
+    (set) => ({
+      count: 0,
+      increment: () =>
+        set(
+          (state) => ({ count: state.count + 1 }),
+          false, // replace flag
+          "increment" // action name shown in DevTools
+        ),
+    }),
+    { name: "AppStore" } // store name in DevTools
+  )
+);
+```
+
+```javascript
+// Performance debugging in browser console
+
+// Measure component render time
+console.time("ExpensiveComponent render");
+// ... component renders ...
+console.timeEnd("ExpensiveComponent render");
+
+// Monitor long tasks
+const observer = new PerformanceObserver((list) => {
+  for (const entry of list.getEntries()) {
+    if (entry.duration > 50) {
+      console.warn("Long task detected:", entry.duration, "ms");
+    }
+  }
+});
+observer.observe({ entryTypes: ["longtask"] });
+
+// Check Web Vitals
+import { onCLS, onFID, onLCP } from "web-vitals";
+onCLS(console.log);  // Cumulative Layout Shift
+onFID(console.log);  // First Input Delay
+onLCP(console.log);  // Largest Contentful Paint
+```

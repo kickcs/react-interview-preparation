@@ -1,0 +1,71 @@
+---
+title: "Как работают переменные окружения во фронтенде?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Environment variables** allow you to configure application behavior without changing code. They store values that differ between environments — API URLs, feature flags, third-party keys — and keep sensitive data out of the source code.
+
+In frontend projects, variables are loaded from **`.env` files** during the build process. Most frameworks support multiple files with a precedence order: `.env.local` (highest, git-ignored) overrides `.env.development` or `.env.production` (environment-specific), which override `.env` (default). The bundler replaces variable references with their actual values at **build time**, meaning the values are baked into the JavaScript bundle.
+
+In **Next.js**, environment variables are private to the server by default — they are accessible in Server Components, Route Handlers, and `next.config.js`, but not in client-side code. To expose a variable to the browser, you must prefix it with **`NEXT_PUBLIC_`**. This is a critical security consideration: any variable with this prefix will be visible in the client bundle, so you must never use it for secrets like database passwords or private API keys.
+
+The distinction between **build-time** and **runtime** variables matters for deployment. Build-time variables are embedded during `next build` and cannot change without rebuilding. For truly dynamic runtime configuration, you can use server-side runtime environment variables (without `NEXT_PUBLIC_` prefix) or inject values through the server at request time.
+
+</Answer>
+<Answer lang="ru">
+
+**Переменные окружения** позволяют настраивать поведение приложения без изменения кода. Они хранят значения, различающиеся между окружениями — URL API, фича-флаги, ключи сторонних сервисов — и оберегают чувствительные данные от попадания в исходный код.
+
+Во фронтенд-проектах переменные загружаются из **файлов `.env`** в процессе сборки. Большинство фреймворков поддерживают несколько файлов с приоритетом: `.env.local` (наивысший, игнорируется git) перезаписывает `.env.development` или `.env.production` (для конкретного окружения), которые перезаписывают `.env` (по умолчанию). Сборщик заменяет ссылки на переменные их реальными значениями во время **сборки**, то есть значения встраиваются в JavaScript-бандл.
+
+В **Next.js** переменные окружения по умолчанию приватны для сервера — они доступны в Server Components, Route Handlers и `next.config.js`, но не в клиентском коде. Чтобы сделать переменную доступной в браузере, необходимо добавить префикс **`NEXT_PUBLIC_`**. Это критически важно с точки зрения безопасности: любая переменная с этим префиксом будет видна в клиентском бандле, поэтому его нельзя использовать для секретов — паролей от базы данных или приватных API-ключей.
+
+Различие между переменными **времени сборки** и **времени выполнения** важно для деплоя. Переменные времени сборки встраиваются при `next build` и не могут измениться без пересборки. Для действительно динамической конфигурации во время выполнения можно использовать серверные переменные окружения (без префикса `NEXT_PUBLIC_`) или внедрять значения через сервер при каждом запросе.
+
+</Answer>
+</AnswerGroup>
+
+```bash
+# .env — default values (committed to git)
+NEXT_PUBLIC_APP_NAME="My App"
+NEXT_PUBLIC_API_URL=https://api.example.com
+DATABASE_URL=postgresql://localhost:5432/mydb
+
+# .env.local — local overrides (git-ignored, never committed!)
+DATABASE_URL=postgresql://localhost:5432/mydb_dev
+SECRET_API_KEY=sk_secret_abc123
+```
+
+```typescript
+// Safe: accessible in both server and client code
+const appName = process.env.NEXT_PUBLIC_APP_NAME;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+// Server only: accessible in Server Components, Route Handlers
+const dbUrl = process.env.DATABASE_URL;      // ✅ works on server
+const secret = process.env.SECRET_API_KEY;    // ✅ works on server
+
+// Client component trying to read server variable:
+// process.env.DATABASE_URL → undefined ❌ (not exposed to browser)
+```
+
+```typescript
+// next.config.ts — using env variables in config
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  env: {
+    CUSTOM_VAR: process.env.CUSTOM_VAR,
+  },
+  images: {
+    remotePatterns: [
+      { hostname: process.env.IMAGE_DOMAIN ?? "images.example.com" },
+    ],
+  },
+};
+
+export default nextConfig;
+```

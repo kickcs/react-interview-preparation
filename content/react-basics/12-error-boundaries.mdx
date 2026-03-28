@@ -1,0 +1,69 @@
+---
+title: "Что такое Error Boundaries?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Error Boundaries** are React components that catch JavaScript errors anywhere in their child component tree, log those errors, and display a **fallback UI** instead of crashing the entire application. They work like a `try/catch` block but for the React component tree.
+
+Error boundaries are implemented as class components using two lifecycle methods: **`static getDerivedStateFromError(error)`** returns a new state to render the fallback UI, and **`componentDidCatch(error, errorInfo)`** is used for side effects like logging. You can wrap different parts of your app with different error boundaries to isolate failures — if one section crashes, the rest of the app continues to work normally.
+
+There are important **limitations** to be aware of: error boundaries do not catch errors in event handlers (use regular `try/catch` for those), asynchronous code (like `setTimeout` or promises), server-side rendering, or errors thrown in the error boundary itself. Error boundaries only catch errors during rendering, in lifecycle methods, and in constructors of the whole tree below them. For error recovery, you can reset the boundary by changing its `key` prop, which forces React to remount the component.
+
+</Answer>
+<Answer lang="ru">
+
+**Предохранители (Error Boundaries)** — это компоненты React, которые перехватывают JavaScript-ошибки в любом месте дочернего дерева компонентов, логируют эти ошибки и отображают **запасной UI** вместо полного краха приложения. Они работают подобно блоку `try/catch`, но для дерева компонентов React.
+
+Предохранители реализуются как классовые компоненты с использованием двух методов жизненного цикла: **`static getDerivedStateFromError(error)`** возвращает новое состояние для отображения запасного UI, а **`componentDidCatch(error, errorInfo)`** используется для побочных эффектов, таких как логирование. Вы можете оборачивать разные части приложения разными предохранителями для изоляции сбоев — если одна секция падает, остальная часть приложения продолжает работать нормально.
+
+Существуют важные **ограничения**: предохранители не перехватывают ошибки в обработчиках событий (для них используйте обычный `try/catch`), в асинхронном коде (например, `setTimeout` или промисы), при серверном рендеринге или ошибки, возникшие в самом предохранителе. Предохранители ловят ошибки только во время рендеринга, в методах жизненного цикла и в конструкторах всего дерева ниже них. Для восстановления после ошибки можно сбросить предохранитель, изменив его проп `key`, что заставит React перемонтировать компонент.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { Component, ReactNode } from "react";
+
+interface Props {
+  children: ReactNode;
+  fallback: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): State {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Error caught by boundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
+// Usage
+function App() {
+  return (
+    <ErrorBoundary fallback={<h2>Something went wrong.</h2>}>
+      <Dashboard />
+    </ErrorBoundary>
+  );
+}
+```

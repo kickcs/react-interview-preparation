@@ -1,0 +1,51 @@
+---
+title: "Что такое примитивные и ссылочные типы?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+JavaScript has seven **primitive types**: `string`, `number`, `bigint`, `boolean`, `undefined`, `symbol`, and `null`. Primitives are immutable and stored directly in the stack. When you assign a primitive to a new variable or pass it to a function, a **copy of the value** is created — changes to one variable do not affect the other.
+
+**Reference types** include objects, arrays, functions, dates, and other complex structures. They are stored in the heap, and variables hold a **reference (pointer)** to the memory location. When you assign a reference type to another variable, both variables point to the same object in memory — mutating one affects the other.
+
+To avoid unintended mutations, you can create **shallow copies** using the spread operator (`{ ...obj }`) or `Object.assign()`. However, nested objects still share references. For truly independent copies, you need a **deep copy**, which can be achieved with `structuredClone()` (modern browsers and Node.js 17+) or `JSON.parse(JSON.stringify(obj))` for simple cases.
+
+</Answer>
+<Answer lang="ru">
+
+В JavaScript есть семь **примитивных типов**: `string`, `number`, `bigint`, `boolean`, `undefined`, `symbol` и `null`. Примитивы неизменяемы и хранятся непосредственно в стеке. При присвоении примитива новой переменной или передаче в функцию создаётся **копия значения** — изменения одной переменной не влияют на другую.
+
+**Ссылочные типы** включают объекты, массивы, функции, даты и другие сложные структуры. Они хранятся в куче (heap), а переменные содержат **ссылку (указатель)** на область памяти. При присвоении ссылочного типа другой переменной обе переменные указывают на один и тот же объект в памяти — изменение одной затрагивает другую.
+
+Чтобы избежать непреднамеренных мутаций, можно создать **поверхностную копию** с помощью оператора spread (`{ ...obj }`) или `Object.assign()`. Однако вложенные объекты по-прежнему разделяют ссылки. Для полностью независимых копий нужна **глубокая копия**, которую можно получить через `structuredClone()` (современные браузеры и Node.js 17+) или `JSON.parse(JSON.stringify(obj))` для простых случаев.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Primitives — copied by value
+let x = 10;
+let y = x;
+y = 20;
+console.log(x); // 10 (unchanged)
+
+// Reference types — copied by reference
+const original = { name: "Alice", scores: [90, 85] };
+const copy = original;
+copy.name = "Bob";
+console.log(original.name); // "Bob" (mutated!)
+
+// Shallow copy — top-level properties are independent
+const shallow = { ...original };
+shallow.name = "Charlie";
+console.log(original.name); // "Bob" (safe)
+shallow.scores.push(100);
+console.log(original.scores); // [90, 85, 100] (nested still shared!)
+
+// Deep copy — fully independent
+const deep = structuredClone(original);
+deep.scores.push(200);
+console.log(original.scores); // [90, 85, 100] (unaffected)
+```

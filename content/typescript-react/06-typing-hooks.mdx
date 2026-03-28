@@ -1,0 +1,79 @@
+---
+title: "Как типизировать React hooks?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+React hooks are designed with TypeScript in mind and most accept **generic type parameters** for precise typing. **useState** accepts a generic — `useState<string>("")` — though TypeScript often infers the type from the initial value. You need the explicit generic when the initial value is `null` or when the type is broader than the initial value, such as `useState<User | null>(null)`.
+
+**useRef** has two distinct signatures. When you pass `null` and include `null` in the generic (`useRef<HTMLDivElement | null>(null)`), you get a **mutable ref object** suitable for DOM elements. When you omit `null` from the generic, you get a `RefObject` with a readonly `.current`. **useReducer** benefits greatly from typing your actions as a **discriminated union**, which gives you exhaustive type checking in the reducer.
+
+**useCallback** and **useMemo** generally infer their types from the return value, but you can annotate them explicitly when needed. **useContext** gets its type from the context object itself, so typing the context properly (covered separately) is what matters most.
+
+</Answer>
+<Answer lang="ru">
+
+Хуки React разработаны с учётом TypeScript, и большинство из них принимают **параметры обобщённых типов** для точной типизации. **useState** принимает обобщение — `useState<string>("")` — хотя TypeScript часто выводит тип из начального значения. Явное обобщение нужно, когда начальное значение равно `null` или когда тип шире начального значения, например `useState<User | null>(null)`.
+
+**useRef** имеет две различные сигнатуры. Когда вы передаёте `null` и включаете `null` в обобщение (`useRef<HTMLDivElement | null>(null)`), вы получаете **изменяемый ref-объект**, подходящий для DOM-элементов. Когда вы исключаете `null` из обобщения, вы получаете `RefObject` с readonly `.current`. **useReducer** значительно выигрывает от типизации действий как **дискриминированного объединения**, что даёт исчерпывающую проверку типов в редьюсере.
+
+**useCallback** и **useMemo** обычно выводят свои типы из возвращаемого значения, но их можно аннотировать явно при необходимости. **useContext** получает свой тип из самого объекта контекста, поэтому главное — правильно типизировать контекст (рассматривается отдельно).
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useRef, useReducer, useCallback, useMemo } from "react";
+
+// useState — inferred type
+const [count, setCount] = useState(0); // type: number
+
+// useState — explicit generic when initial value doesn't capture full type
+const [user, setUser] = useState<User | null>(null);
+
+// useRef — DOM element ref
+const inputRef = useRef<HTMLInputElement | null>(null);
+
+function focusInput() {
+  inputRef.current?.focus();
+}
+
+// useRef — mutable value ref (not for DOM)
+const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+// useReducer — typed state and actions
+type State = { count: number; error: string | null };
+
+type Action =
+  | { type: "increment" }
+  | { type: "decrement" }
+  | { type: "setError"; payload: string };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "increment":
+      return { ...state, count: state.count + 1 };
+    case "decrement":
+      return { ...state, count: state.count - 1 };
+    case "setError":
+      return { ...state, error: action.payload };
+  }
+}
+
+const [state, dispatch] = useReducer(reducer, { count: 0, error: null });
+dispatch({ type: "increment" });
+dispatch({ type: "setError", payload: "Something went wrong" });
+
+// useCallback — type inferred from the function
+const handleClick = useCallback((id: number) => {
+  console.log("Clicked:", id);
+}, []);
+
+// useMemo — type inferred from the return value
+const expensiveList = useMemo(
+  () => items.filter((item) => item.active),
+  [items]
+);
+```

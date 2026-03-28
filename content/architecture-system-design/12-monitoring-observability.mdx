@@ -1,0 +1,106 @@
+---
+title: "Как реализовать мониторинг и наблюдаемость?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Monitoring and observability** in frontend means understanding what your users actually experience — not just whether the server is up. The three pillars are **error tracking** (catching and grouping JavaScript errors with stack traces and user context), **performance monitoring** (measuring Core Web Vitals, API latency, and rendering times from real users), and **logging** (structured events for debugging user-reported issues). Tools like **Sentry** cover error tracking and performance, while dedicated RUM solutions like Datadog RUM or Vercel Analytics provide deeper performance insights.
+
+**Real User Monitoring (RUM)** is essential because synthetic tests in CI only measure performance under ideal conditions. RUM captures metrics from actual user devices and networks, revealing problems like slow rendering on low-end Android devices or high CLS on specific screen sizes. Correlating performance data with business metrics (conversion rate, bounce rate) helps justify performance investments to stakeholders.
+
+A practical setup includes: a **global error boundary** that catches React errors and reports them to Sentry, an **API interceptor** that tracks request duration and failure rates, a **Web Vitals reporter** using the `web-vitals` library, and **custom events** for key user flows (time to first search result, checkout completion time). Set up **alerting** with sensible thresholds — alert on spikes in error rate or P95 latency, not every individual error. Build **dashboards** that show trends over time, helping you catch gradual regressions before they become critical.
+
+</Answer>
+<Answer lang="ru">
+
+**Мониторинг и наблюдаемость** на фронтенде означают понимание того, что реально испытывают ваши пользователи — а не только работает ли сервер. Три столпа: **отслеживание ошибок** (перехват и группировка JavaScript-ошибок со стек-трейсами и контекстом пользователя), **мониторинг производительности** (измерение Core Web Vitals, задержки API и времени рендеринга от реальных пользователей) и **логирование** (структурированные события для отладки пользовательских обращений). Инструменты вроде **Sentry** покрывают отслеживание ошибок и производительности, а специализированные RUM-решения вроде Datadog RUM или Vercel Analytics дают более глубокие данные.
+
+**Real User Monitoring (RUM)** необходим, потому что синтетические тесты в CI измеряют производительность только в идеальных условиях. RUM захватывает метрики с реальных устройств и сетей пользователей, выявляя проблемы вроде медленного рендеринга на бюджетных Android-устройствах или высокого CLS на определённых размерах экрана. Корреляция данных производительности с бизнес-метриками (конверсия, bounce rate) помогает обосновать инвестиции в производительность перед стейкхолдерами.
+
+Практическая настройка включает: **глобальный error boundary**, который ловит React-ошибки и отправляет в Sentry, **API-перехватчик**, отслеживающий длительность запросов и частоту отказов, **репортер Web Vitals** с использованием библиотеки `web-vitals`, и **кастомные события** для ключевых пользовательских потоков (время до первого результата поиска, время завершения оформления заказа). Настройте **алертинг** с разумными порогами — оповещайте о всплесках частоты ошибок или P95 задержки, а не о каждой отдельной ошибке. Стройте **дашборды**, показывающие тренды во времени, чтобы ловить постепенные регрессии до того, как они станут критическими.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Frontend monitoring setup with Sentry and Web Vitals
+
+import * as Sentry from "@sentry/react";
+import { onCLS, onINP, onLCP, onFCP, onTTFB } from "web-vitals";
+
+// 1. Initialize Sentry
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 0.2, // 20% of transactions
+  replaysSessionSampleRate: 0.1,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+});
+
+// 2. Global error boundary
+function AppErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <Sentry.ErrorBoundary
+      fallback={({ error, resetError }) => (
+        <div role="alert">
+          <h2>Something went wrong</h2>
+          <button onClick={resetError}>Try again</button>
+        </div>
+      )}
+    >
+      {children}
+    </Sentry.ErrorBoundary>
+  );
+}
+
+// 3. Web Vitals reporting
+function reportWebVitals() {
+  const sendMetric = (metric: { name: string; value: number; id: string }) => {
+    // Send to your analytics endpoint
+    fetch("/api/metrics", {
+      method: "POST",
+      body: JSON.stringify({
+        name: metric.name,
+        value: metric.value,
+        id: metric.id,
+        url: window.location.href,
+        timestamp: Date.now(),
+      }),
+    });
+  };
+
+  onCLS(sendMetric);
+  onINP(sendMetric);
+  onLCP(sendMetric);
+  onFCP(sendMetric);
+  onTTFB(sendMetric);
+}
+
+// 4. API monitoring interceptor
+async function monitoredFetch(url: string, options?: RequestInit) {
+  const start = performance.now();
+  try {
+    const response = await fetch(url, options);
+    const duration = performance.now() - start;
+
+    // Track API performance
+    Sentry.metrics.distribution("api.duration", duration, {
+      tags: { endpoint: url, status: String(response.status) },
+    });
+
+    if (!response.ok) {
+      Sentry.captureMessage(`API error: ${response.status} ${url}`, "warning");
+    }
+
+    return response;
+  } catch (error) {
+    Sentry.captureException(error, { tags: { endpoint: url } });
+    throw error;
+  }
+}
+```

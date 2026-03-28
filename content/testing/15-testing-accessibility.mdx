@@ -1,0 +1,108 @@
+---
+title: "Как тестировать доступность?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Accessibility (a11y) testing** ensures your application is usable by everyone, including people who rely on screen readers, keyboard navigation, or other assistive technologies. Automated testing catches roughly 30-50% of accessibility issues — the rest requires manual testing and user research.
+
+**jest-axe** (or **vitest-axe**) integrates the **axe-core** engine into your test suite. After rendering a component, call `expect(container).toHaveNoViolations()` to check for WCAG violations like missing alt text, insufficient color contrast, missing form labels, or incorrect ARIA attributes. This should be a standard part of every component test.
+
+**React Testing Library** naturally promotes accessibility by encouraging queries like `getByRole`, `getByLabelText`, and `getByAltText`. If you can't find an element with these queries, it's a sign your component has accessibility problems. For example, if `getByRole("button")` doesn't find your clickable div, you need to add `role="button"` or use a proper `<button>` element.
+
+For comprehensive a11y testing, combine **automated checks** (axe in unit tests, Lighthouse in CI), **keyboard testing** (Tab navigation, Enter/Space activation, Escape to close), and **screen reader testing** (VoiceOver on macOS, NVDA on Windows). In Playwright, use `page.accessibility.snapshot()` to capture the accessibility tree and verify that elements have correct roles, names, and states.
+
+</Answer>
+<Answer lang="ru">
+
+**Тестирование доступности (a11y)** гарантирует, что приложение удобно для всех, включая людей, использующих скринридеры, клавиатурную навигацию или другие вспомогательные технологии. Автоматическое тестирование выявляет примерно 30-50% проблем доступности — остальное требует ручного тестирования и исследований с пользователями.
+
+**jest-axe** (или **vitest-axe**) интегрирует движок **axe-core** в набор тестов. После рендеринга компонента вызовите `expect(container).toHaveNoViolations()` для проверки нарушений WCAG: отсутствующий alt-текст, недостаточный контраст цветов, отсутствующие метки форм или некорректные ARIA-атрибуты. Это должно быть стандартной частью каждого теста компонента.
+
+**React Testing Library** естественным образом продвигает доступность, поощряя запросы вроде `getByRole`, `getByLabelText` и `getByAltText`. Если элемент не находится этими запросами — это сигнал о проблемах с доступностью компонента. Например, если `getByRole("button")` не находит ваш кликабельный div, нужно добавить `role="button"` или использовать настоящий элемент `<button>`.
+
+Для комплексного тестирования a11y комбинируйте **автоматические проверки** (axe в юнит-тестах, Lighthouse в CI), **тестирование клавиатурой** (навигация Tab, активация Enter/Space, Escape для закрытия) и **тестирование скринридером** (VoiceOver на macOS, NVDA на Windows). В Playwright используйте `page.accessibility.snapshot()` для захвата дерева доступности и проверки правильности ролей, имён и состояний элементов.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { axe, toHaveNoViolations } from "jest-axe";
+
+expect.extend(toHaveNoViolations);
+
+function Modal({ isOpen, onClose, title, children }: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!isOpen) return null;
+  return (
+    <div role="dialog" aria-labelledby="modal-title" aria-modal="true">
+      <h2 id="modal-title">{title}</h2>
+      <div>{children}</div>
+      <button onClick={onClose}>Close</button>
+    </div>
+  );
+}
+
+// Automated a11y check with axe-core
+test("Modal has no accessibility violations", async () => {
+  const { container } = render(
+    <Modal isOpen={true} onClose={() => {}} title="Confirm Action">
+      <p>Are you sure you want to proceed?</p>
+      <button>Yes</button>
+      <button>No</button>
+    </Modal>
+  );
+
+  const results = await axe(container);
+  expect(results).toHaveNoViolations();
+});
+
+// Testing ARIA attributes
+test("Modal has correct ARIA attributes", () => {
+  render(
+    <Modal isOpen={true} onClose={() => {}} title="Settings">
+      <p>Content</p>
+    </Modal>
+  );
+
+  const dialog = screen.getByRole("dialog");
+  expect(dialog).toHaveAttribute("aria-modal", "true");
+  expect(dialog).toHaveAttribute("aria-labelledby", "modal-title");
+  expect(screen.getByText("Settings")).toHaveAttribute("id", "modal-title");
+});
+
+// Testing keyboard navigation
+test("Modal can be closed with keyboard", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+
+  render(
+    <Modal isOpen={true} onClose={onClose} title="Info">
+      <p>Details here</p>
+    </Modal>
+  );
+
+  // Tab to the Close button and press Enter
+  await user.tab();
+  await user.keyboard("{Enter}");
+
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+// Testing that images have alt text
+test("images have descriptive alt text", () => {
+  render(<img src="/avatar.jpg" alt="User profile photo" />);
+
+  const img = screen.getByRole("img");
+  expect(img).toHaveAttribute("alt", "User profile photo");
+  expect(img.getAttribute("alt")).not.toBe(""); // alt should not be empty
+});
+```

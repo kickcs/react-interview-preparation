@@ -1,0 +1,76 @@
+---
+title: "Что такое Service Workers?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **Service Worker** is a script that runs in the background, separate from the web page, acting as a proxy between the browser and the network. It runs on its own thread, cannot access the DOM directly, and only works over HTTPS (or localhost for development). Service Workers enable powerful features like **offline support**, **background sync**, and **push notifications**.
+
+The Service Worker **lifecycle** has three stages: **install** (the worker is downloaded and set up — typically used to pre-cache assets), **activate** (the worker takes control — used to clean up old caches), and **fetch** (the worker intercepts network requests and can serve responses from cache). A new Service Worker waits until all tabs using the old one are closed before activating, unless `skipWaiting()` is called.
+
+**Caching strategies** determine how a Service Worker handles fetch requests. **Cache-first** serves from cache and falls back to the network (great for static assets). **Network-first** tries the network and falls back to cache (good for dynamic content). **Stale-while-revalidate** serves from cache immediately while updating the cache in the background (balances speed and freshness). Choosing the right strategy per resource type is essential for building reliable offline-capable applications.
+
+</Answer>
+<Answer lang="ru">
+
+**Service Worker** — это скрипт, работающий в фоновом режиме, отдельно от веб-страницы, действующий как прокси между браузером и сетью. Он работает в собственном потоке, не может напрямую обращаться к DOM и работает только по HTTPS (или localhost для разработки). Service Workers обеспечивают мощные возможности: **офлайн-поддержку**, **фоновую синхронизацию** и **push-уведомления**.
+
+**Жизненный цикл** Service Worker имеет три этапа: **install** (воркер загружается и настраивается — обычно используется для предварительного кеширования ресурсов), **activate** (воркер берёт управление — используется для очистки старых кешей) и **fetch** (воркер перехватывает сетевые запросы и может отдавать ответы из кеша). Новый Service Worker ждёт, пока все вкладки, использующие старый, будут закрыты, прежде чем активироваться, если не вызван `skipWaiting()`.
+
+**Стратегии кеширования** определяют, как Service Worker обрабатывает запросы. **Cache-first** отдаёт из кеша с фолбэком на сеть (отлично для статических ресурсов). **Network-first** пробует сеть с фолбэком на кеш (подходит для динамического контента). **Stale-while-revalidate** отдаёт из кеша мгновенно, обновляя кеш в фоне (баланс между скоростью и актуальностью). Выбор правильной стратегии для каждого типа ресурса необходим для создания надёжных приложений с офлайн-поддержкой.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Register the Service Worker (in your main app)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((reg) => console.log("SW registered:", reg.scope))
+    .catch((err) => console.error("SW registration failed:", err));
+}
+
+// sw.js — Service Worker with cache-first strategy
+const CACHE_NAME = "app-v1";
+const STATIC_ASSETS = ["/", "/index.html", "/styles.css", "/app.js"];
+
+// Install: pre-cache static assets
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+  );
+  self.skipWaiting();
+});
+
+// Activate: clean up old caches
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch: cache-first strategy
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request).then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, clone);
+        });
+        return response;
+      });
+    })
+  );
+});
+```

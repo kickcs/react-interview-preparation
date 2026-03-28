@@ -1,0 +1,67 @@
+---
+title: "В чём разница между ESM и CommonJS?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**ES Modules (ESM)** and **CommonJS (CJS)** are the two main module systems in JavaScript. CommonJS was created for Node.js and uses `require()` to import and `module.exports` to export. ESM is the official standard introduced in ES2015, using `import` and `export` statements. Modern browsers support ESM natively, and Node.js supports both systems.
+
+The key difference is that ESM imports are **static** — they are analyzed at compile time before the code runs. This enables **tree shaking**, where bundlers like webpack or Rollup can eliminate unused exports from the final bundle. CommonJS imports are **dynamic** — `require()` is a regular function call that executes at runtime, meaning you can conditionally require modules inside if-blocks. ESM does have **dynamic import** via `import()` which returns a Promise, useful for code splitting and lazy loading.
+
+ESM exports are **live bindings** — importing modules see updates when the exported value changes. CommonJS exports are **value copies** — the imported value is a snapshot taken at the time of `require()`. ESM files run in **strict mode** by default, while CommonJS files do not. In Node.js, ESM files use the `.mjs` extension or `"type": "module"` in `package.json`, while CommonJS files use `.cjs` or the default `.js` extension without the type field.
+
+</Answer>
+<Answer lang="ru">
+
+**ES Modules (ESM)** и **CommonJS (CJS)** — две основные модульные системы в JavaScript. CommonJS был создан для Node.js и использует `require()` для импорта и `module.exports` для экспорта. ESM — официальный стандарт, введённый в ES2015, использующий инструкции `import` и `export`. Современные браузеры поддерживают ESM нативно, а Node.js поддерживает обе системы.
+
+Ключевое различие в том, что импорты ESM являются **статическими** — они анализируются на этапе компиляции до выполнения кода. Это позволяет выполнять **tree shaking**, при котором сборщики вроде webpack или Rollup могут исключить неиспользуемые экспорты из финального бандла. Импорты CommonJS являются **динамическими** — `require()` — это обычный вызов функции, выполняемый во время исполнения, что позволяет условно подключать модули внутри if-блоков. В ESM есть **динамический импорт** через `import()`, который возвращает промис и полезен для разделения кода и ленивой загрузки.
+
+Экспорты ESM — это **живые привязки** (live bindings): импортирующие модули видят обновления при изменении экспортированного значения. Экспорты CommonJS — это **копии значений**: импортированное значение является снимком на момент вызова `require()`. Файлы ESM работают в **строгом режиме** по умолчанию, тогда как файлы CommonJS — нет. В Node.js файлы ESM используют расширение `.mjs` или `"type": "module"` в `package.json`, а файлы CommonJS — `.cjs` или стандартное расширение `.js` без поля type.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// === ESM (ES Modules) ===
+
+// Named exports
+export const API_URL = "https://api.example.com";
+export function fetchUsers() { /* ... */ }
+
+// Default export
+export default class UserService { /* ... */ }
+
+// Named imports
+import { API_URL, fetchUsers } from "./api.js";
+
+// Default import
+import UserService from "./user-service.js";
+
+// Renaming imports
+import { fetchUsers as getUsers } from "./api.js";
+
+// Dynamic import (returns a Promise)
+const module = await import("./heavy-module.js");
+
+// === CommonJS ===
+
+// Exporting
+const API_URL = "https://api.example.com";
+function fetchUsers() { /* ... */ }
+module.exports = { API_URL, fetchUsers };
+
+// Or a single default-like export
+module.exports = class UserService { /* ... */ };
+
+// Importing
+const { API_URL, fetchUsers } = require("./api.js");
+const UserService = require("./user-service.js");
+
+// Conditional import (only possible with CommonJS)
+if (process.env.NODE_ENV === "development") {
+  const debugTools = require("./debug-tools.js");
+}
+```

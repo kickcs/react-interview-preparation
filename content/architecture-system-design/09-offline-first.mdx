@@ -1,0 +1,114 @@
+---
+title: "Что такое offline-first архитектура?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Offline-first architecture** treats network connectivity as an enhancement rather than a requirement. The application works fully offline, syncing data when connectivity returns. This is fundamental for **Progressive Web Apps (PWA)** and any application used in unreliable network conditions. The core technologies are **Service Workers** for caching HTTP requests and assets, **IndexedDB** for structured client-side data storage, and a **sync queue** for deferring write operations until the network is available.
+
+The caching strategy depends on the resource type. Static assets (JS, CSS, images) use a **cache-first** strategy — serve from cache, update in background. API data may use **stale-while-revalidate** — return cached data immediately, then fetch fresh data and update. Write operations are queued in IndexedDB with timestamps and retried when the connection is restored. The **Background Sync API** automates this retry, though fallback logic is still needed for browsers that don't support it.
+
+**Conflict resolution** is the hardest part of offline-first. When the user edits data offline and another user edits the same data online, the server must reconcile. Simple strategies include last-write-wins (based on timestamp) or manual conflict resolution (showing the user both versions). More sophisticated approaches use **CRDTs** (Conflict-free Replicated Data Types) that mathematically guarantee convergence without conflicts. The trade-off is increased complexity in data modeling.
+
+</Answer>
+<Answer lang="ru">
+
+**Архитектура offline-first** рассматривает сетевое подключение как улучшение, а не обязательное условие. Приложение полностью работает без сети, синхронизируя данные при восстановлении соединения. Это фундаментально для **Progressive Web Apps (PWA)** и любого приложения, используемого при нестабильном соединении. Основные технологии — **Service Workers** для кеширования HTTP-запросов и ассетов, **IndexedDB** для структурированного клиентского хранилища данных и **очередь синхронизации** для откладывания операций записи до появления сети.
+
+Стратегия кеширования зависит от типа ресурса. Статические ассеты (JS, CSS, изображения) используют стратегию **cache-first** — отдать из кеша, обновить в фоне. API-данные могут использовать **stale-while-revalidate** — вернуть кешированные данные немедленно, затем получить свежие и обновить. Операции записи ставятся в очередь в IndexedDB с метками времени и повторяются при восстановлении соединения. **Background Sync API** автоматизирует эти повторы, хотя запасная логика всё ещё нужна для браузеров без его поддержки.
+
+**Разрешение конфликтов** — самая сложная часть offline-first. Когда пользователь редактирует данные офлайн, а другой пользователь редактирует те же данные онлайн, сервер должен согласовать изменения. Простые стратегии включают last-write-wins (по метке времени) или ручное разрешение конфликтов (показ пользователю обеих версий). Более продвинутые подходы используют **CRDT** (бесконфликтные реплицированные типы данных), которые математически гарантируют конвергенцию без конфликтов. Компромисс — повышенная сложность моделирования данных.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Offline-first data layer with sync queue
+
+// 1. IndexedDB wrapper for local storage
+class OfflineStore {
+  private db: IDBDatabase | null = null;
+
+  async init() {
+    this.db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("app-db", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        db.createObjectStore("items", { keyPath: "id" });
+        db.createObjectStore("syncQueue", { keyPath: "id", autoIncrement: true });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async save(store: string, data: any) {
+    const tx = this.db!.transaction(store, "readwrite");
+    tx.objectStore(store).put(data);
+  }
+
+  async getAll<T>(store: string): Promise<T[]> {
+    const tx = this.db!.transaction(store, "readonly");
+    return new Promise((resolve) => {
+      const request = tx.objectStore(store).getAll();
+      request.onsuccess = () => resolve(request.result);
+    });
+  }
+}
+
+// 2. Sync queue — defers writes until online
+class SyncQueue {
+  constructor(private store: OfflineStore) {}
+
+  async enqueue(action: { url: string; method: string; body: any }) {
+    await this.store.save("syncQueue", {
+      ...action,
+      timestamp: Date.now(),
+      retries: 0,
+    });
+  }
+
+  async flush() {
+    const pending = await this.store.getAll<any>("syncQueue");
+    for (const action of pending) {
+      try {
+        await fetch(action.url, {
+          method: action.method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(action.body),
+        });
+      } catch {
+        // Will retry on next flush
+      }
+    }
+  }
+}
+
+// 3. React hook combining online/offline behavior
+function useOfflineData<T>(key: string, fetchFn: () => Promise<T[]>) {
+  const [data, setData] = useState<T[]>([]);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => { setIsOffline(false); syncQueue.flush(); };
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Try network first, fall back to IndexedDB
+    fetchFn()
+      .then((items) => { setData(items); offlineStore.save("items", items); })
+      .catch(async () => { setData(await offlineStore.getAll(key)); });
+  }, [key, fetchFn]);
+
+  return { data, isOffline };
+}
+```

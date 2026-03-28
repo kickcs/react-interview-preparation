@@ -1,0 +1,108 @@
+---
+title: "Как работает отслеживание ошибок в production?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Error tracking** services like **Sentry** capture, aggregate, and alert on errors happening in production. Without error tracking, bugs that only occur for specific users, browsers, or network conditions go unnoticed until customers complain.
+
+Sentry works by installing a small SDK in your application. When an unhandled exception occurs (or you manually capture one), the SDK collects the **stack trace**, **breadcrumbs** (a timeline of events leading to the error — user clicks, navigation, API calls), browser/OS info, and the current user context. This data is sent to Sentry's dashboard where errors are grouped by type, showing how many users are affected and when the error first appeared.
+
+**Source maps** are essential for meaningful error tracking. Production JavaScript is minified, so stack traces show cryptic locations like `a.js:1:45832`. By uploading source maps to Sentry during your build process, stack traces map back to the original source code with exact file names, line numbers, and column positions. Source maps should never be served publicly — they are uploaded to Sentry privately.
+
+In React, **error boundaries** catch rendering errors that would otherwise crash the entire app. By integrating Sentry with error boundaries (via `Sentry.ErrorBoundary`), you capture React-specific errors with component stack traces. Sentry also provides **performance monitoring** — tracking page load times, API call durations, and Web Vitals — and **alerting** that notifies the team via Slack, email, or PagerDuty when error rates spike.
+
+</Answer>
+<Answer lang="ru">
+
+Сервисы **отслеживания ошибок**, такие как **Sentry**, перехватывают, агрегируют и оповещают об ошибках, происходящих в продакшене. Без отслеживания ошибок баги, возникающие только у конкретных пользователей, браузеров или сетевых условий, остаются незамеченными, пока клиенты не начнут жаловаться.
+
+Sentry работает путём установки небольшого SDK в приложение. Когда происходит необработанное исключение (или вы перехватываете его вручную), SDK собирает **стек вызовов**, **хлебные крошки** (breadcrumbs — хронологию событий, приведших к ошибке: клики пользователя, навигация, API-вызовы), информацию о браузере/ОС и текущий контекст пользователя. Эти данные отправляются в панель управления Sentry, где ошибки группируются по типу, показывая количество затронутых пользователей и время первого появления ошибки.
+
+**Source maps** (карты исходного кода) критически важны для осмысленного отслеживания ошибок. Продакшен-JavaScript минифицирован, поэтому стек вызовов показывает нечитаемые локации вроде `a.js:1:45832`. Загрузив source maps в Sentry во время сборки, стек вызовов отображается с оригинальным исходным кодом с точными именами файлов, номерами строк и позициями столбцов. Source maps никогда не должны раздаваться публично — они загружаются в Sentry приватно.
+
+В React **error boundaries** перехватывают ошибки рендеринга, которые иначе привели бы к краху всего приложения. Интегрируя Sentry с error boundaries (через `Sentry.ErrorBoundary`), вы перехватываете React-специфичные ошибки со стеком компонентов. Sentry также предоставляет **мониторинг производительности** — отслеживание времени загрузки страниц, длительности API-вызовов и Web Vitals — и **оповещения**, уведомляющие команду через Slack, email или PagerDuty при резком увеличении количества ошибок.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// sentry.client.config.ts — Sentry initialization for Next.js
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+
+  // Performance monitoring — capture 20% of transactions
+  tracesSampleRate: 0.2,
+
+  // Session replay — record 10% of sessions, 100% on error
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+
+  integrations: [
+    Sentry.replayIntegration(),
+    Sentry.browserTracingIntegration(),
+  ],
+
+  // Filter out noisy errors
+  ignoreErrors: [
+    "ResizeObserver loop limit exceeded",
+    "Non-Error promise rejection captured",
+  ],
+
+  beforeSend(event) {
+    // Scrub sensitive data before sending
+    if (event.request?.cookies) {
+      delete event.request.cookies;
+    }
+    return event;
+  },
+});
+```
+
+```tsx
+// Error boundary with Sentry integration
+import * as Sentry from "@sentry/nextjs";
+
+function FallbackComponent({ error, resetError }) {
+  return (
+    <div role="alert">
+      <h2>Something went wrong</h2>
+      <p>{error.message}</p>
+      <button onClick={resetError}>Try again</button>
+    </div>
+  );
+}
+
+// Wrapping a component tree
+function App({ children }) {
+  return (
+    <Sentry.ErrorBoundary
+      fallback={FallbackComponent}
+      onError={(error) => {
+        console.error("Caught by error boundary:", error);
+      }}
+    >
+      {children}
+    </Sentry.ErrorBoundary>
+  );
+}
+
+// Manual error capture for caught errors
+async function fetchData() {
+  try {
+    const response = await fetch("/api/data");
+    return response.json();
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { feature: "data-fetch" },
+      extra: { endpoint: "/api/data" },
+    });
+    throw error;
+  }
+}
+```

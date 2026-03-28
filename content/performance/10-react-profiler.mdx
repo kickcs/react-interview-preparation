@@ -1,0 +1,74 @@
+---
+title: "Как использовать React Profiler?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **React Profiler** helps you identify performance bottlenecks by measuring how often components render and how expensive each render is. It comes in two forms: the **React DevTools Profiler** tab (a visual tool in your browser) and the **`<Profiler>`** component (a programmatic API you can embed in your code).
+
+The DevTools Profiler records a session and displays results as a **flame chart** where each bar represents a component. The width shows render duration, and the color indicates how costly it was (gray = did not render, blue/green = fast, yellow/red = slow). You can click on any component to see why it re-rendered — common causes are changed props, changed state, or a parent re-rendering.
+
+The **`<Profiler>`** component accepts an `id` and an **`onRender`** callback that fires every time the wrapped subtree commits an update. The callback receives the phase (`"mount"` or `"update"`), actual duration, base duration, and timing information. This is useful for automated performance monitoring in production or logging render metrics to an analytics service. Note that the `<Profiler>` component adds some overhead, so use it selectively.
+
+</Answer>
+<Answer lang="ru">
+
+**React Profiler** помогает выявлять узкие места в производительности, измеряя, как часто компоненты рендерятся и насколько затратен каждый рендер. Он существует в двух формах: вкладка **React DevTools Profiler** (визуальный инструмент в браузере) и компонент **`<Profiler>`** (программный API, который можно встроить в код).
+
+Профайлер DevTools записывает сессию и отображает результаты в виде **пламенной диаграммы** (flame chart), где каждая полоса представляет компонент. Ширина показывает длительность рендера, а цвет указывает на его стоимость (серый = не рендерился, синий/зелёный = быстро, жёлтый/красный = медленно). Вы можете кликнуть на любой компонент, чтобы увидеть причину повторного рендера — типичные причины: изменённые пропсы, изменённое состояние или перерисовка родителя.
+
+Компонент **`<Profiler>`** принимает `id` и колбэк **`onRender`**, который вызывается каждый раз, когда обёрнутое поддерево коммитит обновление. Колбэк получает фазу (`"mount"` или `"update"`), фактическую длительность, базовую длительность и информацию о времени. Это полезно для автоматического мониторинга производительности в продакшене или логирования метрик рендера в аналитический сервис. Обратите внимание, что компонент `<Profiler>` добавляет некоторые накладные расходы, поэтому используйте его избирательно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { Profiler, useState } from "react";
+
+function onRenderCallback(
+  id: string,
+  phase: "mount" | "update",
+  actualDuration: number,
+  baseDuration: number,
+  startTime: number,
+  commitTime: number
+) {
+  console.table({
+    id,
+    phase,
+    actualDuration: `${actualDuration.toFixed(2)}ms`,
+    baseDuration: `${baseDuration.toFixed(2)}ms`,
+    startTime: `${startTime.toFixed(2)}ms`,
+    commitTime: `${commitTime.toFixed(2)}ms`,
+  });
+}
+
+function ExpensiveList({ items }: { items: string[] }) {
+  return (
+    <ul>
+      {items.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function App() {
+  const [items, setItems] = useState(["Apple", "Banana", "Cherry"]);
+
+  return (
+    <div>
+      <button onClick={() => setItems([...items, `Item ${items.length + 1}`])}>
+        Add item
+      </button>
+
+      {/* Profiler wraps the subtree you want to measure */}
+      <Profiler id="ExpensiveList" onRender={onRenderCallback}>
+        <ExpensiveList items={items} />
+      </Profiler>
+    </div>
+  );
+}
+```

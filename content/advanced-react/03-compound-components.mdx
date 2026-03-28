@@ -1,0 +1,84 @@
+---
+title: "Что такое составные компоненты?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Compound Components** is a pattern where multiple components work together to form a cohesive UI, sharing implicit state without the consumer having to wire it up manually. Think of how `<select>` and `<option>` work in HTML — the select manages the state while options participate in it automatically.
+
+The simplest approach uses `React.Children` and `cloneElement` to inject props into child components. However, this is fragile because it requires specific direct children. A more robust approach uses **React Context** — the parent component provides state through a context provider, and child components consume it. This allows flexible nesting and composition.
+
+Compound components give you an expressive, declarative API. The consumer assembles the pieces without worrying about internal state management. Libraries like Radix UI, Headless UI, and Reach UI use this pattern extensively. The key design principle is **inversion of control** — the library provides behavior, and the consumer controls the structure and appearance.
+
+</Answer>
+<Answer lang="ru">
+
+**Составные компоненты (Compound Components)** — это паттерн, при котором несколько компонентов работают вместе, формируя единый UI, разделяя неявное состояние без необходимости для потребителя вручную его прокидывать. Представьте, как работают `<select>` и `<option>` в HTML — select управляет состоянием, а options автоматически участвуют в нём.
+
+Простейший подход использует `React.Children` и `cloneElement` для внедрения пропсов в дочерние компоненты. Однако это хрупко, так как требует определённых прямых потомков. Более надёжный подход использует **React Context** — родительский компонент предоставляет состояние через провайдер контекста, а дочерние компоненты его потребляют. Это позволяет гибко вкладывать и компоновать элементы.
+
+Составные компоненты дают выразительный декларативный API. Потребитель собирает части, не заботясь о внутреннем управлении состоянием. Библиотеки вроде Radix UI, Headless UI и Reach UI активно используют этот паттерн. Ключевой принцип проектирования — **инверсия управления** — библиотека предоставляет поведение, а потребитель контролирует структуру и внешний вид.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createContext, useContext, useState } from "react";
+
+// Context for shared state
+const TabsContext = createContext<{
+  activeIndex: number;
+  setActiveIndex: (i: number) => void;
+} | null>(null);
+
+function useTabs() {
+  const ctx = useContext(TabsContext);
+  if (!ctx) throw new Error("Tab components must be used within <Tabs>");
+  return ctx;
+}
+
+// Parent component provides state
+function Tabs({ children, defaultIndex = 0 }: { children: React.ReactNode; defaultIndex?: number }) {
+  const [activeIndex, setActiveIndex] = useState(defaultIndex);
+  return (
+    <TabsContext.Provider value={{ activeIndex, setActiveIndex }}>
+      <div>{children}</div>
+    </TabsContext.Provider>
+  );
+}
+
+// Child components consume state
+function TabList({ children }: { children: React.ReactNode }) {
+  return <div role="tablist">{children}</div>;
+}
+
+function Tab({ index, children }: { index: number; children: React.ReactNode }) {
+  const { activeIndex, setActiveIndex } = useTabs();
+  return (
+    <button role="tab" aria-selected={activeIndex === index} onClick={() => setActiveIndex(index)}>
+      {children}
+    </button>
+  );
+}
+
+function TabPanel({ index, children }: { index: number; children: React.ReactNode }) {
+  const { activeIndex } = useTabs();
+  return activeIndex === index ? <div role="tabpanel">{children}</div> : null;
+}
+
+// Usage — clean, declarative API
+function App() {
+  return (
+    <Tabs defaultIndex={0}>
+      <TabList>
+        <Tab index={0}>Profile</Tab>
+        <Tab index={1}>Settings</Tab>
+      </TabList>
+      <TabPanel index={0}>Profile content</TabPanel>
+      <TabPanel index={1}>Settings content</TabPanel>
+    </Tabs>
+  );
+}
+```

@@ -1,0 +1,104 @@
+---
+title: "В чём разница между состоянием сервера и клиента?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Server state** and **client state** are fundamentally different types of data in a frontend application, and recognizing this distinction is key to choosing the right tools. **Server state** is data that originates from and is owned by the backend — user profiles, product lists, comments, orders. It is asynchronous, shared across users, can become stale, and requires fetching, caching, and synchronization. **Client state** is data that exists only in the browser — UI toggles, form input, selected tabs, sidebar open/closed, theme preference. It is synchronous, local to one user session, and fully controlled by the frontend.
+
+The most common mistake is putting server data into a client state manager like Redux or Zustand and manually handling loading, caching, and refetching. Dedicated server state tools like **TanStack Query** or **SWR** handle this much better with built-in caching, background refetching, stale-while-revalidate, pagination, and optimistic updates. Meanwhile, client state tools like **Zustand**, **Jotai**, or even `useState` are ideal for UI-only data that never touches the network.
+
+The **separation pattern** means using TanStack Query (or similar) exclusively for server data and a lightweight client state library for everything else. This approach leads to cleaner architecture because each tool handles what it was designed for. Server state queries handle their own loading and error states, while client state remains simple and synchronous. The result is less code, fewer bugs, and a clearer mental model for the entire team.
+
+</Answer>
+<Answer lang="ru">
+
+**Серверное состояние** и **клиентское состояние** — это принципиально разные типы данных во фронтенд-приложении, и понимание этого различия является ключом к выбору правильных инструментов. **Серверное состояние** — это данные, которые создаются и принадлежат бэкенду: профили пользователей, списки товаров, комментарии, заказы. Оно асинхронно, общее для всех пользователей, может устареть и требует загрузки, кэширования и синхронизации. **Клиентское состояние** — это данные, существующие только в браузере: переключатели UI, ввод в формах, выбранные вкладки, открытость/закрытость сайдбара, предпочтения темы. Оно синхронно, локально для сессии одного пользователя и полностью контролируется фронтендом.
+
+Самая распространённая ошибка — помещать серверные данные в клиентский менеджер состояния вроде Redux или Zustand и вручную управлять загрузкой, кэшированием и повторной загрузкой. Специализированные инструменты для серверного состояния, такие как **TanStack Query** или **SWR**, справляются с этим гораздо лучше благодаря встроенному кэшированию, фоновому обновлению, стратегии stale-while-revalidate, пагинации и оптимистичным обновлениям. В то же время инструменты клиентского состояния — **Zustand**, **Jotai** или даже `useState` — идеальны для данных, которые существуют только в UI и никогда не обращаются к сети.
+
+**Паттерн разделения** означает использование TanStack Query (или аналога) исключительно для серверных данных и легковесной библиотеки клиентского состояния для всего остального. Такой подход приводит к более чистой архитектуре, потому что каждый инструмент выполняет то, для чего был создан. Запросы серверного состояния самостоятельно управляют состояниями загрузки и ошибок, а клиентское состояние остаётся простым и синхронным. Результат — меньше кода, меньше багов и более ясная ментальная модель для всей команды.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { create } from "zustand";
+
+// ============================================
+// CLIENT STATE — Zustand (synchronous, UI-only)
+// ============================================
+interface UIStore {
+  sidebarOpen: boolean;
+  theme: "light" | "dark";
+  toggleSidebar: () => void;
+  setTheme: (theme: "light" | "dark") => void;
+}
+
+const useUIStore = create<UIStore>((set) => ({
+  sidebarOpen: true,
+  theme: "light",
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setTheme: (theme) => set({ theme }),
+}));
+
+// ============================================
+// SERVER STATE — TanStack Query (async, cached)
+// ============================================
+type Product = { id: number; name: string; price: number };
+
+function useProducts() {
+  return useQuery({
+    queryKey: ["products"],
+    queryFn: () =>
+      fetch("/api/products").then((r) => r.json()) as Promise<Product[]>,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+function useUpdateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (product: Product) =>
+      fetch(`/api/products/${product.id}`, {
+        method: "PUT",
+        body: JSON.stringify(product),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+// ============================================
+// COMPONENT — uses both, each for its purpose
+// ============================================
+function ProductDashboard() {
+  // Client state: UI preferences (synchronous, never fetched)
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+
+  // Server state: product data (async, cached, auto-refetched)
+  const { data: products, isLoading, error } = useProducts();
+
+  return (
+    <div style={{ display: "flex" }}>
+      {sidebarOpen && <Sidebar />}
+      <main>
+        <button onClick={toggleSidebar}>Toggle Sidebar</button>
+
+        {isLoading && <p>Loading products...</p>}
+        {error && <p>Error: {error.message}</p>}
+        {products?.map((p) => (
+          <div key={p.id}>
+            {p.name} — ${p.price}
+          </div>
+        ))}
+      </main>
+    </div>
+  );
+}
+```

@@ -1,0 +1,88 @@
+---
+title: "Что такое use() hook в React 19?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**use()** is a new hook introduced in React 19 that can read the value of a resource — either a Promise or a Context. Unlike all other hooks, `use()` can be called inside conditionals and loops, making it the only hook that breaks the traditional Rules of Hooks. This flexibility opens up patterns that were previously impossible.
+
+When you pass a **Promise** to `use()`, it integrates with **Suspense**. React suspends the component while the promise is pending, showing the nearest `<Suspense>` fallback. When the promise resolves, React re-renders with the resolved value. If the promise rejects, the nearest Error Boundary catches it. This replaces the `useEffect` + `useState` pattern for data fetching with a much cleaner, declarative approach.
+
+When you pass a **Context** to `use()`, it works like `useContext` but with an advantage: it can be called conditionally. This means you can read different contexts based on runtime conditions, which `useContext` cannot do. Over time, `use(MyContext)` is expected to replace `useContext(MyContext)` as the preferred way to consume context.
+
+It is important to note that `use()` expects a **stable promise reference**. If you create a new promise on every render, the component will suspend in an infinite loop. The promise should be created outside the component, in a parent, or cached by a framework like Next.js or a library like React Query. React also caches the result of a resolved promise, so passing the same promise reference returns the cached value immediately.
+
+</Answer>
+<Answer lang="ru">
+
+**use()** — это новый хук, введённый в React 19, который может читать значение ресурса — Promise или Context. В отличие от всех остальных хуков, `use()` можно вызывать внутри условий и циклов, что делает его единственным хуком, нарушающим традиционные Правила хуков. Эта гибкость открывает паттерны, которые ранее были невозможны.
+
+Когда вы передаёте **Promise** в `use()`, он интегрируется с **Suspense**. React приостанавливает компонент, пока промис ожидает выполнения, показывая фоллбэк ближайшего `<Suspense>`. Когда промис разрешается, React ре-рендерит с разрешённым значением. Если промис отклоняется, ближайший Error Boundary перехватывает ошибку. Это заменяет паттерн `useEffect` + `useState` для загрузки данных гораздо более чистым, декларативным подходом.
+
+Когда вы передаёте **Context** в `use()`, он работает как `useContext`, но с преимуществом: его можно вызывать условно. Это значит, что вы можете читать разные контексты на основе условий во время выполнения, чего `useContext` не может. Со временем `use(MyContext)` должен заменить `useContext(MyContext)` как предпочтительный способ чтения контекста.
+
+Важно отметить, что `use()` ожидает **стабильную ссылку на промис**. Если вы создаёте новый промис при каждом рендере, компонент будет приостанавливаться в бесконечном цикле. Промис должен быть создан вне компонента, в родителе или кеширован фреймворком вроде Next.js или библиотекой вроде React Query. React также кеширует результат разрешённого промиса, поэтому передача той же ссылки на промис возвращает кешированное значение немедленно.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { use, Suspense } from "react";
+
+// The promise must be created outside the component or cached
+async function fetchUser(id: number): Promise<{ name: string; email: string }> {
+  const res = await fetch(`/api/users/${id}`);
+  return res.json();
+}
+
+// Cache the promise so it's stable across renders
+const userPromiseCache = new Map<number, Promise<{ name: string; email: string }>>();
+
+function getUserPromise(id: number) {
+  if (!userPromiseCache.has(id)) {
+    userPromiseCache.set(id, fetchUser(id));
+  }
+  return userPromiseCache.get(id)!;
+}
+
+// Component using use() with a Promise
+function UserProfile({ userId }: { userId: number }) {
+  const userPromise = getUserPromise(userId);
+  // use() suspends until the promise resolves
+  const user = use(userPromise);
+
+  return (
+    <div>
+      <h2>{user.name}</h2>
+      <p>{user.email}</p>
+    </div>
+  );
+}
+
+// use() can be called conditionally — unlike useContext
+function ConditionalContext({
+  showUser,
+  userId,
+}: {
+  showUser: boolean;
+  userId: number;
+}) {
+  if (showUser) {
+    // This is valid! use() can be called inside conditions
+    const user = use(getUserPromise(userId));
+    return <p>User: {user.name}</p>;
+  }
+  return <p>No user selected</p>;
+}
+
+// Parent with Suspense boundary
+function App() {
+  return (
+    <Suspense fallback={<p>Loading user...</p>}>
+      <UserProfile userId={1} />
+    </Suspense>
+  );
+}
+```

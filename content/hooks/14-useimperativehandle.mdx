@@ -1,0 +1,95 @@
+---
+title: "Что такое useImperativeHandle?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useImperativeHandle** is a hook that lets you customize the value exposed to a parent component when it uses a ref. Instead of exposing the entire DOM node, you define a specific set of imperative methods that the parent can call. This provides a controlled API surface and encapsulates the component's internal implementation.
+
+The hook takes three arguments: a ref (forwarded from the parent), a function that returns the object to expose, and an optional dependency array. It is typically used together with `forwardRef`, which passes the parent's ref into the child. In React 19, components can accept `ref` as a regular prop, making `forwardRef` optional — but `useImperativeHandle` still works the same way.
+
+This pattern is useful when a child component has complex internal state or DOM structure, and you want the parent to interact with it through a clean, limited interface. For example, a custom video player might expose `play()`, `pause()`, and `seek()` methods instead of giving the parent access to the raw `<video>` element with all its properties.
+
+Use `useImperativeHandle` sparingly. It encourages **imperative** programming, while React's strength is **declarative** rendering. Most use cases are better served by props and state. Reserve this hook for cases where imperative control is genuinely necessary — form focus management, animation triggers, or third-party library integration.
+
+</Answer>
+<Answer lang="ru">
+
+**useImperativeHandle** — это хук, который позволяет настроить значение, доступное родительскому компоненту через ref. Вместо предоставления доступа ко всему DOM-узлу вы определяете конкретный набор императивных методов, которые родитель может вызывать. Это обеспечивает контролируемый API и инкапсулирует внутреннюю реализацию компонента.
+
+Хук принимает три аргумента: ref (переданный из родителя), функцию, возвращающую объект для предоставления, и необязательный массив зависимостей. Обычно используется вместе с `forwardRef`, который передаёт ref родителя в дочерний компонент. В React 19 компоненты могут принимать `ref` как обычный проп, делая `forwardRef` необязательным — но `useImperativeHandle` работает так же.
+
+Этот паттерн полезен, когда дочерний компонент имеет сложное внутреннее состояние или DOM-структуру, и вы хотите, чтобы родитель взаимодействовал с ним через чистый, ограниченный интерфейс. Например, кастомный видеоплеер может предоставить методы `play()`, `pause()` и `seek()` вместо предоставления родителю доступа к сырому элементу `<video>` со всеми его свойствами.
+
+Используйте `useImperativeHandle` с осторожностью. Он поощряет **императивное** программирование, тогда как сила React — в **декларативном** рендеринге. Большинство случаев лучше решаются через пропсы и состояние. Оставьте этот хук для ситуаций, где императивное управление действительно необходимо — управление фокусом форм, триггеры анимаций или интеграция с библиотеками третьих сторон.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useRef, useImperativeHandle, forwardRef, useState } from "react";
+
+interface CustomInputHandle {
+  focus: () => void;
+  clear: () => void;
+  getValue: () => string;
+}
+
+const CustomInput = forwardRef<CustomInputHandle, { label: string }>(
+  function CustomInput({ label }, ref) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [value, setValue] = useState("");
+
+    // Expose only specific methods to the parent
+    useImperativeHandle(ref, () => ({
+      focus: () => inputRef.current?.focus(),
+      clear: () => {
+        setValue("");
+        inputRef.current?.focus();
+      },
+      getValue: () => value,
+    }), [value]);
+
+    return (
+      <div>
+        <label>{label}</label>
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      </div>
+    );
+  }
+);
+
+function Form() {
+  const nameRef = useRef<CustomInputHandle>(null);
+  const emailRef = useRef<CustomInputHandle>(null);
+
+  const handleSubmit = () => {
+    const name = nameRef.current?.getValue();
+    const email = emailRef.current?.getValue();
+    console.log("Submitted:", { name, email });
+  };
+
+  const handleReset = () => {
+    nameRef.current?.clear();
+    emailRef.current?.clear();
+  };
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <CustomInput ref={nameRef} label="Name" />
+      <CustomInput ref={emailRef} label="Email" />
+      <button type="submit">Submit</button>
+      <button type="button" onClick={handleReset}>Reset</button>
+      <button type="button" onClick={() => nameRef.current?.focus()}>
+        Focus Name
+      </button>
+    </form>
+  );
+}
+```

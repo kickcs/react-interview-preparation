@@ -1,0 +1,112 @@
+---
+title: "Что такое Route Handlers (API routes)?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Route Handlers** are the App Router equivalent of API routes. They are defined in `route.ts` files inside the `app/` directory and export functions named after HTTP methods: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. They use the standard Web **Request** and **Response** APIs (or Next.js's `NextRequest`/`NextResponse` for additional helpers).
+
+By default, `GET` handlers with no dynamic data are **statically cached** at build time. To make them dynamic, use dynamic parameters, read from the request (headers, cookies, search params), or export `const dynamic = 'force-dynamic'`. Route handlers support **streaming** responses using `ReadableStream`, which is useful for real-time data or large payloads.
+
+Route handlers cannot coexist with `page.tsx` in the same directory since both would respond to the same URL. A common pattern is to place API routes under `app/api/` for clarity. They are ideal for webhooks, form submissions, third-party API proxies, and any endpoint that needs to return non-HTML responses like JSON. For handling CORS in route handlers, you can set appropriate headers in the response or use the `OPTIONS` method handler.
+
+</Answer>
+<Answer lang="ru">
+
+**Route Handlers** — это эквивалент API-маршрутов в App Router. Они определяются в файлах `route.ts` внутри директории `app/` и экспортируют функции, названные по HTTP-методам: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` и `OPTIONS`. Они используют стандартные Web API **Request** и **Response** (или `NextRequest`/`NextResponse` из Next.js для дополнительных возможностей).
+
+По умолчанию обработчики `GET` без динамических данных **статически кэшируются** при сборке. Чтобы сделать их динамическими, используйте динамические параметры, читайте из запроса (заголовки, куки, параметры поиска) или экспортируйте `const dynamic = 'force-dynamic'`. Route handlers поддерживают **потоковую передачу** ответов с помощью `ReadableStream`, что полезно для данных реального времени или больших объёмов.
+
+Route handlers не могут сосуществовать с `page.tsx` в одной директории, так как оба отвечали бы на один URL. Распространённый паттерн — размещать API-маршруты в `app/api/` для ясности. Они идеальны для вебхуков, отправки форм, проксирования сторонних API и любых эндпоинтов, возвращающих не-HTML ответы, например JSON. Для обработки CORS можно задать соответствующие заголовки в ответе или использовать обработчик метода `OPTIONS`.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// app/api/posts/route.ts — GET and POST handlers
+
+import { NextRequest, NextResponse } from "next/server";
+
+interface Post {
+  id: number;
+  title: string;
+  content: string;
+}
+
+// In-memory store for demo purposes
+const posts: Post[] = [
+  { id: 1, title: "Hello World", content: "First post" },
+];
+
+// GET /api/posts — List all posts
+export async function GET(request: NextRequest) {
+  const { searchParams } = request.nextUrl;
+  const limit = Number(searchParams.get("limit") ?? 10);
+
+  return NextResponse.json(posts.slice(0, limit));
+}
+
+// POST /api/posts — Create a new post
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+
+  const newPost: Post = {
+    id: posts.length + 1,
+    title: body.title,
+    content: body.content,
+  };
+
+  posts.push(newPost);
+
+  return NextResponse.json(newPost, { status: 201 });
+}
+```
+
+```tsx
+// app/api/posts/[id]/route.ts — Dynamic route handler
+
+import { NextRequest, NextResponse } from "next/server";
+
+// GET /api/posts/:id
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const post = await getPostById(Number(id));
+
+  if (!post) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(post);
+}
+
+// DELETE /api/posts/:id
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  await deletePost(Number(id));
+
+  return new NextResponse(null, { status: 204 });
+}
+```
+
+```tsx
+// app/api/posts/route.ts — CORS headers
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+```

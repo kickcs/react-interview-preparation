@@ -1,0 +1,73 @@
+---
+title: "Какие базовые типы есть в TypeScript?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+TypeScript provides a rich set of **basic types** that form the foundation of any typed codebase. The most commonly used primitive types are **string**, **number**, and **boolean**. Arrays can be typed using `Type[]` syntax or the generic `Array<Type>` form. **Tuples** let you define arrays with fixed lengths and specific types at each position.
+
+**Enum** allows you to define a set of named constants, making code more readable. **Any** opts out of type checking entirely and should be avoided in production code, while **unknown** is its type-safe counterpart that forces you to narrow the type before using the value. **Void** is used for functions that do not return a value, and **never** represents values that never occur — such as functions that always throw or have infinite loops.
+
+Finally, **null** and **undefined** are their own types in TypeScript. When `strictNullChecks` is enabled (recommended), you must explicitly handle these values, which prevents a large class of runtime errors. Understanding these basic types is essential before moving on to more advanced TypeScript features.
+
+</Answer>
+<Answer lang="ru">
+
+TypeScript предоставляет богатый набор **базовых типов**, которые являются основой любого типизированного кода. Наиболее часто используемые примитивные типы — это **string**, **number** и **boolean**. Массивы можно типизировать с помощью синтаксиса `Type[]` или обобщённой формы `Array<Type>`. **Кортежи** (tuples) позволяют определять массивы с фиксированной длиной и конкретными типами на каждой позиции.
+
+**Enum** позволяет определить набор именованных констант, делая код более читаемым. **Any** полностью отключает проверку типов и его следует избегать в продакшен-коде, тогда как **unknown** — его типобезопасный аналог, который заставляет сузить тип перед использованием значения. **Void** используется для функций, которые не возвращают значение, а **never** представляет значения, которые никогда не возникают — например, функции, которые всегда выбрасывают исключение или содержат бесконечный цикл.
+
+Наконец, **null** и **undefined** являются отдельными типами в TypeScript. Когда включён `strictNullChecks` (рекомендуется), вы должны явно обрабатывать эти значения, что предотвращает большой класс ошибок времени выполнения. Понимание этих базовых типов необходимо перед переходом к более продвинутым возможностям TypeScript.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Primitive types
+const name: string = "Alice";
+const age: number = 30;
+const isActive: boolean = true;
+
+// Arrays
+const numbers: number[] = [1, 2, 3];
+const names: Array<string> = ["Alice", "Bob"];
+
+// Tuple
+const pair: [string, number] = ["Alice", 30];
+
+// Enum
+enum Status {
+  Pending = "PENDING",
+  Active = "ACTIVE",
+  Inactive = "INACTIVE",
+}
+const currentStatus: Status = Status.Active;
+
+// any vs unknown
+let anything: any = 42;
+anything.foo.bar; // no error, but dangerous!
+
+let safe: unknown = 42;
+// safe.foo.bar; // Error! Must narrow first
+if (typeof safe === "number") {
+  console.log(safe.toFixed(2)); // OK after narrowing
+}
+
+// void and never
+function logMessage(msg: string): void {
+  console.log(msg);
+}
+
+function throwError(msg: string): never {
+  throw new Error(msg);
+}
+
+// null and undefined
+let maybeString: string | null = null;
+maybeString = "hello";
+
+let maybeNumber: number | undefined = undefined;
+maybeNumber = 42;
+```

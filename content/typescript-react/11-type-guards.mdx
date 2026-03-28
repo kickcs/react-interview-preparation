@@ -1,0 +1,124 @@
+---
+title: "Что такое type guards и type narrowing?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Type narrowing** is the process by which TypeScript refines a broad type into a more specific one within a conditional block. TypeScript performs narrowing automatically when you use built-in checks: **typeof** for primitives, **instanceof** for class instances, and the **in** operator to check for property existence on objects.
+
+**Custom type guards** are functions that return a **type predicate** — a return type in the form `paramName is Type`. When such a function returns `true`, TypeScript narrows the parameter to the specified type in the calling scope. This is essential when built-in checks are not sufficient, such as distinguishing between two interfaces that share no class hierarchy.
+
+**Assertion functions** are a related pattern using `asserts paramName is Type`. Instead of returning a boolean, they throw if the condition is not met and narrow the type for all subsequent code. Type guards are heavily used in React for validating API responses, handling union types in props, and safely accessing optional data before rendering.
+
+</Answer>
+<Answer lang="ru">
+
+**Сужение типов** (type narrowing) — это процесс, при котором TypeScript уточняет широкий тип до более конкретного внутри условного блока. TypeScript выполняет сужение автоматически, когда вы используете встроенные проверки: **typeof** для примитивов, **instanceof** для экземпляров классов и оператор **in** для проверки наличия свойства у объекта.
+
+**Пользовательские защитники типа** (custom type guards) — это функции, которые возвращают **предикат типа** — возвращаемый тип в форме `paramName is Type`. Когда такая функция возвращает `true`, TypeScript сужает параметр до указанного типа в вызывающей области. Это необходимо, когда встроенных проверок недостаточно, например для различения двух интерфейсов, не связанных иерархией классов.
+
+**Функции-утверждения** (assertion functions) — связанный паттерн с использованием `asserts paramName is Type`. Вместо возврата булевого значения они выбрасывают исключение, если условие не выполнено, и сужают тип для всего последующего кода. Защитники типа активно используются в React для валидации API-ответов, обработки типов объединения в пропсах и безопасного доступа к необязательным данным перед рендерингом.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// typeof — narrows primitives
+function formatValue(value: string | number) {
+  if (typeof value === "string") {
+    return value.toUpperCase(); // TypeScript knows it's string
+  }
+  return value.toFixed(2); // TypeScript knows it's number
+}
+
+// instanceof — narrows class instances
+class ApiError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+function handleError(error: unknown) {
+  if (error instanceof ApiError) {
+    console.log(error.statusCode); // narrowed to ApiError
+  } else if (error instanceof Error) {
+    console.log(error.message); // narrowed to Error
+  }
+}
+
+// in operator — checks property existence
+interface Fish {
+  swim: () => void;
+}
+interface Bird {
+  fly: () => void;
+}
+
+function move(animal: Fish | Bird) {
+  if ("swim" in animal) {
+    animal.swim(); // narrowed to Fish
+  } else {
+    animal.fly(); // narrowed to Bird
+  }
+}
+
+// Custom type guard with type predicate
+interface SuccessResponse {
+  status: "success";
+  data: unknown;
+}
+interface ErrorResponse {
+  status: "error";
+  error: string;
+}
+
+function isSuccess(res: SuccessResponse | ErrorResponse): res is SuccessResponse {
+  return res.status === "success";
+}
+
+// Assertion function — narrows or throws
+function assertDefined<T>(value: T | null | undefined, name: string): asserts value is T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected ${name} to be defined`);
+  }
+}
+```
+
+```tsx
+// Practical React example — validating API data
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+function isUser(data: unknown): data is User {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "id" in data &&
+    "name" in data &&
+    "email" in data &&
+    typeof (data as User).id === "number" &&
+    typeof (data as User).name === "string"
+  );
+}
+
+function UserCard({ data }: { data: unknown }) {
+  if (!isUser(data)) {
+    return <p>Invalid user data</p>;
+  }
+
+  // data is narrowed to User — full autocompletion works
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      <p>{data.email}</p>
+    </div>
+  );
+}
+```

@@ -1,0 +1,63 @@
+---
+title: "Что такое архитектура React Fiber?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React Fiber** is the internal reconciliation engine introduced in React 16 that replaced the old "stack reconciler." Each element in the React tree is represented by a **Fiber node** — a JavaScript object that holds information about the component type, props, state, and pointers to its parent, child, and sibling nodes. This linked-list structure allows React to traverse the tree incrementally.
+
+The reconciliation process is split into two phases. The **render phase** (also called reconciliation) walks the Fiber tree, compares old and new elements, and builds a list of changes (side effects). This phase is **interruptible** — React can pause, resume, or abort work. The **commit phase** takes the computed list of side effects and applies them to the actual DOM in a single synchronous pass. The commit phase is not interruptible because partial DOM updates would leave the UI in an inconsistent state.
+
+Each Fiber node has a **priority level** (lane), allowing React to schedule work accordingly. High-priority updates like user input are processed before low-priority updates like off-screen rendering. React maintains two trees: the **current tree** (what is on screen) and the **work-in-progress tree** (being constructed). Once the commit phase completes, the work-in-progress tree becomes the current tree. This "double buffering" technique ensures the UI is always consistent.
+
+</Answer>
+<Answer lang="ru">
+
+**React Fiber** — это внутренний движок согласования, представленный в React 16, который заменил старый «стековый согласователь». Каждый элемент в дереве React представлен **Fiber-узлом** — JavaScript-объектом, содержащим информацию о типе компонента, пропсах, состоянии и указатели на родительский, дочерний и соседний узлы. Эта структура связного списка позволяет React обходить дерево инкрементально.
+
+Процесс согласования разделён на две фазы. **Фаза рендеринга** (также называемая согласованием) обходит дерево Fiber, сравнивает старые и новые элементы и формирует список изменений (побочных эффектов). Эта фаза **прерываема** — React может приостановить, возобновить или прервать работу. **Фаза фиксации (commit)** берёт вычисленный список побочных эффектов и применяет их к реальному DOM за один синхронный проход. Фаза фиксации непрерываема, потому что частичные обновления DOM оставили бы UI в несогласованном состоянии.
+
+Каждый Fiber-узел имеет **уровень приоритета** (lane), позволяя React планировать работу соответствующим образом. Высокоприоритетные обновления, такие как пользовательский ввод, обрабатываются раньше низкоприоритетных, таких как рендеринг за пределами экрана. React поддерживает два дерева: **текущее дерево** (то, что на экране) и **дерево в процессе работы** (строящееся). После завершения фазы фиксации дерево в процессе работы становится текущим. Эта техника «двойной буферизации» гарантирует, что UI всегда согласован.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Conceptual representation of a Fiber node (simplified)
+interface FiberNode {
+  // Identity
+  type: string | Function;       // "div", MyComponent, etc.
+  key: string | null;
+
+  // Tree structure (linked list)
+  child: FiberNode | null;       // First child
+  sibling: FiberNode | null;     // Next sibling
+  return: FiberNode | null;      // Parent
+
+  // State
+  memoizedProps: object;
+  memoizedState: object | null;
+
+  // Effects
+  flags: number;                 // What needs to happen (placement, update, deletion)
+  subtreeFlags: number;          // Aggregated flags from children
+
+  // Scheduling
+  lanes: number;                 // Priority bitmask
+
+  // Double buffering
+  alternate: FiberNode | null;   // Points to the other tree's version
+}
+
+// Example tree structure:
+//
+//   App (Fiber)
+//    │
+//    ▼ child
+//   Header (Fiber) ──sibling──▶ Main (Fiber) ──sibling──▶ Footer (Fiber)
+//                                 │
+//                                 ▼ child
+//                               Content (Fiber)
+```

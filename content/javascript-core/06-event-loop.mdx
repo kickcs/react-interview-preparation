@@ -1,0 +1,55 @@
+---
+title: "Что такое Event Loop?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Event Loop** is the mechanism that allows JavaScript to perform non-blocking operations despite being single-threaded. It continuously monitors the **call stack** and the **task queues**, pushing callbacks onto the stack when it becomes empty.
+
+JavaScript execution follows this cycle: code runs on the **call stack** synchronously. When an asynchronous operation completes (like `setTimeout`, a network request, or a DOM event), its callback is placed in the **task queue** (also called the macrotask queue). **Promises**, `queueMicrotask()`, and `MutationObserver` callbacks go to the **microtask queue**, which has higher priority — all microtasks are processed before the next macrotask.
+
+Understanding this execution order is crucial for predicting code behavior. In a single iteration, the event loop: (1) executes all synchronous code on the call stack, (2) drains the entire microtask queue (including microtasks spawned by other microtasks), (3) picks one macrotask from the task queue, (4) repeats. This is why `Promise.then()` callbacks always execute before `setTimeout(..., 0)` callbacks, even though both are asynchronous.
+
+</Answer>
+<Answer lang="ru">
+
+**Event Loop (цикл событий)** — это механизм, который позволяет JavaScript выполнять неблокирующие операции, несмотря на однопоточность. Он непрерывно отслеживает **стек вызовов** и **очереди задач**, помещая колбэки в стек, когда тот освобождается.
+
+Выполнение JavaScript следует такому циклу: код выполняется в **стеке вызовов** синхронно. Когда асинхронная операция завершается (например, `setTimeout`, сетевой запрос или событие DOM), её колбэк помещается в **очередь задач** (также называемую очередью макрозадач). Колбэки **промисов**, `queueMicrotask()` и `MutationObserver` попадают в **очередь микрозадач**, которая имеет более высокий приоритет — все микрозадачи обрабатываются до следующей макрозадачи.
+
+Понимание порядка выполнения критически важно для предсказания поведения кода. За одну итерацию цикл событий: (1) выполняет весь синхронный код в стеке вызовов, (2) полностью очищает очередь микрозадач (включая микрозадачи, порождённые другими микрозадачами), (3) берёт одну макрозадачу из очереди задач, (4) повторяет. Именно поэтому колбэки `Promise.then()` всегда выполняются до колбэков `setTimeout(..., 0)`, хотя оба являются асинхронными.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+console.log("1: Synchronous");
+
+setTimeout(() => {
+  console.log("2: setTimeout (macrotask)");
+}, 0);
+
+Promise.resolve()
+  .then(() => {
+    console.log("3: Promise.then (microtask)");
+  })
+  .then(() => {
+    console.log("4: Chained Promise.then (microtask)");
+  });
+
+queueMicrotask(() => {
+  console.log("5: queueMicrotask (microtask)");
+});
+
+console.log("6: Synchronous");
+
+// Output order:
+// 1: Synchronous
+// 6: Synchronous
+// 3: Promise.then (microtask)
+// 5: queueMicrotask (microtask)
+// 4: Chained Promise.then (microtask)
+// 2: setTimeout (macrotask)
+```

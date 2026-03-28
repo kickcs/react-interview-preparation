@@ -1,0 +1,72 @@
+---
+title: "Что такое micro-frontends?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Micro-frontends** extend the microservices concept to the frontend. Instead of a single monolithic frontend application, the UI is split into smaller, independently developed and deployed pieces, each owned by a different team and often aligned with a business domain (e.g., catalog, checkout, user profile).
+
+There are several integration approaches. **Module Federation** (a Webpack 5 / Rspack feature) allows applications to dynamically load code from each other at runtime, sharing dependencies like React to avoid duplication. **Web Components** provide framework-agnostic custom elements that work across any frontend stack. **Iframe-based** composition is the simplest approach — each micro-frontend runs in its own iframe — but it has drawbacks like limited communication and styling isolation challenges. **Build-time composition** assembles micro-frontends into a single app during the build step using npm packages.
+
+Routing across micro-frontends is typically handled by a **shell application** (or app shell) that decides which micro-frontend to load based on the URL. The shell manages shared concerns like authentication, navigation, and global state.
+
+The trade-offs are significant. Micro-frontends enable **independent deployment**, **team autonomy**, and **technology diversity** (one team could use React, another Vue). However, they add complexity in bundle size (potential dependency duplication), cross-app communication, consistent styling, and overall developer experience. They are best suited for **large organizations** with multiple teams working on the same product.
+
+</Answer>
+<Answer lang="ru">
+
+**Микрофронтенды** распространяют концепцию микросервисов на фронтенд. Вместо единого монолитного фронтенд-приложения UI разделяется на небольшие, независимо разрабатываемые и развёртываемые части, каждая из которых принадлежит отдельной команде и часто соответствует бизнес-домену (например, каталог, оформление заказа, профиль пользователя).
+
+Существует несколько подходов к интеграции. **Module Federation** (функция Webpack 5 / Rspack) позволяет приложениям динамически загружать код друг друга во время выполнения, разделяя зависимости вроде React для избежания дублирования. **Web Components** предоставляют фреймворк-независимые кастомные элементы, работающие с любым фронтенд-стеком. **Iframe-композиция** — простейший подход: каждый микрофронтенд работает в своём iframe, но имеет недостатки — ограниченная коммуникация и сложности с изоляцией стилей. **Композиция на этапе сборки** собирает микрофронтенды в единое приложение на этапе билда через npm-пакеты.
+
+Маршрутизация между микрофронтендами обычно управляется **shell-приложением** (оболочкой), которое решает, какой микрофронтенд загрузить на основе URL. Оболочка отвечает за общие задачи: аутентификацию, навигацию и глобальное состояние.
+
+Компромиссы значительны. Микрофронтенды обеспечивают **независимый деплой**, **автономию команд** и **разнообразие технологий** (одна команда может использовать React, другая — Vue). Однако они добавляют сложность в размере бандла (возможное дублирование зависимостей), межприложенческой коммуникации, согласованности стилей и общем Developer Experience. Они лучше всего подходят для **крупных организаций** с несколькими командами, работающими над одним продуктом.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// webpack.config.js — Module Federation Host (Shell)
+const { ModuleFederationPlugin } = require("webpack").container;
+
+module.exports = {
+  plugins: [
+    new ModuleFederationPlugin({
+      name: "shell",
+      remotes: {
+        catalog: "catalog@http://localhost:3001/remoteEntry.js",
+        checkout: "checkout@http://localhost:3002/remoteEntry.js",
+      },
+      shared: {
+        react: { singleton: true, requiredVersion: "^19.0.0" },
+        "react-dom": { singleton: true, requiredVersion: "^19.0.0" },
+      },
+    }),
+  ],
+};
+```
+
+```tsx
+// Shell app — loading a remote micro-frontend
+import React, { Suspense, lazy } from "react";
+
+const CatalogApp = lazy(() => import("catalog/App"));
+const CheckoutApp = lazy(() => import("checkout/App"));
+
+function Shell() {
+  return (
+    <div>
+      <nav>{/* Shared navigation */}</nav>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/catalog/*" element={<CatalogApp />} />
+          <Route path="/checkout/*" element={<CheckoutApp />} />
+        </Routes>
+      </Suspense>
+    </div>
+  );
+}
+```

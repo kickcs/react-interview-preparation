@@ -1,0 +1,83 @@
+---
+title: "Что такое union и intersection типы?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Union types** use the `|` operator to declare that a value can be one of several types. For example, `string | number` means the value is either a string or a number. To safely use a union value, you must **narrow** it using type guards like `typeof`, `in`, or custom checks. Unions are extremely common in React for props that accept multiple forms of input.
+
+**Intersection types** use the `&` operator to combine multiple types into one. The resulting type has all properties from every constituent type. This is useful for composing props — for example, combining base component props with additional features. Unlike unions (which represent "one of"), intersections represent "all of."
+
+In React, unions are often used for **polymorphic component props** — components that behave differently based on a discriminating prop. Intersections are commonly used to mix in shared prop types (like styling props or event handlers) with component-specific props. Understanding the difference is critical for designing flexible, type-safe component APIs.
+
+</Answer>
+<Answer lang="ru">
+
+**Типы объединения** (union types) используют оператор `|` для объявления того, что значение может быть одним из нескольких типов. Например, `string | number` означает, что значение является либо строкой, либо числом. Для безопасного использования значения объединения необходимо **сузить** его с помощью защитников типа, таких как `typeof`, `in` или пользовательских проверок. Объединения чрезвычайно распространены в React для пропсов, принимающих несколько форм ввода.
+
+**Типы пересечения** (intersection types) используют оператор `&` для комбинирования нескольких типов в один. Результирующий тип имеет все свойства из каждого составного типа. Это полезно для композиции пропсов — например, объединение базовых пропсов компонента с дополнительными возможностями. В отличие от объединений (которые означают «один из»), пересечения означают «всё вместе».
+
+В React объединения часто используются для **полиморфных пропсов компонентов** — компонентов, которые ведут себя по-разному в зависимости от различающего пропса. Пересечения обычно используются для добавления общих типов пропсов (например, стилевых пропсов или обработчиков событий) к специфическим пропсам компонента. Понимание различия критически важно для проектирования гибких и типобезопасных API компонентов.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Union type — value can be one of several types
+type ID = string | number;
+
+function printId(id: ID) {
+  // Must narrow before using type-specific methods
+  if (typeof id === "string") {
+    console.log(id.toUpperCase());
+  } else {
+    console.log(id.toFixed(2));
+  }
+}
+
+// Intersection type — combine multiple types
+type HasName = { name: string };
+type HasAge = { age: number };
+type Person = HasName & HasAge; // { name: string; age: number }
+```
+
+```tsx
+// Polymorphic component with union props
+type ButtonProps =
+  | { variant: "link"; href: string; onClick?: never }
+  | { variant: "button"; href?: never; onClick: () => void };
+
+function ActionButton(props: ButtonProps) {
+  if (props.variant === "link") {
+    return <a href={props.href}>Click me</a>;
+  }
+  return <button onClick={props.onClick}>Click me</button>;
+}
+
+// Usage — TypeScript enforces correct prop combinations
+<ActionButton variant="link" href="/about" />
+<ActionButton variant="button" onClick={() => alert("hi")} />
+// <ActionButton variant="link" onClick={() => {}} /> // Error!
+
+// Intersection for composing props
+type StyleProps = {
+  className?: string;
+  style?: React.CSSProperties;
+};
+
+type CardProps = {
+  title: string;
+  children: React.ReactNode;
+} & StyleProps;
+
+function Card({ title, children, className, style }: CardProps) {
+  return (
+    <div className={className} style={style}>
+      <h2>{title}</h2>
+      {children}
+    </div>
+  );
+}
+```

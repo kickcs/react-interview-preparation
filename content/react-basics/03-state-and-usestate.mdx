@@ -1,0 +1,42 @@
+---
+title: "Что такое состояние в React?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**State** is a built-in mechanism that allows React components to store and manage data that can change over time. Unlike **props**, which are passed from a parent and are read-only, state is owned and controlled by the component itself. When state changes, React re-renders the component to reflect the new data in the UI.
+
+The **useState** hook is the primary way to add state to functional components. It returns a pair: the current state value and a setter function. React batches multiple state updates within the same event handler into a single re-render for better performance. Starting with React 18, batching also applies to asynchronous code like promises and timeouts.
+
+State must be treated as **immutable** — you should never mutate state directly. Instead, always create a new value and pass it to the setter function. For objects and arrays, this means creating copies with spread syntax or methods like `map` and `filter`. When the new state depends on the previous state, use a **functional update** by passing a callback to the setter: `setState(prev => prev + 1)`. This ensures correctness even when multiple updates are batched together.
+
+</Answer>
+<Answer lang="ru">
+
+**Состояние (state)** — это встроенный механизм, позволяющий компонентам React хранить и управлять данными, которые могут изменяться со временем. В отличие от **пропсов**, которые передаются от родителя и доступны только для чтения, состояние принадлежит и контролируется самим компонентом. Когда состояние изменяется, React перерисовывает компонент, чтобы отобразить новые данные в интерфейсе.
+
+Хук **useState** — основной способ добавления состояния в функциональные компоненты. Он возвращает пару: текущее значение состояния и функцию для его обновления. React группирует несколько обновлений состояния внутри одного обработчика событий в одну перерисовку для повышения производительности. Начиная с React 18, группировка также работает в асинхронном коде, например в промисах и таймаутах.
+
+Состояние необходимо рассматривать как **неизменяемое (immutable)** — нельзя изменять его напрямую. Вместо этого всегда создавайте новое значение и передавайте его в функцию обновления. Для объектов и массивов это означает создание копий с помощью оператора spread или методов `map` и `filter`. Когда новое состояние зависит от предыдущего, используйте **функциональное обновление**, передавая колбэк в сеттер: `setState(prev => prev + 1)`. Это гарантирует корректность даже при группировке нескольких обновлений.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState } from "react";
+
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <button onClick={() => setCount(prev => prev - 1)}>Decrement</button>
+      <button onClick={() => setCount(0)}>Reset</button>
+    </div>
+  );
+}
+```

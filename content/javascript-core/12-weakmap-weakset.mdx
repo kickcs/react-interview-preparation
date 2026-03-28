@@ -1,0 +1,87 @@
+---
+title: "Что такое WeakMap и WeakSet?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**WeakMap** and **WeakSet** are collection types that hold **weak references** to their keys (WeakMap) or values (WeakSet). Unlike `Map` and `Set`, they allow the garbage collector to reclaim the referenced objects when no other references to them exist. This prevents memory leaks in scenarios where you need to associate data with objects that have their own lifecycle.
+
+**WeakMap** only accepts objects (including functions) as keys — not primitives. It supports `get`, `set`, `has`, and `delete`, but is not iterable and has no `size` property, since the contents depend on garbage collection timing. Common use cases include storing **private data** associated with class instances, **caching** computed results keyed by objects, and tracking **DOM element metadata** without preventing elements from being garbage collected.
+
+**WeakSet** only stores objects and supports `add`, `has`, and `delete`. It is also not iterable. A typical use case is **tagging objects** — for example, tracking which objects have already been processed or visited. The key advantage over regular `Map`/`Set` is that weak collections do not prevent garbage collection, making them ideal for metadata that should disappear when the original object is no longer needed.
+
+</Answer>
+<Answer lang="ru">
+
+**WeakMap** и **WeakSet** — это типы коллекций, которые хранят **слабые ссылки** на свои ключи (WeakMap) или значения (WeakSet). В отличие от `Map` и `Set`, они позволяют сборщику мусора удалять объекты, на которые ссылаются, когда на них не остаётся других ссылок. Это предотвращает утечки памяти в сценариях, где нужно связать данные с объектами, имеющими собственный жизненный цикл.
+
+**WeakMap** принимает в качестве ключей только объекты (включая функции) — не примитивы. Он поддерживает `get`, `set`, `has` и `delete`, но не является итерируемым и не имеет свойства `size`, так как содержимое зависит от момента сборки мусора. Типичные случаи использования: хранение **приватных данных**, связанных с экземплярами классов, **кэширование** вычисленных результатов с привязкой к объектам и отслеживание **метаданных DOM-элементов** без предотвращения их сборки мусором.
+
+**WeakSet** хранит только объекты и поддерживает `add`, `has` и `delete`. Он тоже не является итерируемым. Типичный случай использования — **пометка объектов**, например, отслеживание уже обработанных или посещённых объектов. Ключевое преимущество перед обычными `Map`/`Set` в том, что слабые коллекции не препятствуют сборке мусора, что делает их идеальными для метаданных, которые должны исчезнуть, когда исходный объект больше не нужен.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// WeakMap — private data pattern
+const privateData = new WeakMap();
+
+class User {
+  constructor(name, password) {
+    this.name = name;
+    privateData.set(this, { password });
+  }
+
+  checkPassword(input) {
+    return privateData.get(this).password === input;
+  }
+}
+
+let user = new User("Alice", "secret123");
+console.log(user.checkPassword("secret123")); // true
+console.log(user.name);       // "Alice"
+// password is not accessible from outside
+user = null; // privateData entry is garbage collected automatically
+
+// WeakMap — caching
+const cache = new WeakMap();
+
+function expensiveCompute(obj) {
+  if (cache.has(obj)) return cache.get(obj);
+  const result = { /* ...heavy computation... */ computed: true };
+  cache.set(obj, result);
+  return result;
+}
+
+let data = { id: 1 };
+expensiveCompute(data); // computes and caches
+expensiveCompute(data); // returns from cache
+data = null; // cache entry is garbage collected
+
+// WeakSet — tagging objects
+const processed = new WeakSet();
+
+function processOrder(order) {
+  if (processed.has(order)) {
+    console.log("Already processed");
+    return;
+  }
+  // ... process the order ...
+  processed.add(order);
+}
+
+let order = { id: 42, total: 100 };
+processOrder(order); // processes
+processOrder(order); // "Already processed"
+order = null; // WeakSet entry is garbage collected
+
+// Comparison: Map vs WeakMap
+const map = new Map();
+const weakMap = new WeakMap();
+
+console.log(map.size);           // 0 — has size
+// console.log(weakMap.size);    // undefined — no size
+// console.log([...weakMap]);    // TypeError — not iterable
+```

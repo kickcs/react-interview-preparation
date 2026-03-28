@@ -1,0 +1,74 @@
+---
+title: "Что такое Symbol и iterators?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **Symbol** is a primitive type introduced in ES2015 that creates a unique, immutable identifier. Every `Symbol()` call produces a value guaranteed to be different from any other symbol, even if they share the same description. Symbols are primarily used as property keys to avoid naming collisions, especially when extending objects you don't own.
+
+JavaScript defines several **well-known symbols** that customize language behavior. The most important is **`Symbol.iterator`**, which defines the default iteration protocol for an object. When you use `for...of`, the spread operator, or destructuring on an object, the engine looks for a `[Symbol.iterator]()` method that returns an **iterator** — an object with a `next()` method returning `{ value, done }` pairs.
+
+Built-in iterables like arrays, strings, Maps, and Sets already implement `Symbol.iterator`. You can make any object iterable by adding this method. Other well-known symbols include `Symbol.toPrimitive` (custom type conversion), `Symbol.hasInstance` (customizing `instanceof`), and `Symbol.toStringTag` (customizing `Object.prototype.toString()`). The **global symbol registry** accessed via `Symbol.for()` lets you create shared symbols across different parts of your application.
+
+</Answer>
+<Answer lang="ru">
+
+**Symbol** — это примитивный тип, введённый в ES2015, который создаёт уникальный неизменяемый идентификатор. Каждый вызов `Symbol()` создаёт значение, гарантированно отличающееся от любого другого символа, даже если у них одинаковое описание. Символы в основном используются как ключи свойств для предотвращения конфликтов имён, особенно при расширении объектов, которые вам не принадлежат.
+
+JavaScript определяет несколько **общеизвестных символов** (well-known symbols), которые настраивают поведение языка. Самый важный — **`Symbol.iterator`**, определяющий протокол итерации по умолчанию для объекта. Когда вы используете `for...of`, оператор spread или деструктуризацию для объекта, движок ищет метод `[Symbol.iterator]()`, который возвращает **итератор** — объект с методом `next()`, возвращающим пары `{ value, done }`.
+
+Встроенные итерируемые объекты (массивы, строки, Map, Set) уже реализуют `Symbol.iterator`. Вы можете сделать любой объект итерируемым, добавив этот метод. Другие общеизвестные символы включают `Symbol.toPrimitive` (пользовательское преобразование типов), `Symbol.hasInstance` (настройка `instanceof`) и `Symbol.toStringTag` (настройка `Object.prototype.toString()`). **Глобальный реестр символов**, доступный через `Symbol.for()`, позволяет создавать общие символы для разных частей приложения.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Symbols are unique
+const s1 = Symbol("id");
+const s2 = Symbol("id");
+console.log(s1 === s2); // false
+
+// Global symbol registry
+const shared = Symbol.for("app.id");
+console.log(Symbol.for("app.id") === shared); // true
+
+// Symbol as property key (no collisions)
+const ID = Symbol("id");
+const user = { [ID]: 123, name: "Alice" };
+console.log(user[ID]); // 123
+console.log(Object.keys(user)); // ["name"] — symbols are not enumerable
+
+// Custom iterable object
+class Range {
+  constructor(start, end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  [Symbol.iterator]() {
+    let current = this.start;
+    const end = this.end;
+    return {
+      next() {
+        if (current <= end) {
+          return { value: current++, done: false };
+        }
+        return { done: true };
+      },
+    };
+  }
+}
+
+const range = new Range(1, 5);
+
+for (const num of range) {
+  console.log(num); // 1, 2, 3, 4, 5
+}
+
+console.log([...range]); // [1, 2, 3, 4, 5]
+
+const [first, second] = range;
+console.log(first, second); // 1, 2
+```

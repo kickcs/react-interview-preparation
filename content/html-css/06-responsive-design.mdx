@@ -1,0 +1,77 @@
+---
+title: "Что такое адаптивный дизайн и медиа-запросы?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Responsive design** is an approach where a website adapts its layout and content to different screen sizes and devices. The **mobile-first** approach means writing base styles for small screens first, then adding complexity for larger screens via media queries. This leads to cleaner CSS because mobile styles are typically simpler, and you progressively enhance rather than override.
+
+**Media queries** allow you to apply CSS rules conditionally based on device characteristics. The most common query is `@media (min-width: ...)` which targets screens at or above a certain width. Common breakpoints are 640px (small), 768px (medium), 1024px (large), and 1280px (extra large). You can combine conditions with `and`, `or`, and `not`, and also query features like `prefers-color-scheme` and `prefers-reduced-motion`.
+
+**Viewport units** provide sizing relative to the browser window: `vw` (1% of viewport width), `vh` (1% of viewport height), `dvh` (dynamic viewport height that accounts for mobile browser chrome), `svh` (smallest viewport height), and `lvh` (largest viewport height). The `clamp()` function is invaluable for responsive typography — `clamp(1rem, 2.5vw, 2rem)` creates fluid text that scales between minimum and maximum sizes.
+
+</Answer>
+<Answer lang="ru">
+
+**Адаптивный дизайн** — это подход, при котором сайт подстраивает свой макет и контент под различные размеры экранов и устройства. Подход **mobile-first** означает написание базовых стилей сначала для маленьких экранов, а затем добавление сложности для больших экранов через медиа-запросы. Это приводит к более чистому CSS, поскольку мобильные стили обычно проще, и вы постепенно улучшаете, а не переопределяете.
+
+**Медиа-запросы** позволяют применять CSS-правила условно, на основе характеристик устройства. Самый распространённый запрос — `@media (min-width: ...)`, который нацеливается на экраны от определённой ширины и выше. Типичные контрольные точки: 640px (малый), 768px (средний), 1024px (большой) и 1280px (сверхбольшой). Условия можно комбинировать с помощью `and`, `or` и `not`, а также запрашивать такие характеристики, как `prefers-color-scheme` и `prefers-reduced-motion`.
+
+**Единицы вьюпорта** задают размеры относительно окна браузера: `vw` (1% ширины вьюпорта), `vh` (1% высоты вьюпорта), `dvh` (динамическая высота вьюпорта, учитывающая панель мобильного браузера), `svh` (наименьшая высота вьюпорта) и `lvh` (наибольшая высота вьюпорта). Функция `clamp()` незаменима для адаптивной типографики — `clamp(1rem, 2.5vw, 2rem)` создаёт плавный текст, масштабирующийся между минимальным и максимальным размерами.
+
+</Answer>
+</AnswerGroup>
+
+```css
+/* Mobile-first responsive layout */
+.container {
+  padding: 1rem;
+  width: 100%;
+}
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  .container {
+    padding: 2rem;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+}
+
+/* Desktop and up */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 960px;
+  }
+}
+
+/* Fluid typography with clamp */
+h1 {
+  font-size: clamp(1.5rem, 4vw, 3rem);
+}
+
+/* Full-height hero using dynamic viewport height */
+.hero {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a2e;
+    --text: #e0e0e0;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```

@@ -1,0 +1,71 @@
+---
+title: "Что такое REST API?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**REST** (Representational State Transfer) is an architectural style for designing networked applications. A **REST API** exposes resources (users, posts, orders) through URLs and uses standard HTTP methods (GET, POST, PUT, DELETE) to perform operations on them. REST is not a protocol — it is a set of constraints: **client-server** separation, **statelessness** (each request contains all needed information), **cacheability**, **uniform interface**, and **layered system**.
+
+The **uniform interface** is the core REST constraint. Resources are identified by URLs (e.g., `/api/users/42`), manipulated through representations (JSON, XML), and self-descriptive messages include enough metadata to process them. **HATEOAS** (Hypermedia As The Engine Of Application State) is the most advanced constraint, where API responses include links to related actions and resources, allowing clients to discover the API dynamically.
+
+The **Richardson Maturity Model** describes four levels of REST adoption: Level 0 (single endpoint, RPC-style), Level 1 (resource-based URLs), Level 2 (proper HTTP methods and status codes), and Level 3 (HATEOAS). Most production APIs reach Level 2. Good REST design uses plural nouns for resources (`/users`, not `/getUser`), nests related resources (`/users/42/posts`), supports filtering and pagination via query parameters, and uses proper status codes.
+
+</Answer>
+<Answer lang="ru">
+
+**REST** (Representational State Transfer) — это архитектурный стиль для проектирования сетевых приложений. **REST API** предоставляет доступ к ресурсам (пользователи, посты, заказы) через URL и использует стандартные HTTP-методы (GET, POST, PUT, DELETE) для операций над ними. REST — это не протокол, а набор ограничений: разделение **клиент-сервер**, **отсутствие состояния** (каждый запрос содержит всю необходимую информацию), **кешируемость**, **единообразный интерфейс** и **многоуровневая система**.
+
+**Единообразный интерфейс** — ключевое ограничение REST. Ресурсы идентифицируются по URL (например, `/api/users/42`), управляются через представления (JSON, XML), а самоописательные сообщения содержат достаточно метаданных для обработки. **HATEOAS** (Hypermedia As The Engine Of Application State) — наиболее продвинутое ограничение, при котором ответы API содержат ссылки на связанные действия и ресурсы, позволяя клиентам динамически исследовать API.
+
+**Модель зрелости Ричардсона** описывает четыре уровня соответствия REST: Уровень 0 (единая точка входа, RPC-стиль), Уровень 1 (URL на основе ресурсов), Уровень 2 (правильные HTTP-методы и коды состояния), Уровень 3 (HATEOAS). Большинство продакшн-API достигают Уровня 2. Хороший REST-дизайн использует существительные во множественном числе для ресурсов (`/users`, а не `/getUser`), вкладывает связанные ресурсы (`/users/42/posts`), поддерживает фильтрацию и пагинацию через query-параметры и использует правильные коды состояния.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// RESTful endpoint design
+// GET    /api/users          — list all users
+// GET    /api/users/42       — get user by ID
+// POST   /api/users          — create a user
+// PUT    /api/users/42       — replace user
+// PATCH  /api/users/42       — update user partially
+// DELETE /api/users/42       — delete user
+// GET    /api/users/42/posts — get posts by user
+
+// Filtering, sorting, and pagination via query parameters
+// GET /api/users?role=admin&sort=name&page=2&limit=20
+
+// Level 3 — HATEOAS response example
+const hateoasResponse = {
+  id: 42,
+  name: "Alice",
+  email: "alice@example.com",
+  _links: {
+    self: { href: "/api/users/42" },
+    posts: { href: "/api/users/42/posts" },
+    update: { href: "/api/users/42", method: "PUT" },
+    delete: { href: "/api/users/42", method: "DELETE" },
+  },
+};
+
+// Paginated list response
+const paginatedResponse = {
+  data: [
+    { id: 1, name: "Alice" },
+    { id: 2, name: "Bob" },
+  ],
+  meta: {
+    page: 2,
+    limit: 20,
+    total: 95,
+    totalPages: 5,
+  },
+  _links: {
+    self: { href: "/api/users?page=2&limit=20" },
+    next: { href: "/api/users?page=3&limit=20" },
+    prev: { href: "/api/users?page=1&limit=20" },
+  },
+};
+```

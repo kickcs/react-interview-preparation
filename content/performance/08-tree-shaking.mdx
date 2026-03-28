@@ -1,0 +1,73 @@
+---
+title: "Что такое tree shaking?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Tree shaking** is a form of dead code elimination performed by bundlers like webpack, Rollup, and esbuild. It analyzes your import/export statements and removes any exported code that is never imported anywhere in your application. The name comes from the metaphor of shaking a tree so dead leaves fall off.
+
+Tree shaking relies on **ES modules** (`import`/`export`) because their static structure can be analyzed at build time. CommonJS (`require`/`module.exports`) is dynamic and cannot be reliably analyzed, which is why tree shaking does not work with it. When you write `import { map } from "lodash-es"`, the bundler knows that only `map` is used and can exclude the rest.
+
+The **`sideEffects`** field in `package.json` is crucial for tree shaking. A module has side effects if importing it changes global state (e.g., polyfills, CSS imports). Setting `"sideEffects": false` tells the bundler that any unused export can be safely removed. You can also list specific files with side effects like `"sideEffects": ["*.css"]`. Without this hint, the bundler may conservatively keep all code to avoid breaking side-effectful modules.
+
+</Answer>
+<Answer lang="ru">
+
+**Tree shaking** — это форма устранения мёртвого кода, выполняемая бандлерами вроде webpack, Rollup и esbuild. Он анализирует ваши инструкции импорта/экспорта и удаляет любой экспортированный код, который нигде не импортируется в вашем приложении. Название происходит от метафоры встряхивания дерева, с которого осыпаются мёртвые листья.
+
+Tree shaking опирается на **ES-модули** (`import`/`export`), потому что их статическая структура может быть проанализирована на этапе сборки. CommonJS (`require`/`module.exports`) является динамическим и не может быть надёжно проанализирован, поэтому tree shaking с ним не работает. Когда вы пишете `import { map } from "lodash-es"`, бандлер знает, что используется только `map`, и может исключить остальное.
+
+Поле **`sideEffects`** в `package.json` критически важно для tree shaking. Модуль имеет побочные эффекты, если его импорт изменяет глобальное состояние (например, полифиллы, импорт CSS). Установка `"sideEffects": false` говорит бандлеру, что любой неиспользуемый экспорт можно безопасно удалить. Вы также можете перечислить конкретные файлы с побочными эффектами, например `"sideEffects": ["*.css"]`. Без этой подсказки бандлер может консервативно сохранить весь код, чтобы не сломать модули с побочными эффектами.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// === Tree-shakeable (ES modules with named exports) ===
+
+// math.ts
+export function add(a: number, b: number) {
+  return a + b;
+}
+
+export function multiply(a: number, b: number) {
+  return a * b;
+}
+
+export function complexCalculation(data: number[]) {
+  // 500 lines of code...
+  return data.reduce((sum, n) => sum + n, 0);
+}
+
+// app.ts — only `add` is included in the bundle
+import { add } from "./math";
+console.log(add(2, 3));
+
+// === NOT tree-shakeable (CommonJS) ===
+
+// utils.cjs
+module.exports = {
+  add: (a, b) => a + b,
+  multiply: (a, b) => a * b,
+  complexCalculation: (data) => data.reduce((sum, n) => sum + n, 0),
+};
+
+// app.cjs — entire module is included, even unused functions
+const { add } = require("./utils.cjs");
+console.log(add(2, 3));
+```
+
+```json
+// package.json — enabling tree shaking for your library
+{
+  "name": "my-library",
+  "sideEffects": false
+}
+
+// Or mark specific files as having side effects
+// {
+//   "sideEffects": ["*.css", "./src/polyfills.ts"]
+// }
+```

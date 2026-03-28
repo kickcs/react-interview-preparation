@@ -1,0 +1,178 @@
+---
+title: "Что такое машины состояния в фронтенде?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **finite state machine (FSM)** is a mathematical model where a system can be in exactly one of a finite number of **states** at any time. It transitions between states in response to **events**, and each transition can trigger **actions** (side effects). In frontend development, libraries like **XState** bring state machines to UI logic, making complex interactions explicit, visual, and impossible to reach invalid states.
+
+The key concepts are: **states** (the possible modes your UI can be in), **events** (things that happen, like user actions or API responses), **transitions** (rules for moving from one state to another), **guards** (conditions that must be true for a transition to occur), and **actions** (side effects executed during transitions, such as API calls or analytics). Unlike boolean flags, state machines make impossible states truly impossible — you can't be "loading" and "error" at the same time.
+
+State machines are especially valuable for **complex UI flows** like multi-step forms, payment flows, drag-and-drop interactions, authentication flows, and media players. They serve as living documentation — the machine definition clearly shows every possible state and transition. XState also provides a visual editor and inspector for debugging. The trade-off is additional upfront design work, but for complex logic, this investment pays off with fewer bugs and dramatically easier maintenance.
+
+</Answer>
+<Answer lang="ru">
+
+**Конечный автомат (finite state machine, FSM)** — это математическая модель, в которой система может находиться ровно в одном из конечного числа **состояний** в любой момент времени. Переходы между состояниями происходят в ответ на **события**, и каждый переход может вызывать **действия** (побочные эффекты). Во фронтенд-разработке библиотеки вроде **XState** применяют конечные автоматы к логике UI, делая сложные взаимодействия явными, визуальными и исключая возможность попадания в недопустимые состояния.
+
+Ключевые концепции: **состояния (states)** — возможные режимы вашего UI, **события (events)** — то, что происходит (действия пользователя, ответы API), **переходы (transitions)** — правила перемещения из одного состояния в другое, **охранники (guards)** — условия, которые должны быть истинны для перехода, и **действия (actions)** — побочные эффекты, выполняемые при переходах (API-вызовы, аналитика). В отличие от булевых флагов, конечные автоматы делают невозможные состояния действительно невозможными — вы не можете быть одновременно в состоянии «загрузка» и «ошибка».
+
+Конечные автоматы особенно ценны для **сложных UI-потоков**: многошаговые формы, платёжные потоки, drag-and-drop, аутентификация, медиаплееры. Они служат живой документацией — определение автомата чётко показывает каждое возможное состояние и переход. XState также предоставляет визуальный редактор и инспектор для отладки. Компромисс — дополнительная работа по проектированию, но для сложной логики эти инвестиции окупаются меньшим количеством багов и значительно более простым обслуживанием.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { setup, assign, fromPromise } from "xstate";
+import { useMachine } from "@xstate/react";
+
+// Define a form wizard state machine
+const formWizardMachine = setup({
+  types: {
+    context: {} as {
+      step: number;
+      name: string;
+      email: string;
+      plan: string;
+      error: string | null;
+    },
+    events: {} as
+      | { type: "NEXT" }
+      | { type: "BACK" }
+      | { type: "UPDATE"; field: string; value: string }
+      | { type: "SUBMIT" },
+  },
+  guards: {
+    isNameValid: ({ context }) => context.name.length > 0,
+    isEmailValid: ({ context }) => context.email.includes("@"),
+    isPlanSelected: ({ context }) => context.plan !== "",
+  },
+  actors: {
+    submitForm: fromPromise(async ({ input }: { input: { name: string; email: string; plan: string } }) => {
+      const res = await fetch("/api/register", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error("Submission failed");
+      return res.json();
+    }),
+  },
+}).createMachine({
+  id: "formWizard",
+  initial: "personalInfo",
+  context: { step: 1, name: "", email: "", plan: "", error: null },
+  on: {
+    UPDATE: {
+      actions: assign({
+        [({ event }) => event.field]: ({ event }) => event.value,
+      }),
+    },
+  },
+  states: {
+    personalInfo: {
+      on: {
+        NEXT: {
+          target: "contactInfo",
+          guard: "isNameValid", // Can't proceed without a name
+          actions: assign({ step: 2 }),
+        },
+      },
+    },
+    contactInfo: {
+      on: {
+        NEXT: {
+          target: "planSelection",
+          guard: "isEmailValid",
+          actions: assign({ step: 3 }),
+        },
+        BACK: {
+          target: "personalInfo",
+          actions: assign({ step: 1 }),
+        },
+      },
+    },
+    planSelection: {
+      on: {
+        SUBMIT: {
+          target: "submitting",
+          guard: "isPlanSelected",
+        },
+        BACK: {
+          target: "contactInfo",
+          actions: assign({ step: 2 }),
+        },
+      },
+    },
+    submitting: {
+      invoke: {
+        src: "submitForm",
+        input: ({ context }) => ({
+          name: context.name,
+          email: context.email,
+          plan: context.plan,
+        }),
+        onDone: "success",
+        onError: {
+          target: "planSelection",
+          actions: assign({ error: "Submission failed. Please try again." }),
+        },
+      },
+    },
+    success: { type: "final" },
+  },
+});
+
+// Usage in React
+function FormWizard() {
+  const [state, send] = useMachine(formWizardMachine);
+  const { step, name, email, plan, error } = state.context;
+
+  if (state.matches("success")) return <p>Registration complete!</p>;
+  if (state.matches("submitting")) return <p>Submitting...</p>;
+
+  return (
+    <div>
+      <p>Step {step} of 3</p>
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {state.matches("personalInfo") && (
+        <input
+          value={name}
+          onChange={(e) => send({ type: "UPDATE", field: "name", value: e.target.value })}
+          placeholder="Your name"
+        />
+      )}
+      {state.matches("contactInfo") && (
+        <input
+          value={email}
+          onChange={(e) => send({ type: "UPDATE", field: "email", value: e.target.value })}
+          placeholder="Your email"
+        />
+      )}
+      {state.matches("planSelection") && (
+        <select
+          value={plan}
+          onChange={(e) => send({ type: "UPDATE", field: "plan", value: e.target.value })}
+        >
+          <option value="">Select a plan</option>
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+        </select>
+      )}
+
+      <div>
+        {!state.matches("personalInfo") && (
+          <button onClick={() => send({ type: "BACK" })}>Back</button>
+        )}
+        {state.matches("planSelection") ? (
+          <button onClick={() => send({ type: "SUBMIT" })}>Submit</button>
+        ) : (
+          <button onClick={() => send({ type: "NEXT" })}>Next</button>
+        )}
+      </div>
+    </div>
+  );
+}
+```

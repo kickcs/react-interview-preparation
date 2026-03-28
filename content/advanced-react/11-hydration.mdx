@@ -1,0 +1,67 @@
+---
+title: "Что такое гидрация в React?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Hydration** is the process where React takes server-rendered HTML and "attaches" interactivity to it on the client. During **Server-Side Rendering (SSR)**, the server generates static HTML that the browser displays immediately. Then React runs on the client, walks through the existing DOM, attaches event handlers, and connects component state — making the page interactive.
+
+A **hydration mismatch** occurs when the server-rendered HTML differs from what React expects on the client. Common causes include: using `Date.now()` or `Math.random()` in rendering (different values on server vs client), conditionally rendering based on `window` or `localStorage` (not available on the server), and browser-specific HTML normalization. React will warn about mismatches in development and may discard the server-rendered DOM in severe cases, negating the performance benefits of SSR.
+
+React 18 introduced **selective hydration**, which works with Suspense boundaries to hydrate the page incrementally. Instead of hydrating the entire tree at once (which can block the main thread), React hydrates components wrapped in Suspense boundaries independently. It can even prioritize hydrating components that the user is interacting with. This approach is also called **progressive hydration** and significantly improves Time to Interactive for large pages.
+
+</Answer>
+<Answer lang="ru">
+
+**Гидратация (hydration)** — это процесс, при котором React берёт серверный HTML и «прикрепляет» к нему интерактивность на клиенте. Во время **серверного рендеринга (SSR)** сервер генерирует статический HTML, который браузер отображает немедленно. Затем React запускается на клиенте, обходит существующий DOM, прикрепляет обработчики событий и подключает состояние компонентов, делая страницу интерактивной.
+
+**Несовпадение при гидратации** возникает, когда серверный HTML отличается от того, что React ожидает на клиенте. Частые причины: использование `Date.now()` или `Math.random()` при рендеринге (разные значения на сервере и клиенте), условный рендеринг на основе `window` или `localStorage` (недоступны на сервере) и нормализация HTML браузером. React предупреждает о несовпадениях в режиме разработки и может отбросить серверный DOM в серьёзных случаях, сводя на нет преимущества производительности SSR.
+
+React 18 представил **селективную гидратацию**, которая работает с Suspense-границами для инкрементальной гидратации страницы. Вместо гидратации всего дерева за раз (что может заблокировать главный поток), React гидратирует компоненты, обёрнутые в Suspense-границы, независимо. Он может даже приоритизировать гидратацию компонентов, с которыми пользователь взаимодействует. Этот подход также называется **прогрессивной гидратацией** и значительно улучшает Time to Interactive для больших страниц.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// Common hydration mismatch issues and solutions
+
+// BAD: different output on server vs client
+function Timestamp() {
+  // Date.now() gives different values on server and client
+  return <span>{Date.now()}</span>; // Hydration mismatch!
+}
+
+// GOOD: use useEffect for client-only values
+function Timestamp() {
+  const [time, setTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    setTime(Date.now()); // Runs only on the client
+  }, []);
+
+  // Render nothing (or a placeholder) on the server
+  if (time === null) return <span>Loading...</span>;
+  return <span>{time}</span>;
+}
+
+// BAD: accessing browser APIs during render
+function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  // localStorage is not available on the server
+  const theme = localStorage.getItem("theme") || "light"; // Crash on server!
+  return <div className={theme}>{children}</div>;
+}
+
+// GOOD: hydration-safe approach
+function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState("light"); // Same default for server & client
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) setTheme(saved); // Update after hydration
+  }, []);
+
+  return <div className={theme}>{children}</div>;
+}
+```

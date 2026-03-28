@@ -1,0 +1,83 @@
+---
+title: "В чём разница между interface и type?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Both **interface** and **type alias** can describe object shapes in TypeScript, but they have key differences. The most notable is **declaration merging**: interfaces with the same name automatically merge their members, which is useful for extending third-party types. Type aliases cannot be re-declared — doing so causes an error.
+
+Interfaces use the **extends** keyword for inheritance, while type aliases use **intersection** (`&`) to combine types. In terms of performance, the TypeScript compiler can cache interfaces more efficiently because they create a named type, whereas complex intersections of type aliases may be re-evaluated. For object shapes, interfaces are generally recommended by the TypeScript team.
+
+However, **type aliases** are more versatile. They can represent unions, tuples, primitives, and mapped types — things interfaces cannot express. A practical guideline is to use interfaces for public API contracts and object shapes (especially in libraries), and type aliases for unions, computed types, and when you need features that interfaces do not support.
+
+</Answer>
+<Answer lang="ru">
+
+И **interface**, и **type alias** могут описывать формы объектов в TypeScript, но между ними есть ключевые различия. Наиболее заметное — **слияние деклараций** (declaration merging): интерфейсы с одинаковым именем автоматически объединяют свои члены, что полезно для расширения сторонних типов. Типовые псевдонимы нельзя повторно объявить — это вызовет ошибку.
+
+Интерфейсы используют ключевое слово **extends** для наследования, тогда как типовые псевдонимы используют **пересечение** (`&`) для комбинирования типов. С точки зрения производительности компилятор TypeScript может кэшировать интерфейсы более эффективно, поскольку они создают именованный тип, тогда как сложные пересечения типовых псевдонимов могут перевычисляться. Для объектных форм команда TypeScript обычно рекомендует интерфейсы.
+
+Однако **типовые псевдонимы** более универсальны. Они могут представлять объединения, кортежи, примитивы и отображённые типы — то, что интерфейсы выразить не могут. Практическое правило: используйте интерфейсы для публичных API-контрактов и объектных форм (особенно в библиотеках), а типовые псевдонимы — для объединений, вычисляемых типов и когда нужны возможности, которые интерфейсы не поддерживают.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Interface — declaration merging
+interface User {
+  name: string;
+  age: number;
+}
+
+interface User {
+  email: string; // merges with the above
+}
+
+const user: User = { name: "Alice", age: 30, email: "alice@example.com" };
+
+// Interface — extends
+interface Admin extends User {
+  role: "admin";
+}
+
+// Type alias — intersection
+type UserWithRole = User & { role: string };
+
+// Type alias — things interfaces CANNOT do
+type ID = string | number; // union
+type Pair = [string, number]; // tuple
+type Status = "active" | "inactive"; // literal union
+
+// Type alias — mapped types
+type ReadonlyUser = {
+  readonly [K in keyof User]: User[K];
+};
+```
+
+```tsx
+// Practical React example — interface for props
+interface ButtonProps {
+  label: string;
+  variant?: "primary" | "secondary";
+  onClick: () => void;
+}
+
+function Button({ label, variant = "primary", onClick }: ButtonProps) {
+  return (
+    <button className={`btn-${variant}`} onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
+// Type alias for union props
+type AlertType = "success" | "error" | "warning";
+
+type AlertProps = {
+  type: AlertType;
+  message: string;
+  onDismiss?: () => void;
+};
+```

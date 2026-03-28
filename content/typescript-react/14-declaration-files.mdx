@@ -1,0 +1,102 @@
+---
+title: "Что такое declaration файлы (.d.ts)?"
+order: 14
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Declaration files** (`.d.ts`) contain only type information with no runtime code. They describe the shape of JavaScript modules so that TypeScript can type-check code that uses them. When you install `@types/react` or `@types/node`, you are installing declaration files from **DefinitelyTyped**, a community-maintained repository of type definitions for thousands of JavaScript libraries.
+
+The **declare** keyword is used in declaration files to tell TypeScript that something exists at runtime without providing an implementation. You can declare variables (`declare const`), functions (`declare function`), classes (`declare class`), and entire modules (`declare module`). **Ambient module declarations** are especially useful for telling TypeScript about non-code imports like CSS modules, SVG files, or image assets.
+
+When working with an untyped JavaScript library, you can create your own `.d.ts` file to add type safety. Place it in your project (often in a `types/` directory) and make sure it is included in your `tsconfig.json`. For libraries you control, you can generate declaration files automatically by setting `declaration: true` in your tsconfig. Good declaration files are the bridge between JavaScript's flexibility and TypeScript's safety.
+
+</Answer>
+<Answer lang="ru">
+
+**Файлы объявлений** (`.d.ts`) содержат только информацию о типах без рантайм-кода. Они описывают форму JavaScript-модулей, чтобы TypeScript мог проверять типы в коде, который их использует. Когда вы устанавливаете `@types/react` или `@types/node`, вы устанавливаете файлы объявлений из **DefinitelyTyped** — поддерживаемого сообществом репозитория определений типов для тысяч JavaScript-библиотек.
+
+Ключевое слово **declare** используется в файлах объявлений, чтобы сообщить TypeScript о существовании чего-либо во время выполнения без предоставления реализации. Можно объявлять переменные (`declare const`), функции (`declare function`), классы (`declare class`) и целые модули (`declare module`). **Объявления внешних модулей** (ambient module declarations) особенно полезны для указания TypeScript о не코довых импортах, таких как CSS-модули, SVG-файлы или графические ресурсы.
+
+При работе с нетипизированной JavaScript-библиотекой можно создать собственный `.d.ts` файл для добавления типобезопасности. Разместите его в проекте (обычно в директории `types/`) и убедитесь, что он включён в ваш `tsconfig.json`. Для собственных библиотек можно генерировать файлы объявлений автоматически, установив `declaration: true` в tsconfig. Хорошие файлы объявлений — это мост между гибкостью JavaScript и безопасностью TypeScript.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// types/analytics.d.ts — declaration file for an untyped JS library
+
+// Declare the module and its exports
+declare module "simple-analytics" {
+  interface AnalyticsConfig {
+    trackingId: string;
+    debug?: boolean;
+    sampleRate?: number;
+  }
+
+  interface EventData {
+    category: string;
+    action: string;
+    label?: string;
+    value?: number;
+  }
+
+  export function init(config: AnalyticsConfig): void;
+  export function trackEvent(event: EventData): void;
+  export function trackPageView(path: string): void;
+  export function setUserId(id: string): void;
+}
+
+// Now you can import with full type safety
+// import { init, trackEvent } from "simple-analytics";
+```
+
+```typescript
+// types/assets.d.ts — ambient declarations for non-code imports
+
+// CSS Modules
+declare module "*.module.css" {
+  const classes: Record<string, string>;
+  export default classes;
+}
+
+// SVG as React components
+declare module "*.svg" {
+  const content: React.FC<React.SVGProps<SVGSVGElement>>;
+  export default content;
+}
+
+// Image files
+declare module "*.png" {
+  const src: string;
+  export default src;
+}
+
+declare module "*.jpg" {
+  const src: string;
+  export default src;
+}
+
+// Global type augmentation
+declare global {
+  interface Window {
+    __APP_VERSION__: string;
+    dataLayer: Record<string, unknown>[];
+  }
+}
+
+export {}; // makes this a module file
+```
+
+```typescript
+// tsconfig.json — include your declaration files
+{
+  "compilerOptions": {
+    "declaration": true,    // generate .d.ts for your own code
+    "declarationDir": "dist/types",
+    "typeRoots": ["./types", "./node_modules/@types"]
+  },
+  "include": ["src", "types"]
+}
+```

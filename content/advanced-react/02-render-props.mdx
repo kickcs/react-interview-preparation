@@ -1,0 +1,55 @@
+---
+title: "Что такое паттерн Render Props?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Render Props** pattern is a technique where a component receives a function as a prop (often called `render` or `children`) and calls it to determine what to render. This allows sharing stateful logic between components without using inheritance or HOCs.
+
+Instead of hardcoding the output, the component delegates rendering to the consumer. The function receives the internal state as arguments, giving the consumer full control over the UI. A common variation is **children as a function**, where the `children` prop itself is used as the render function.
+
+Compared to HOCs, render props are more explicit — you can see exactly what data is being passed and avoid issues like prop name collisions and wrapper hell. However, deeply nested render props can lead to **callback hell**. With the introduction of React Hooks, most render prop use cases can now be replaced with **custom hooks**, which provide a cleaner API. Libraries like Downshift and React Motion popularized this pattern before hooks existed.
+
+</Answer>
+<Answer lang="ru">
+
+Паттерн **Render Props** — это техника, при которой компонент получает функцию в качестве пропа (часто называемого `render` или `children`) и вызывает её для определения того, что отрендерить. Это позволяет разделять логику с состоянием между компонентами без использования наследования или HOC.
+
+Вместо жёстко заданного вывода компонент делегирует рендеринг потребителю. Функция получает внутреннее состояние в качестве аргументов, давая потребителю полный контроль над UI. Распространённый вариант — **children как функция**, где сам проп `children` используется как рендер-функция.
+
+По сравнению с HOC, render props более явные — вы точно видите, какие данные передаются, и избегаете проблем с коллизиями имён пропсов и чрезмерной вложенностью обёрток. Однако глубоко вложенные render props могут привести к **«аду колбэков»**. С появлением React Hooks большинство случаев использования render props можно заменить **пользовательскими хуками**, которые обеспечивают более чистый API. Библиотеки вроде Downshift и React Motion популяризировали этот паттерн до появления хуков.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState } from "react";
+
+// Component using the render props pattern
+function MouseTracker({ children }: { children: (pos: { x: number; y: number }) => React.ReactNode }) {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setPosition({ x: e.clientX, y: e.clientY });
+  };
+
+  return (
+    <div onMouseMove={handleMouseMove} style={{ height: "100vh" }}>
+      {children(position)}
+    </div>
+  );
+}
+
+// Usage — consumer controls the rendering
+function App() {
+  return (
+    <MouseTracker>
+      {({ x, y }) => (
+        <p>Mouse position: ({x}, {y})</p>
+      )}
+    </MouseTracker>
+  );
+}
+```

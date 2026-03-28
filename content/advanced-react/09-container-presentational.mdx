@@ -1,0 +1,90 @@
+---
+title: "Что такое паттерн Container/Presentational?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Container/Presentational** pattern separates components into two roles. **Presentational components** (also called "dumb" components) focus purely on how things look — they receive data and callbacks via props and render UI. **Container components** (also called "smart" components) handle data fetching, state management, and business logic, then pass results down to presentational components.
+
+This pattern was popularized by Dan Abramov in 2015 and became the standard architecture for React applications using Redux. The idea is **separation of concerns**: presentational components are reusable and easy to test since they have no side effects, while containers encapsulate the complexity of data access and state management.
+
+With the introduction of **hooks**, this pattern has become less necessary. Custom hooks allow you to extract data-fetching and state logic without a separate container component. Dan Abramov himself updated his original article, suggesting that hooks replace most container use cases. However, the pattern still has value in large codebases where you want to enforce a strict separation between UI and business logic, or when building design system components that must remain agnostic to data sources.
+
+</Answer>
+<Answer lang="ru">
+
+Паттерн **Container/Presentational** разделяет компоненты на две роли. **Презентационные компоненты** (также называемые «глупыми») отвечают исключительно за то, как всё выглядит — они получают данные и колбэки через пропсы и рендерят UI. **Компоненты-контейнеры** (также называемые «умными») управляют получением данных, состоянием и бизнес-логикой, а затем передают результаты презентационным компонентам.
+
+Этот паттерн был популяризирован Дэном Абрамовым в 2015 году и стал стандартной архитектурой для React-приложений с Redux. Идея заключается в **разделении ответственности**: презентационные компоненты переиспользуемы и легко тестируемы, поскольку не имеют побочных эффектов, тогда как контейнеры инкапсулируют сложность доступа к данным и управления состоянием.
+
+С появлением **хуков** этот паттерн стал менее необходимым. Пользовательские хуки позволяют извлечь логику получения данных и работы с состоянием без отдельного компонента-контейнера. Сам Дэн Абрамов обновил свою оригинальную статью, предлагая хуки как замену большинству случаев использования контейнеров. Тем не менее паттерн по-прежнему ценен в больших кодовых базах, где нужно строго разделять UI и бизнес-логику, или при создании компонентов дизайн-системы, которые должны оставаться независимыми от источников данных.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+// BEFORE: Container/Presentational split
+
+// Container — handles data
+function UserListContainer() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((res) => res.json())
+      .then((data) => {
+        setUsers(data);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <Spinner />;
+  return <UserList users={users} />;
+}
+
+// Presentational — only renders UI
+function UserList({ users }: { users: User[] }) {
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+
+// AFTER: Custom hook replaces the container
+
+function useUsers() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/users")
+      .then((res) => res.json())
+      .then((data) => {
+        setUsers(data);
+        setLoading(false);
+      });
+  }, []);
+
+  return { users, loading };
+}
+
+// Single component using the hook
+function UserList() {
+  const { users, loading } = useUsers();
+
+  if (loading) return <Spinner />;
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  );
+}
+```

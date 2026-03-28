@@ -1,0 +1,72 @@
+---
+title: "Какие стратегии кеширования используются во фронтенде?"
+order: 12
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Frontend caching operates at multiple layers, each serving a different purpose. **HTTP caching** is the foundation — the browser stores responses based on headers like `Cache-Control`, `ETag`, and `Last-Modified`. Static assets (JS, CSS, images) typically use long `max-age` values with content hashes in filenames for cache busting, while API responses may use shorter durations or `stale-while-revalidate` to balance freshness and speed.
+
+At the application level, **data-fetching libraries** like React Query (TanStack Query) and SWR provide sophisticated caching with automatic background revalidation. They follow the **stale-while-revalidate** pattern: serve cached data instantly, then refetch in the background and update the UI if the data has changed. This gives users immediate responses while keeping data fresh. These libraries also deduplicate requests, cache by query key, and support optimistic updates.
+
+For compute-heavy operations, **memoization** with `useMemo` or external libraries caches function results. **Service workers** provide an offline-capable cache layer that intercepts network requests and can serve cached responses even without connectivity. A well-designed caching strategy combines these layers: service worker for offline resilience, HTTP cache for network efficiency, query cache for instant UI, and memoization for expensive computations.
+
+</Answer>
+<Answer lang="ru">
+
+Фронтенд-кэширование работает на нескольких уровнях, каждый из которых служит своей цели. **HTTP-кэширование** — это основа: браузер сохраняет ответы на основе заголовков `Cache-Control`, `ETag` и `Last-Modified`. Статические ресурсы (JS, CSS, изображения) обычно используют длительные значения `max-age` с хэшами контента в именах файлов для сброса кэша, а API-ответы могут использовать более короткие сроки или `stale-while-revalidate` для баланса между свежестью и скоростью.
+
+На уровне приложения **библиотеки для получения данных** вроде React Query (TanStack Query) и SWR предоставляют продвинутое кэширование с автоматической фоновой ревалидацией. Они следуют паттерну **stale-while-revalidate**: мгновенно отдают кэшированные данные, затем перезапрашивают в фоне и обновляют UI, если данные изменились. Это даёт пользователям мгновенные ответы, сохраняя данные актуальными. Эти библиотеки также дедуплицируют запросы, кэшируют по ключу и поддерживают оптимистичные обновления.
+
+Для вычислительно затратных операций **мемоизация** с `useMemo` или внешними библиотеками кэширует результаты функций. **Service workers** предоставляют кэш-слой с поддержкой офлайна, перехватывая сетевые запросы и отдавая кэшированные ответы даже без подключения. Хорошо спроектированная стратегия кэширования комбинирует эти уровни: service worker для офлайн-устойчивости, HTTP-кэш для сетевой эффективности, кэш запросов для мгновенного UI и мемоизацию для тяжёлых вычислений.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+// Layer 1: React Query cache with stale-while-revalidate
+function UserProfile({ userId }: { userId: string }) {
+  const { data, isLoading, isStale } = useQuery({
+    queryKey: ["user", userId],
+    queryFn: () => fetch(`/api/users/${userId}`).then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,     // Data is fresh for 5 minutes
+    gcTime: 30 * 60 * 1000,       // Keep in cache for 30 minutes
+    refetchOnWindowFocus: true,    // Revalidate when user returns to tab
+  });
+
+  if (isLoading) return <p>Loading...</p>;
+
+  return (
+    <div>
+      <h2>{data.name}</h2>
+      {isStale && <span>Refreshing...</span>}
+    </div>
+  );
+}
+
+// Layer 2: Prefetching for instant navigation
+function UserList({ users }: { users: { id: string; name: string }[] }) {
+  const queryClient = useQueryClient();
+
+  const prefetchUser = (userId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: ["user", userId],
+      queryFn: () => fetch(`/api/users/${userId}`).then((r) => r.json()),
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id} onMouseEnter={() => prefetchUser(user.id)}>
+          <a href={`/users/${user.id}`}>{user.name}</a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```

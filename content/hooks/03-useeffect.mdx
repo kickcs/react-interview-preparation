@@ -1,0 +1,76 @@
+---
+title: "Как работает useEffect?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useEffect** is a hook for performing side effects in function components. Side effects include data fetching, subscriptions, manual DOM manipulation, and timers. The effect callback runs after the browser paints the screen, making it non-blocking for the user interface.
+
+The **dependency array** controls when the effect re-runs. An empty array `[]` means the effect runs once on mount and cleans up on unmount. Passing specific dependencies `[a, b]` causes the effect to re-run whenever those values change (compared with `Object.is`). Omitting the array entirely makes the effect run after every render, which is rarely what you want and can cause infinite loops if the effect updates state.
+
+The **cleanup function** returned from the effect runs before the effect re-runs and when the component unmounts. This is critical for preventing memory leaks — unsubscribing from events, clearing timers, or aborting fetch requests. React calls cleanup before running the new effect to ensure the previous effect is fully torn down.
+
+Common pitfalls include missing dependencies (leading to stale closures), adding objects or functions to the dependency array without memoizing them (causing unnecessary re-runs), and fetching data without an abort mechanism. The React team recommends using a data-fetching library or the `use()` hook for data loading in new code.
+
+</Answer>
+<Answer lang="ru">
+
+**useEffect** — это хук для выполнения побочных эффектов в функциональных компонентах. Побочные эффекты включают загрузку данных, подписки, ручные манипуляции с DOM и таймеры. Колбэк эффекта выполняется после отрисовки браузером экрана, что делает его неблокирующим для пользовательского интерфейса.
+
+**Массив зависимостей** контролирует, когда эффект повторно запускается. Пустой массив `[]` означает, что эффект выполняется один раз при монтировании и очищается при размонтировании. Передача конкретных зависимостей `[a, b]` заставляет эффект повторно выполняться при изменении этих значений (сравнение через `Object.is`). Полное отсутствие массива приводит к запуску эффекта после каждого рендера, что редко является желаемым поведением и может вызвать бесконечные циклы, если эффект обновляет состояние.
+
+**Функция очистки** (cleanup), возвращаемая из эффекта, выполняется перед повторным запуском эффекта и при размонтировании компонента. Это критически важно для предотвращения утечек памяти — отписка от событий, очистка таймеров или прерывание fetch-запросов. React вызывает очистку перед запуском нового эффекта, чтобы убедиться, что предыдущий эффект полностью завершён.
+
+Распространённые ошибки включают пропуск зависимостей (что приводит к устаревшим замыканиям), добавление объектов или функций в массив зависимостей без мемоизации (вызывая ненужные повторные запуски) и загрузку данных без механизма прерывания. Команда React рекомендует использовать библиотеки для загрузки данных или хук `use()` для загрузки данных в новом коде.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useEffect } from "react";
+
+function UserData({ userId }: { userId: number }) {
+  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+
+    fetch(`/api/users/${userId}`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+
+    // Cleanup: abort fetch if userId changes or component unmounts
+    return () => controller.abort();
+  }, [userId]);
+
+  if (loading) return <p>Loading...</p>;
+  return <p>{user?.name}</p>;
+}
+
+function WindowResize() {
+  const [width, setWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+
+    // Cleanup: unsubscribe on unmount
+    return () => window.removeEventListener("resize", handleResize);
+  }, []); // Empty array — subscribe once on mount
+
+  return <p>Window width: {width}px</p>;
+}
+```

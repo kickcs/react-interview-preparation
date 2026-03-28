@@ -1,0 +1,89 @@
+---
+title: "Что такое E2E тестирование с Playwright/Cypress?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**End-to-end (E2E) testing** runs your entire application in a real browser and automates user flows from start to finish. Unlike unit and integration tests that operate on isolated components, E2E tests interact with a deployed (or locally running) app — clicking buttons, filling forms, navigating pages, and verifying outcomes just like a real user.
+
+**Playwright** and **Cypress** are the two most popular E2E frameworks. Playwright supports Chromium, Firefox, and WebKit out of the box, runs tests in parallel by default, and has excellent support for multiple tabs, iframes, and network interception. Cypress runs in a single browser tab, has a powerful interactive test runner with time-travel debugging, but historically supports only Chromium-based browsers (Firefox is experimental).
+
+Both frameworks use **locators** to find elements. Playwright encourages `page.getByRole()`, `page.getByText()`, and `page.getByTestId()` — mirroring Testing Library's philosophy. Cypress uses `cy.get()` with CSS selectors and custom `data-cy` attributes. Both support waiting for elements automatically, though Playwright's auto-waiting is built into every action, while Cypress chains commands with implicit retries.
+
+For **CI setup**, both tools provide Docker images and GitHub Actions integrations. Playwright can run headless across all browsers in parallel. Store screenshots and videos as artifacts on failure. Use the **Page Object Model** pattern to encapsulate page interactions in reusable classes, keeping your tests readable and maintainable as your test suite grows.
+
+</Answer>
+<Answer lang="ru">
+
+**Сквозное (E2E) тестирование** запускает всё приложение в реальном браузере и автоматизирует пользовательские сценарии от начала до конца. В отличие от юнит- и интеграционных тестов, работающих с изолированными компонентами, E2E-тесты взаимодействуют с развёрнутым (или локально запущенным) приложением — нажимают кнопки, заполняют формы, переходят между страницами и проверяют результаты, как реальный пользователь.
+
+**Playwright** и **Cypress** — два самых популярных E2E-фреймворка. Playwright поддерживает Chromium, Firefox и WebKit из коробки, запускает тесты параллельно по умолчанию и отлично работает с несколькими вкладками, iframe и перехватом сетевых запросов. Cypress работает в одной вкладке браузера, имеет мощный интерактивный раннер с time-travel отладкой, но исторически поддерживает только браузеры на базе Chromium (Firefox — экспериментально).
+
+Оба фреймворка используют **локаторы** для поиска элементов. Playwright поощряет `page.getByRole()`, `page.getByText()` и `page.getByTestId()` — отражая философию Testing Library. Cypress использует `cy.get()` с CSS-селекторами и атрибутами `data-cy`. Оба поддерживают автоматическое ожидание элементов, хотя auto-waiting Playwright встроен в каждое действие, а Cypress использует цепочки команд с неявными повторами.
+
+Для **настройки CI** оба инструмента предоставляют Docker-образы и интеграции с GitHub Actions. Playwright может запускаться headless во всех браузерах параллельно. Сохраняйте скриншоты и видео как артефакты при падениях. Используйте паттерн **Page Object Model** для инкапсуляции взаимодействий со страницей в переиспользуемых классах — это поддерживает читаемость и сопровождаемость тестов при росте набора.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Playwright E2E test — login flow
+
+import { test, expect } from "@playwright/test";
+
+// Page Object Model
+class LoginPage {
+  constructor(private page: import("@playwright/test").Page) {}
+
+  async goto() {
+    await this.page.goto("/login");
+  }
+
+  async login(email: string, password: string) {
+    await this.page.getByLabel("Email").fill(email);
+    await this.page.getByLabel("Password").fill(password);
+    await this.page.getByRole("button", { name: "Sign In" }).click();
+  }
+
+  errorMessage() {
+    return this.page.getByRole("alert");
+  }
+}
+
+test.describe("Login flow", () => {
+  test("successful login redirects to dashboard", async ({ page }) => {
+    const loginPage = new LoginPage(page);
+
+    await loginPage.goto();
+    await loginPage.login("alice@example.com", "password123");
+
+    // Verify redirect to dashboard
+    await expect(page).toHaveURL("/dashboard");
+    await expect(page.getByRole("heading", { name: "Welcome, Alice" })).toBeVisible();
+  });
+
+  test("shows error for invalid credentials", async ({ page }) => {
+    const loginPage = new LoginPage(page);
+
+    await loginPage.goto();
+    await loginPage.login("alice@example.com", "wrong");
+
+    await expect(loginPage.errorMessage()).toHaveText("Invalid email or password");
+    await expect(page).toHaveURL("/login");
+  });
+
+  test("login form is accessible via keyboard", async ({ page }) => {
+    await page.goto("/login");
+
+    await page.keyboard.press("Tab"); // Focus email
+    await page.keyboard.type("alice@example.com");
+    await page.keyboard.press("Tab"); // Focus password
+    await page.keyboard.type("password123");
+    await page.keyboard.press("Enter"); // Submit
+
+    await expect(page).toHaveURL("/dashboard");
+  });
+});
+```

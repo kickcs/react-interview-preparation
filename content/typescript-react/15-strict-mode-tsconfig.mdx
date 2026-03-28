@@ -1,0 +1,104 @@
+---
+title: "Что такое TypeScript strict mode?"
+order: 15
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **strict** flag in `tsconfig.json` is a shorthand that enables a collection of stricter type-checking options all at once. It includes **strictNullChecks** (null and undefined are not assignable to other types), **noImplicitAny** (variables must have an explicit or inferred type), **strictFunctionTypes** (function parameter types are checked contravariantly), and several others. Enabling `strict: true` is strongly recommended for all new projects.
+
+**strictNullChecks** is arguably the most impactful flag. Without it, `null` and `undefined` are assignable to any type, which means TypeScript cannot catch null reference errors — the single most common class of runtime bugs. With it enabled, you must explicitly handle `null` using union types, optional chaining, or type guards. **noImplicitAny** forces you to type function parameters and variables that TypeScript cannot infer, preventing accidental `any` types from silently disabling type checking.
+
+For **React projects**, the recommended configuration includes `strict: true` along with additional flags like `noUnusedLocals`, `noUnusedParameters`, and `noUncheckedIndexedAccess`. Next.js provides a built-in `next lint` and generates a sensible `tsconfig.json` on project creation. Starting with strict mode from day one is much easier than trying to enable it later in a large codebase.
+
+</Answer>
+<Answer lang="ru">
+
+Флаг **strict** в `tsconfig.json` — это сокращение, которое включает коллекцию более строгих опций проверки типов сразу. Он включает **strictNullChecks** (null и undefined не присваиваются другим типам), **noImplicitAny** (переменные должны иметь явный или выведенный тип), **strictFunctionTypes** (типы параметров функций проверяются контравариантно) и несколько других. Включение `strict: true` настоятельно рекомендуется для всех новых проектов.
+
+**strictNullChecks** — возможно, самый значимый флаг. Без него `null` и `undefined` присваиваются любому типу, что означает, что TypeScript не может отловить ошибки обращения к null — самый распространённый класс ошибок времени выполнения. При его включении вы должны явно обрабатывать `null` с помощью типов объединения, опциональной цепочки или защитников типа. **noImplicitAny** заставляет типизировать параметры функций и переменные, которые TypeScript не может вывести, предотвращая случайные типы `any`, которые молча отключают проверку типов.
+
+Для **React-проектов** рекомендуемая конфигурация включает `strict: true` вместе с дополнительными флагами, такими как `noUnusedLocals`, `noUnusedParameters` и `noUncheckedIndexedAccess`. Next.js предоставляет встроенный `next lint` и генерирует разумный `tsconfig.json` при создании проекта. Начать со строгого режима с первого дня гораздо проще, чем пытаться включить его позже в большой кодовой базе.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// What strict: true enables (all of these at once)
+{
+  "compilerOptions": {
+    "strict": true
+    // Equivalent to enabling ALL of these:
+    // "strictNullChecks": true,
+    // "noImplicitAny": true,
+    // "strictFunctionTypes": true,
+    // "strictBindCallApply": true,
+    // "strictPropertyInitialization": true,
+    // "noImplicitThis": true,
+    // "alwaysStrict": true,
+    // "useUnknownInCatchVariables": true
+  }
+}
+```
+
+```typescript
+// strictNullChecks in action
+function getUser(): { name: string } | null {
+  return null;
+}
+
+const user = getUser();
+// console.log(user.name); // Error: 'user' is possibly null
+
+// Must handle null explicitly
+if (user) {
+  console.log(user.name); // OK — narrowed
+}
+console.log(user?.name); // OK — optional chaining
+console.log(user!.name); // OK but dangerous — non-null assertion
+
+// noImplicitAny in action
+// function greet(name) { }  // Error: Parameter 'name' implicitly has 'any' type
+function greet(name: string) { return `Hello ${name}`; } // OK
+```
+
+```jsonc
+// Recommended tsconfig.json for React + Next.js projects
+{
+  "compilerOptions": {
+    // Strict type checking
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Module resolution
+    "target": "ES2017",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+
+    // JSX for React
+    "jsx": "preserve",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "skipLibCheck": true,
+
+    // Path aliases
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    // Output
+    "noEmit": true,
+    "incremental": true
+  },
+  "include": ["src", "types", "next-env.d.ts"],
+  "exclude": ["node_modules"]
+}
+```

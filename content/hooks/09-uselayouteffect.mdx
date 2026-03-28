@@ -1,0 +1,94 @@
+---
+title: "В чём разница между useEffect и useLayoutEffect?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useLayoutEffect** has the same signature as `useEffect`, but it fires synchronously **after all DOM mutations and before the browser paints**. This means it blocks the visual update until the effect completes. In contrast, `useEffect` fires asynchronously after the browser has already painted the screen, making it non-blocking.
+
+The key difference is **timing**. With `useEffect`, the user may briefly see the initial render before the effect adjusts the DOM (causing a visible flicker). With `useLayoutEffect`, the effect runs before the user sees anything, so any DOM measurements or adjustments happen invisibly. This makes `useLayoutEffect` the correct choice for reading layout properties (like `getBoundingClientRect`), synchronously adjusting styles, or positioning tooltips and popovers based on element dimensions.
+
+Because `useLayoutEffect` **blocks painting**, it can hurt performance if the effect does heavy work. Use it only when you need to measure or mutate the DOM before the user sees the result. For everything else — data fetching, subscriptions, logging, analytics — use `useEffect`. A good rule of thumb: if removing `useLayoutEffect` and using `useEffect` instead causes a visible flicker, then `useLayoutEffect` is justified.
+
+On the server, `useLayoutEffect` produces a warning because there is no DOM to measure. If you need an effect that runs on the server, consider `useEffect` or conditionally using `useLayoutEffect` only on the client.
+
+</Answer>
+<Answer lang="ru">
+
+**useLayoutEffect** имеет ту же сигнатуру, что и `useEffect`, но срабатывает синхронно **после всех мутаций DOM и перед отрисовкой браузером**. Это значит, что он блокирует визуальное обновление до завершения эффекта. В отличие от него, `useEffect` срабатывает асинхронно после того, как браузер уже отрисовал экран, что делает его неблокирующим.
+
+Ключевое различие — **тайминг**. С `useEffect` пользователь может кратковременно увидеть начальный рендер до того, как эффект скорректирует DOM (вызывая видимое мерцание). С `useLayoutEffect` эффект выполняется до того, как пользователь что-либо увидит, поэтому любые измерения или корректировки DOM происходят незаметно. Это делает `useLayoutEffect` правильным выбором для чтения свойств компоновки (таких как `getBoundingClientRect`), синхронной корректировки стилей или позиционирования тултипов и всплывающих окон на основе размеров элементов.
+
+Поскольку `useLayoutEffect` **блокирует отрисовку**, он может снизить производительность при тяжёлых операциях в эффекте. Используйте его только когда нужно измерить или изменить DOM до того, как пользователь увидит результат. Для всего остального — загрузки данных, подписок, логирования, аналитики — используйте `useEffect`. Хорошее правило: если замена `useLayoutEffect` на `useEffect` вызывает видимое мерцание, то `useLayoutEffect` оправдан.
+
+На сервере `useLayoutEffect` вызывает предупреждение, так как нет DOM для измерения. Если нужен эффект, работающий на сервере, используйте `useEffect` или условное применение `useLayoutEffect` только на клиенте.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useState, useRef, useLayoutEffect } from "react";
+
+function Tooltip({
+  targetRef,
+  children,
+}: {
+  targetRef: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+}) {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  // useLayoutEffect prevents flicker — tooltip is positioned before paint
+  useLayoutEffect(() => {
+    if (!targetRef.current || !tooltipRef.current) return;
+
+    const targetRect = targetRef.current.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+
+    setPosition({
+      top: targetRect.top - tooltipRect.height - 8,
+      left: targetRect.left + (targetRect.width - tooltipRect.width) / 2,
+    });
+  }, [targetRef]);
+
+  return (
+    <div
+      ref={tooltipRef}
+      style={{
+        position: "fixed",
+        top: position.top,
+        left: position.left,
+        background: "#333",
+        color: "#fff",
+        padding: "4px 8px",
+        borderRadius: 4,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function App() {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <div>
+      <button
+        ref={buttonRef}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        Hover me
+      </button>
+      {showTooltip && (
+        <Tooltip targetRef={buttonRef}>Helpful tooltip text</Tooltip>
+      )}
+    </div>
+  );
+}
+```

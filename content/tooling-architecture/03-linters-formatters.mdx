@@ -1,0 +1,71 @@
+---
+title: "Что такое linters и formatters?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Linters** and **formatters** are static analysis tools that improve code quality and consistency without running the code. A linter like **ESLint** finds potential bugs, enforces coding conventions, and catches anti-patterns. A formatter like **Prettier** automatically reformats code to follow a consistent style (indentation, quotes, semicolons, line length).
+
+The key distinction is that linters focus on **code quality** (unused variables, missing error handling, accessibility issues) while formatters focus on **code style** (how the code looks). In practice, teams use both together — ESLint catches logic problems and Prettier handles formatting. To avoid conflicts, the `eslint-config-prettier` package disables ESLint rules that would clash with Prettier's formatting.
+
+Beyond ESLint and Prettier, **Stylelint** handles CSS/SCSS linting, enforcing consistent property ordering and catching invalid selectors. For workflow automation, **husky** sets up Git hooks and **lint-staged** runs linters only on staged files, keeping commits clean without slowing down the full codebase.
+
+Integrating these tools into **CI pipelines** ensures that no code reaches the main branch without passing quality checks. Most teams configure a CI step that runs `eslint --max-warnings 0` and `prettier --check .` to catch issues that developers may have missed locally.
+
+</Answer>
+<Answer lang="ru">
+
+**Линтеры** и **форматтеры** — это инструменты статического анализа, которые улучшают качество и единообразие кода без его выполнения. Линтер, такой как **ESLint**, находит потенциальные ошибки, обеспечивает соблюдение соглашений по кодированию и выявляет антипаттерны. Форматтер, такой как **Prettier**, автоматически переформатирует код для поддержания единого стиля (отступы, кавычки, точки с запятой, длина строки).
+
+Ключевое различие в том, что линтеры фокусируются на **качестве кода** (неиспользуемые переменные, отсутствие обработки ошибок, проблемы доступности), а форматтеры — на **стиле кода** (как код выглядит). На практике команды используют оба инструмента вместе — ESLint ловит логические проблемы, а Prettier занимается форматированием. Чтобы избежать конфликтов, пакет `eslint-config-prettier` отключает правила ESLint, которые противоречат форматированию Prettier.
+
+Помимо ESLint и Prettier, **Stylelint** обрабатывает линтинг CSS/SCSS, обеспечивая единый порядок свойств и выявляя невалидные селекторы. Для автоматизации рабочего процесса **husky** настраивает Git-хуки, а **lint-staged** запускает линтеры только для подготовленных к коммиту файлов, сохраняя чистоту коммитов без замедления всей кодовой базы.
+
+Интеграция этих инструментов в **CI-пайплайны** гарантирует, что код не попадёт в основную ветку без прохождения проверок качества. Большинство команд настраивают CI-шаг, который запускает `eslint --max-warnings 0` и `prettier --check .`, чтобы отловить проблемы, пропущенные разработчиками локально.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// eslint.config.js — ESLint flat config with Prettier
+import js from "@eslint/js";
+import prettier from "eslint-config-prettier";
+import react from "eslint-plugin-react";
+
+export default [
+  js.configs.recommended,
+  react.configs.flat.recommended,
+  prettier, // must be last to override conflicting rules
+  {
+    rules: {
+      "no-unused-vars": "warn",
+      "no-console": "warn",
+      "react/prop-types": "off",
+    },
+  },
+];
+```
+
+```json
+// .prettierrc
+{
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "printWidth": 80
+}
+```
+
+```json
+// package.json — lint-staged + husky setup
+{
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{css,scss}": ["stylelint --fix", "prettier --write"],
+    "*.{json,md}": ["prettier --write"]
+  }
+}
+```

@@ -1,0 +1,92 @@
+---
+title: "Как работают mocking, stubs и spies?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Mocking** replaces real functions or modules with controlled substitutes so you can test code in isolation. In Vitest (and Jest), the three main tools are `vi.fn()`, `vi.mock()`, and `vi.spyOn()`. Understanding when to use each one is essential for writing reliable tests.
+
+**vi.fn()** creates a standalone mock function. You can configure its return value with `.mockReturnValue()` or `.mockResolvedValue()` for async. The mock tracks all calls, so you can assert with `toHaveBeenCalled()`, `toHaveBeenCalledWith()`, and `toHaveBeenCalledTimes()`. This is the building block for stubs — functions that return predetermined data.
+
+**vi.mock()** replaces an entire module. When you call `vi.mock("./api")`, every exported function from that module becomes a mock. This is powerful for replacing API clients, database connections, or third-party services. You can provide a factory function to customize each export's behavior.
+
+**vi.spyOn()** wraps an existing method, allowing you to track calls while optionally preserving the original implementation. Spies are perfect when you want to verify a method was called but still let it execute normally. You can also override the implementation with `.mockImplementation()`. Always call `vi.restoreAllMocks()` in `afterEach` to clean up spies and avoid test pollution.
+
+</Answer>
+<Answer lang="ru">
+
+**Мокирование** заменяет реальные функции или модули контролируемыми подстановками, чтобы тестировать код изолированно. В Vitest (и Jest) три основных инструмента: `vi.fn()`, `vi.mock()` и `vi.spyOn()`. Понимание того, когда использовать каждый, необходимо для написания надёжных тестов.
+
+**vi.fn()** создаёт автономную мок-функцию. Вы можете настроить возвращаемое значение через `.mockReturnValue()` или `.mockResolvedValue()` для асинхронных операций. Мок отслеживает все вызовы, позволяя делать утверждения: `toHaveBeenCalled()`, `toHaveBeenCalledWith()` и `toHaveBeenCalledTimes()`. Это основа для стабов — функций, возвращающих заранее определённые данные.
+
+**vi.mock()** заменяет целый модуль. Когда вы вызываете `vi.mock("./api")`, каждая экспортируемая функция модуля становится моком. Это мощный инструмент для замены API-клиентов, подключений к базе данных или сторонних сервисов. Можно передать фабричную функцию для настройки поведения каждого экспорта.
+
+**vi.spyOn()** оборачивает существующий метод, позволяя отслеживать вызовы, при этом опционально сохраняя оригинальную реализацию. Шпионы идеальны, когда нужно проверить, что метод был вызван, но при этом позволить ему выполниться. Можно также переопределить реализацию через `.mockImplementation()`. Всегда вызывайте `vi.restoreAllMocks()` в `afterEach` для очистки шпионов и предотвращения загрязнения тестов.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+import { vi, describe, it, expect, afterEach } from "vitest";
+
+// --- vi.fn(): create a mock function ---
+const notify = vi.fn();
+
+test("vi.fn() tracks calls", () => {
+  notify("hello", 42);
+
+  expect(notify).toHaveBeenCalledWith("hello", 42);
+  expect(notify).toHaveBeenCalledTimes(1);
+});
+
+// --- vi.mock(): replace an entire module ---
+vi.mock("./api", () => ({
+  fetchUser: vi.fn().mockResolvedValue({ id: 1, name: "Alice" }),
+  saveUser: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+import { fetchUser, saveUser } from "./api";
+
+test("mocked module returns controlled data", async () => {
+  const user = await fetchUser(1);
+
+  expect(user).toEqual({ id: 1, name: "Alice" });
+  expect(fetchUser).toHaveBeenCalledWith(1);
+});
+
+// --- vi.spyOn(): spy on object methods ---
+const cart = {
+  items: [] as string[],
+  add(item: string) {
+    this.items.push(item);
+  },
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("vi.spyOn() tracks method calls while preserving behavior", () => {
+  const spy = vi.spyOn(cart, "add");
+
+  cart.add("apple");
+
+  expect(spy).toHaveBeenCalledWith("apple");
+  expect(cart.items).toContain("apple"); // original logic still runs
+});
+
+// --- Timer mocks ---
+test("timer mocks control setTimeout", () => {
+  vi.useFakeTimers();
+  const callback = vi.fn();
+
+  setTimeout(callback, 1000);
+
+  vi.advanceTimersByTime(1000);
+  expect(callback).toHaveBeenCalledTimes(1);
+
+  vi.useRealTimers();
+});
+```

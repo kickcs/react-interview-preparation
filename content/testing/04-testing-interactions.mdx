@@ -1,0 +1,73 @@
+---
+title: "Как тестировать взаимодействие пользователя?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Testing user interactions means simulating what a real person does — clicking buttons, typing into fields, pressing keyboard keys — and verifying the resulting UI changes. The **@testing-library/user-event** library is the standard tool for this. Unlike the lower-level `fireEvent`, `userEvent` dispatches the full sequence of browser events (focus, keydown, keyup, input, change, click) just like a real interaction.
+
+Always create a user instance with `userEvent.setup()` before your test, then use methods like `user.click()`, `user.type()`, `user.clear()`, `user.keyboard()`, and `user.selectOptions()`. All these methods are **async**, so use `await` with each call. This ensures events are processed in the correct order.
+
+For **form submissions**, simulate filling out fields and clicking the submit button, then assert on the expected outcome — a success message, a navigation, or a callback being invoked. When testing state changes triggered by interactions, query the DOM after the interaction to verify the new state is reflected in the UI.
+
+Keep your interaction tests focused on **one user flow** per test. If a flow has multiple steps (fill form, submit, see confirmation), that's fine as a single test — but avoid testing unrelated behaviors in the same `it` block.
+
+</Answer>
+<Answer lang="ru">
+
+Тестирование пользовательских взаимодействий означает имитацию действий реального человека — нажатие кнопок, ввод текста в поля, нажатие клавиш — и проверку результирующих изменений в UI. Библиотека **@testing-library/user-event** — стандартный инструмент для этого. В отличие от низкоуровневого `fireEvent`, `userEvent` генерирует полную последовательность браузерных событий (focus, keydown, keyup, input, change, click), как при реальном взаимодействии.
+
+Всегда создавайте экземпляр пользователя через `userEvent.setup()` перед тестом, затем используйте методы: `user.click()`, `user.type()`, `user.clear()`, `user.keyboard()` и `user.selectOptions()`. Все эти методы **асинхронные**, поэтому используйте `await` при каждом вызове. Это гарантирует обработку событий в правильном порядке.
+
+Для **отправки форм** имитируйте заполнение полей и нажатие кнопки отправки, затем проверьте ожидаемый результат — сообщение об успехе, навигацию или вызов колбэка. При тестировании изменений состояния, вызванных взаимодействиями, запрашивайте DOM после взаимодействия, чтобы убедиться, что новое состояние отражено в интерфейсе.
+
+Держите тесты взаимодействий сфокусированными на **одном пользовательском потоке** на тест. Если поток включает несколько шагов (заполнить форму, отправить, увидеть подтверждение), это нормально для одного теста — но избегайте проверки несвязанных поведений в одном блоке `it`.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+
+function LoginForm({ onSubmit }: { onSubmit: (data: { email: string; password: string }) => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ email, password }); }}>
+      <label htmlFor="email">Email</label>
+      <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+
+      <label htmlFor="password">Password</label>
+      <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+
+      <button type="submit">Sign In</button>
+    </form>
+  );
+}
+
+test("submits login form with user credentials", async () => {
+  const user = userEvent.setup();
+  const handleSubmit = vi.fn();
+
+  render(<LoginForm onSubmit={handleSubmit} />);
+
+  // Type into form fields
+  await user.type(screen.getByLabelText(/email/i), "alice@example.com");
+  await user.type(screen.getByLabelText(/password/i), "secret123");
+
+  // Submit the form
+  await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+  // Verify the callback was called with the correct data
+  expect(handleSubmit).toHaveBeenCalledWith({
+    email: "alice@example.com",
+    password: "secret123",
+  });
+  expect(handleSubmit).toHaveBeenCalledTimes(1);
+});
+```

@@ -1,0 +1,62 @@
+---
+title: "Что такое Core Web Vitals?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Core Web Vitals** are a set of three metrics defined by Google that measure real-world user experience for loading performance, interactivity, and visual stability. They are used as ranking signals in Google Search, making them important for both user experience and SEO.
+
+The three metrics are: **Largest Contentful Paint (LCP)** measures loading performance — how long it takes for the largest visible element (image, heading, text block) to render. Good LCP is under 2.5 seconds. **Interaction to Next Paint (INP)** replaced First Input Delay (FID) in 2024 and measures responsiveness — the latency of the worst interaction during the page visit. Good INP is under 200 milliseconds. **Cumulative Layout Shift (CLS)** measures visual stability — how much content unexpectedly shifts during loading. Good CLS is under 0.1.
+
+To improve LCP, optimize images, preload critical resources, and use server-side rendering. For INP, break up long tasks, use `requestIdleCallback`, and minimize main-thread blocking JavaScript. For CLS, always set explicit dimensions on images and videos, avoid inserting content above existing content, and use CSS `contain` for layout isolation. Tools like **Lighthouse**, **PageSpeed Insights**, **Chrome DevTools**, and the **`web-vitals`** library help you measure and monitor these metrics.
+
+</Answer>
+<Answer lang="ru">
+
+**Core Web Vitals** — это набор из трёх метрик, определённых Google, которые измеряют реальный пользовательский опыт по загрузке, интерактивности и визуальной стабильности. Они используются как сигналы ранжирования в поиске Google, что делает их важными как для пользовательского опыта, так и для SEO.
+
+Три метрики: **Largest Contentful Paint (LCP)** измеряет производительность загрузки — сколько времени требуется для рендеринга самого крупного видимого элемента (изображения, заголовка, текстового блока). Хороший LCP — менее 2,5 секунд. **Interaction to Next Paint (INP)** заменил First Input Delay (FID) в 2024 году и измеряет отзывчивость — задержку наихудшего взаимодействия за время посещения страницы. Хороший INP — менее 200 миллисекунд. **Cumulative Layout Shift (CLS)** измеряет визуальную стабильность — насколько сильно контент неожиданно сдвигается во время загрузки. Хороший CLS — менее 0,1.
+
+Для улучшения LCP оптимизируйте изображения, предзагружайте критические ресурсы и используйте серверный рендеринг. Для INP разбивайте длительные задачи, используйте `requestIdleCallback` и минимизируйте блокирующий основной поток JavaScript. Для CLS всегда задавайте явные размеры изображениям и видео, избегайте вставки контента выше существующего и используйте CSS `contain` для изоляции макета. Инструменты вроде **Lighthouse**, **PageSpeed Insights**, **Chrome DevTools** и библиотеки **`web-vitals`** помогают измерять и отслеживать эти метрики.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+import { onCLS, onINP, onLCP } from "web-vitals";
+
+// Log each Core Web Vital to the console
+onLCP((metric) => {
+  console.log("LCP:", metric.value, "ms");
+  // Good: < 2500ms | Needs Improvement: < 4000ms | Poor: >= 4000ms
+});
+
+onINP((metric) => {
+  console.log("INP:", metric.value, "ms");
+  // Good: < 200ms | Needs Improvement: < 500ms | Poor: >= 500ms
+});
+
+onCLS((metric) => {
+  console.log("CLS:", metric.value);
+  // Good: < 0.1 | Needs Improvement: < 0.25 | Poor: >= 0.25
+});
+
+// Send metrics to an analytics endpoint
+function sendToAnalytics(metric: { name: string; value: number; id: string }) {
+  fetch("/api/analytics", {
+    method: "POST",
+    body: JSON.stringify({
+      name: metric.name,
+      value: metric.value,
+      id: metric.id,
+    }),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+onLCP(sendToAnalytics);
+onINP(sendToAnalytics);
+onCLS(sendToAnalytics);
+```

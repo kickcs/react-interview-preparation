@@ -1,0 +1,61 @@
+---
+title: "Что такое localStorage, sessionStorage и cookies?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**localStorage**, **sessionStorage**, and **cookies** are three mechanisms for storing data in the browser. **localStorage** persists data indefinitely (until explicitly cleared) with a ~5–10 MB limit per origin. **sessionStorage** has the same API and size limit but data is scoped to a single browser tab and is cleared when the tab is closed. Neither is sent to the server automatically.
+
+**Cookies** are the oldest storage mechanism. They are limited to ~4 KB per cookie, are automatically sent with every HTTP request to the matching domain (which affects performance), and support expiration dates. Cookies have security attributes like `HttpOnly` (prevents JavaScript access), `Secure` (HTTPS only), and `SameSite` (controls cross-site sending). They are essential for server-side sessions and authentication tokens.
+
+Use **localStorage** for user preferences, theme settings, or cached data that should persist across sessions. Use **sessionStorage** for temporary data like form drafts or wizard state within a single tab. Use **cookies** when you need data sent to the server automatically (authentication tokens, session IDs) or when you need `HttpOnly` protection against XSS.
+
+</Answer>
+<Answer lang="ru">
+
+**localStorage**, **sessionStorage** и **cookies** — три механизма хранения данных в браузере. **localStorage** хранит данные бессрочно (пока не будут явно удалены) с лимитом ~5–10 МБ на домен. **sessionStorage** имеет тот же API и лимит, но данные привязаны к одной вкладке браузера и удаляются при её закрытии. Ни одно из них не отправляется на сервер автоматически.
+
+**Cookies** — самый старый механизм хранения. Они ограничены ~4 КБ на cookie, автоматически отправляются с каждым HTTP-запросом к соответствующему домену (что влияет на производительность) и поддерживают срок действия. У cookies есть атрибуты безопасности: `HttpOnly` (запрещает доступ из JavaScript), `Secure` (только HTTPS) и `SameSite` (контролирует отправку при кросс-доменных запросах). Они необходимы для серверных сессий и токенов аутентификации.
+
+Используйте **localStorage** для пользовательских предпочтений, настроек темы или кешированных данных, которые должны сохраняться между сессиями. Используйте **sessionStorage** для временных данных — черновиков форм или состояния визардов в рамках одной вкладки. Используйте **cookies**, когда данные нужно автоматически отправлять на сервер (токены аутентификации, ID сессий) или когда нужна защита `HttpOnly` от XSS.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// === localStorage ===
+localStorage.setItem("theme", "dark");
+const theme = localStorage.getItem("theme"); // "dark"
+localStorage.removeItem("theme");
+localStorage.clear(); // remove all
+
+// Store objects (must serialize)
+localStorage.setItem("user", JSON.stringify({ name: "Alice", age: 30 }));
+const user = JSON.parse(localStorage.getItem("user"));
+
+// === sessionStorage === (same API, scoped to tab)
+sessionStorage.setItem("formDraft", JSON.stringify({ step: 2, data: {} }));
+const draft = JSON.parse(sessionStorage.getItem("formDraft"));
+sessionStorage.removeItem("formDraft");
+
+// === Cookies ===
+// Set a cookie (expires in 7 days)
+document.cookie =
+  "token=abc123; path=/; max-age=604800; Secure; SameSite=Strict";
+
+// Read all cookies
+const cookies = document.cookie; // "token=abc123; theme=dark"
+
+// Parse a specific cookie
+function getCookie(name) {
+  const match = document.cookie.match(
+    new RegExp("(^| )" + name + "=([^;]+)")
+  );
+  return match ? match[2] : null;
+}
+
+// Delete a cookie (set max-age to 0)
+document.cookie = "token=; path=/; max-age=0";
+```

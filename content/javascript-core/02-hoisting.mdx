@@ -1,0 +1,51 @@
+---
+title: "Что такое хойстинг и чем отличаются var, let и const?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Hoisting** is JavaScript's default behavior of moving declarations to the top of their scope during the compilation phase, before the code is executed. This means that variables and functions can appear to be used before they are declared in the source code.
+
+Variables declared with **var** are hoisted and initialized with `undefined`, so accessing them before their declaration returns `undefined` rather than throwing an error. In contrast, **let** and **const** are also hoisted but are placed in a **Temporal Dead Zone (TDZ)** — the region between the start of the scope and the actual declaration. Accessing a variable in the TDZ throws a `ReferenceError`.
+
+**Function declarations** are fully hoisted — both the name and the body are available at the top of the scope. **Function expressions** (including arrow functions assigned to variables) follow the hoisting rules of the variable keyword used (`var`, `let`, or `const`). Additionally, `const` requires an initializer at the time of declaration and cannot be reassigned, while `let` can be reassigned but not re-declared in the same scope.
+
+</Answer>
+<Answer lang="ru">
+
+**Поднятие (hoisting)** — это поведение JavaScript по умолчанию, при котором объявления перемещаются в начало своей области видимости на этапе компиляции, до выполнения кода. Это означает, что переменные и функции могут использоваться до того, как они объявлены в исходном коде.
+
+Переменные, объявленные с помощью **var**, поднимаются и инициализируются значением `undefined`, поэтому обращение к ним до объявления возвращает `undefined`, а не выбрасывает ошибку. В отличие от этого, **let** и **const** тоже поднимаются, но попадают во **временную мёртвую зону (TDZ)** — область между началом блока и фактическим объявлением. Обращение к переменной в TDZ выбрасывает `ReferenceError`.
+
+**Объявления функций** поднимаются полностью — и имя, и тело доступны в начале области видимости. **Функциональные выражения** (включая стрелочные функции, присвоенные переменным) следуют правилам поднятия используемого ключевого слова (`var`, `let` или `const`). Кроме того, `const` требует инициализации при объявлении и не может быть переназначена, тогда как `let` может быть переназначена, но не переобъявлена в той же области видимости.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// var — hoisted, initialized as undefined
+console.log(a); // undefined
+var a = 10;
+
+// let — hoisted, but in TDZ
+// console.log(b); // ReferenceError: Cannot access 'b' before initialization
+let b = 20;
+
+// const — hoisted, but in TDZ, must be initialized
+// console.log(c); // ReferenceError
+const c = 30;
+
+// Function declaration — fully hoisted
+greet(); // "Hello!"
+function greet() {
+  console.log("Hello!");
+}
+
+// Function expression — follows var rules
+// sayBye(); // TypeError: sayBye is not a function
+var sayBye = function () {
+  console.log("Bye!");
+};
+```

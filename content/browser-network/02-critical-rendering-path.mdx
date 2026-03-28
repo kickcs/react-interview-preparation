@@ -1,0 +1,48 @@
+---
+title: "Как браузер отображает страницу?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **Critical Rendering Path** (CRP) is the sequence of steps a browser takes to convert HTML, CSS, and JavaScript into pixels on the screen. First, the browser parses the HTML to build the **DOM tree**, then parses CSS to build the **CSSOM** (CSS Object Model). These two trees are combined into a **render tree**, which contains only the visible elements with their computed styles.
+
+Once the render tree is ready, the browser performs **layout** (also called reflow), calculating the exact position and size of each element on the page. After layout, the **paint** step fills in pixels — colors, borders, shadows, text. Finally, the browser uses **compositing** to combine painted layers in the correct order, which is especially important for elements with transforms, opacity, or `z-index`.
+
+**Reflow** occurs when changes affect layout (e.g., modifying width, adding elements), forcing the browser to recalculate positions. **Repaint** happens when only visual properties change (e.g., color, visibility) without affecting layout. Reflow is more expensive because it always triggers repaint, but repaint does not trigger reflow. Minimizing reflows — by batching DOM changes, using `documentFragment`, or preferring CSS transforms over top/left — is key to rendering performance.
+
+</Answer>
+<Answer lang="ru">
+
+**Критический путь рендеринга** (Critical Rendering Path, CRP) — это последовательность шагов, которые браузер выполняет для преобразования HTML, CSS и JavaScript в пиксели на экране. Сначала браузер разбирает HTML и строит **дерево DOM**, затем разбирает CSS и строит **CSSOM** (CSS Object Model). Эти два дерева объединяются в **дерево рендеринга** (render tree), которое содержит только видимые элементы с вычисленными стилями.
+
+Когда дерево рендеринга готово, браузер выполняет **layout** (компоновку, также называемую reflow), вычисляя точную позицию и размер каждого элемента на странице. После компоновки происходит этап **paint** (отрисовка) — заполнение пикселей: цвета, границы, тени, текст. Наконец, браузер использует **compositing** (композитинг) для объединения отрисованных слоёв в правильном порядке, что особенно важно для элементов с трансформациями, прозрачностью или `z-index`.
+
+**Reflow** (перекомпоновка) происходит, когда изменения затрагивают layout (например, изменение ширины, добавление элементов), заставляя браузер пересчитывать позиции. **Repaint** (перерисовка) происходит, когда изменяются только визуальные свойства (например, цвет, видимость) без влияния на layout. Reflow дороже, потому что всегда вызывает repaint, но repaint не вызывает reflow. Минимизация reflow — путём пакетной обработки изменений DOM, использования `documentFragment` или предпочтения CSS-трансформаций вместо top/left — ключ к производительности рендеринга.
+
+</Answer>
+</AnswerGroup>
+
+```javascript
+// Inefficient: triggers reflow on every iteration
+const list = document.getElementById("list");
+for (let i = 0; i < 100; i++) {
+  const li = document.createElement("li");
+  li.textContent = `Item ${i}`;
+  list.appendChild(li); // reflow each time
+}
+
+// Efficient: batch DOM changes with DocumentFragment
+const fragment = document.createDocumentFragment();
+for (let i = 0; i < 100; i++) {
+  const li = document.createElement("li");
+  li.textContent = `Item ${i}`;
+  fragment.appendChild(li); // no reflow
+}
+list.appendChild(fragment); // single reflow
+
+// Prefer transforms (compositing only) over top/left (triggers layout)
+element.style.transform = "translateX(100px)"; // cheap — compositing
+element.style.left = "100px"; // expensive — triggers layout + paint
+```

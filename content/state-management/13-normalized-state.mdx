@@ -1,0 +1,110 @@
+---
+title: "Что такое нормализация состояния?"
+order: 13
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**State normalization** is the practice of structuring your state like a database: storing each entity type in a flat lookup table keyed by ID, rather than nesting objects inside each other. Instead of deeply nested arrays where the same data might be duplicated in multiple places, you maintain an `entities` map (ID to object) and an `ids` array (for ordering). This is sometimes called the **entities/ids pattern**.
+
+The problems with **denormalized (nested) state** become apparent at scale: when the same entity appears in multiple places, updating it requires finding and changing every copy. If you have a list of posts with embedded author objects, and the author updates their name, you need to update every post that references them. With normalized state, the author exists in one place — `entities.users["user1"]` — and everything else references it by ID.
+
+Redux Toolkit provides **createEntityAdapter** which automates normalization with built-in CRUD operations and selectors. It generates `addOne`, `updateOne`, `removeOne`, and similar methods that handle the entities/ids bookkeeping for you. The generated selectors (`selectAll`, `selectById`, `selectIds`) make it easy to read normalized data. State normalization is most valuable in applications with relational data, frequent updates, or where the same entities appear in multiple views.
+
+</Answer>
+<Answer lang="ru">
+
+**Нормализация состояния** — это практика структурирования состояния по принципу базы данных: хранение каждого типа сущности в плоской таблице, индексированной по ID, вместо вложения объектов друг в друга. Вместо глубоко вложенных массивов, где одни и те же данные могут дублироваться в нескольких местах, вы поддерживаете объект `entities` (ID к объекту) и массив `ids` (для порядка). Это иногда называют **паттерном entities/ids**.
+
+Проблемы **денормализованного (вложенного) состояния** становятся очевидны при масштабировании: когда одна и та же сущность появляется в нескольких местах, обновление требует поиска и изменения каждой копии. Если у вас есть список постов со встроенными объектами авторов, и автор обновляет своё имя, вам нужно обновить каждый пост, который ссылается на него. При нормализованном состоянии автор существует в одном месте — `entities.users["user1"]` — и всё остальное ссылается на него по ID.
+
+Redux Toolkit предоставляет **createEntityAdapter**, который автоматизирует нормализацию со встроенными CRUD-операциями и селекторами. Он генерирует методы `addOne`, `updateOne`, `removeOne` и аналогичные, которые управляют структурой entities/ids за вас. Сгенерированные селекторы (`selectAll`, `selectById`, `selectIds`) упрощают чтение нормализованных данных. Нормализация состояния наиболее ценна в приложениях с реляционными данными, частыми обновлениями или когда одни и те же сущности отображаются в нескольких представлениях.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { createSlice, createEntityAdapter, configureStore } from "@reduxjs/toolkit";
+
+// ❌ Denormalized state — duplicated data, hard to update
+const denormalizedState = {
+  posts: [
+    {
+      id: 1,
+      title: "First Post",
+      author: { id: "u1", name: "Alice" }, // Author duplicated
+      comments: [
+        { id: "c1", text: "Great!", author: { id: "u2", name: "Bob" } },
+        { id: "c2", text: "Thanks!", author: { id: "u1", name: "Alice" } }, // Duplicate!
+      ],
+    },
+  ],
+};
+// If Alice changes her name, you must update it in EVERY place
+
+// ✅ Normalized state — single source of truth for each entity
+const normalizedState = {
+  users: {
+    entities: {
+      u1: { id: "u1", name: "Alice" }, // One source of truth
+      u2: { id: "u2", name: "Bob" },
+    },
+    ids: ["u1", "u2"],
+  },
+  posts: {
+    entities: {
+      1: { id: 1, title: "First Post", authorId: "u1", commentIds: ["c1", "c2"] },
+    },
+    ids: [1],
+  },
+  comments: {
+    entities: {
+      c1: { id: "c1", text: "Great!", authorId: "u2" },
+      c2: { id: "c2", text: "Thanks!", authorId: "u1" },
+    },
+    ids: ["c1", "c2"],
+  },
+};
+// Updating Alice's name? Change it in ONE place
+
+// Using createEntityAdapter for automatic normalization
+type Todo = { id: number; title: string; completed: boolean };
+
+const todosAdapter = createEntityAdapter<Todo>();
+
+const todosSlice = createSlice({
+  name: "todos",
+  initialState: todosAdapter.getInitialState({
+    loading: false,
+  }),
+  reducers: {
+    // Built-in CRUD operations that handle entities/ids
+    todoAdded: todosAdapter.addOne,
+    todoUpdated: todosAdapter.updateOne,
+    todoRemoved: todosAdapter.removeOne,
+    todosReceived: todosAdapter.setAll,
+    todoToggled(state, action: { payload: number }) {
+      const todo = state.entities[action.payload];
+      if (todo) todo.completed = !todo.completed;
+    },
+  },
+});
+
+const store = configureStore({
+  reducer: { todos: todosSlice.reducer },
+});
+
+type RootState = ReturnType<typeof store.getState>;
+
+// Auto-generated selectors
+const todosSelectors = todosAdapter.getSelectors<RootState>(
+  (state) => state.todos
+);
+
+// Usage
+const allTodos = todosSelectors.selectAll(store.getState());       // Todo[]
+const todoById = todosSelectors.selectById(store.getState(), 1);   // Todo | undefined
+const todoIds = todosSelectors.selectIds(store.getState());        // number[]
+const totalTodos = todosSelectors.selectTotal(store.getState());   // number
+```

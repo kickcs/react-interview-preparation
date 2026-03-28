@@ -1,0 +1,56 @@
+---
+title: "Что такое React Testing Library?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**React Testing Library (RTL)** is a testing utility that encourages you to test React components the way a real user interacts with them. Its core philosophy is: "The more your tests resemble the way your software is used, the more confidence they can give you." RTL does not give you access to component internals like state or lifecycle methods — instead, it focuses on the rendered DOM.
+
+The main API consists of `render()`, which mounts a component into a virtual DOM, and `screen`, which provides queries to find elements. Queries come in three variants: **getBy** throws if no element is found (for elements that must exist), **queryBy** returns `null` instead of throwing (for asserting absence), and **findBy** returns a promise that resolves when the element appears (for async content).
+
+RTL encourages a **priority of queries**: prefer `getByRole` and `getByLabelText` because they mirror how assistive technology and users find elements. Fall back to `getByText`, `getByPlaceholderText`, or `getByTestId` only when necessary. This approach naturally improves your app's accessibility.
+
+Together with **@testing-library/user-event**, RTL lets you simulate realistic interactions — clicks, typing, tabbing — so you test the full user experience rather than implementation details like internal state variables or component method calls.
+
+</Answer>
+<Answer lang="ru">
+
+**React Testing Library (RTL)** — это утилита для тестирования, которая побуждает тестировать React-компоненты так, как с ними взаимодействует реальный пользователь. Основная философия: «Чем больше ваши тесты похожи на реальное использование приложения, тем больше уверенности они дают». RTL не предоставляет доступ к внутренностям компонента, таким как состояние или методы жизненного цикла, — вместо этого фокусируется на отрендеренном DOM.
+
+Основной API состоит из `render()`, который монтирует компонент в виртуальный DOM, и `screen`, предоставляющий запросы для поиска элементов. Запросы бывают трёх видов: **getBy** выбрасывает ошибку, если элемент не найден (для элементов, которые должны существовать), **queryBy** возвращает `null` вместо ошибки (для проверки отсутствия), и **findBy** возвращает промис, который резолвится при появлении элемента (для асинхронного контента).
+
+RTL рекомендует **приоритет запросов**: предпочитайте `getByRole` и `getByLabelText`, потому что они отражают способ, которым вспомогательные технологии и пользователи находят элементы. Используйте `getByText`, `getByPlaceholderText` или `getByTestId` только при необходимости. Такой подход естественным образом улучшает доступность приложения.
+
+Вместе с **@testing-library/user-event** RTL позволяет имитировать реалистичные взаимодействия — клики, ввод текста, навигацию табом — так вы тестируете полный пользовательский опыт, а не детали реализации вроде внутренних переменных состояния или вызовов методов компонента.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { render, screen } from "@testing-library/react";
+
+function Greeting({ name }: { name: string }) {
+  return (
+    <div>
+      <h1>Hello, {name}!</h1>
+      <p role="status">Welcome back</p>
+    </div>
+  );
+}
+
+test("renders greeting with the user name", () => {
+  render(<Greeting name="Alice" />);
+
+  // getBy — element must exist, throws otherwise
+  const heading = screen.getByRole("heading", { name: /hello, alice/i });
+  expect(heading).toBeInTheDocument();
+
+  // getByRole with role="status"
+  expect(screen.getByRole("status")).toHaveTextContent("Welcome back");
+
+  // queryBy — returns null if not found (useful for asserting absence)
+  expect(screen.queryByText("Goodbye")).not.toBeInTheDocument();
+});
+```

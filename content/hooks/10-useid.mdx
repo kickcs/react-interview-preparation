@@ -1,0 +1,79 @@
+---
+title: "Что такое useId и когда его использовать?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**useId** is a hook that generates a unique, stable ID string that is consistent between server and client renders. It was introduced in React 18 to solve a common problem: generating IDs for accessibility attributes (like connecting `<label>` and `<input>` elements) without causing hydration mismatches in SSR applications.
+
+Before `useId`, developers often used incrementing counters, `Math.random()`, or `uuid` to generate IDs. These approaches break with server-side rendering because the server and client generate different values, causing hydration errors. `useId` produces a deterministic ID based on the component's position in the tree, ensuring the same ID on both server and client.
+
+The generated ID looks like `:r1:`, `:r2:`, etc. — a format deliberately chosen to avoid collisions with CSS selectors or user-provided IDs. You can use the ID directly or as a prefix for multiple related elements: `${id}-name`, `${id}-email`. Each call to `useId` within a component returns a different ID, so you can generate multiple IDs when needed.
+
+Do **not** use `useId` to generate keys for list items — keys should be derived from your data. The hook is specifically designed for accessibility attributes and other cases where you need a stable, unique identifier that works with SSR hydration.
+
+</Answer>
+<Answer lang="ru">
+
+**useId** — это хук, который генерирует уникальную стабильную строку-идентификатор, одинаковую между серверным и клиентским рендером. Он был введён в React 18 для решения распространённой проблемы: генерация ID для атрибутов доступности (таких как связывание `<label>` и `<input>`) без вызова ошибок гидратации в SSR-приложениях.
+
+До `useId` разработчики часто использовали инкрементные счётчики, `Math.random()` или `uuid` для генерации ID. Эти подходы ломаются при серверном рендеринге, так как сервер и клиент генерируют разные значения, вызывая ошибки гидратации. `useId` создаёт детерминированный ID на основе позиции компонента в дереве, гарантируя одинаковый ID на сервере и клиенте.
+
+Сгенерированный ID выглядит как `:r1:`, `:r2:` и т.д. — формат специально выбран для избежания коллизий с CSS-селекторами или пользовательскими ID. Вы можете использовать ID напрямую или как префикс для нескольких связанных элементов: `${id}-name`, `${id}-email`. Каждый вызов `useId` внутри компонента возвращает отдельный ID, поэтому можно генерировать несколько ID при необходимости.
+
+**Не** используйте `useId` для генерации ключей списка — ключи должны быть получены из данных. Хук специально предназначен для атрибутов доступности и других случаев, когда нужен стабильный уникальный идентификатор, совместимый с гидратацией SSR.
+
+</Answer>
+</AnswerGroup>
+
+```tsx
+import { useId } from "react";
+
+function FormField({
+  label,
+  type = "text",
+}: {
+  label: string;
+  type?: string;
+}) {
+  const id = useId();
+
+  return (
+    <div>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type={type} />
+    </div>
+  );
+}
+
+function RegistrationForm() {
+  // Each useId call produces a unique prefix
+  const id = useId();
+
+  return (
+    <form>
+      {/* Using useId as a prefix for related fields */}
+      <div>
+        <label htmlFor={`${id}-name`}>Full Name</label>
+        <input id={`${id}-name`} type="text" />
+      </div>
+      <div>
+        <label htmlFor={`${id}-email`}>Email</label>
+        <input id={`${id}-email`} type="email" />
+      </div>
+      <div>
+        <label htmlFor={`${id}-password`}>Password</label>
+        <input id={`${id}-password`} type="password" />
+      </div>
+
+      {/* Reusable component — each instance gets its own unique ID */}
+      <FormField label="Phone Number" type="tel" />
+      <FormField label="Address" />
+
+      <button type="submit">Register</button>
+    </form>
+  );
+}
+```
