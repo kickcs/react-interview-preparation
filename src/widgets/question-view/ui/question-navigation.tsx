@@ -9,17 +9,18 @@ interface QuestionNavigationProps {
 
 export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
   return (
-    <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
+    <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-6">
       {adjacent.prev ? (
         <Button
           variant="ghost"
           nativeButton={false}
+          className="min-w-0 shrink"
           render={
             <Link href={`/${adjacent.prev.category}/${adjacent.prev.slug}`} />
           }
         >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          {adjacent.prev.title}
+          <ChevronLeft className="h-4 w-4 shrink-0" />
+          <span className="truncate">{adjacent.prev.title}</span>
         </Button>
       ) : (
         <div />
@@ -28,12 +29,13 @@ export function QuestionNavigation({ adjacent }: QuestionNavigationProps) {
         <Button
           variant="ghost"
           nativeButton={false}
+          className="min-w-0 shrink"
           render={
             <Link href={`/${adjacent.next.category}/${adjacent.next.slug}`} />
           }
         >
-          {adjacent.next.title}
-          <ChevronRight className="ml-1 h-4 w-4" />
+          <span className="truncate">{adjacent.next.title}</span>
+          <ChevronRight className="h-4 w-4 shrink-0" />
         </Button>
       ) : (
         <div />
