@@ -12,10 +12,10 @@ interface SpoilerProps {
 
 export function Spoiler({ id, children }: SpoilerProps) {
   const hydrated = useHydrated();
-  const revealed = useUIStore((s) => s.revealedQuestions[id] ?? false);
-  const allRevealed = useUIStore((s) => s.allRevealed[id] ?? false);
+  const isOpen = useUIStore(
+    (s) => (s.revealedQuestions[id] ?? false) || (s.allRevealed[id] ?? false)
+  );
   const toggle = useUIStore((s) => s.toggleQuestion);
-  const isOpen = revealed || allRevealed;
 
   if (!hydrated) {
     return <Skeleton className="h-12 w-full rounded-xl" />;

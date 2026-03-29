@@ -60,12 +60,13 @@ export const useUIStore = create<UIState>()(
         })),
       allRevealed: {},
       toggleAllRevealed: (pageId) =>
-        set((state) => ({
-          allRevealed: {
-            ...state.allRevealed,
-            [pageId]: !state.allRevealed[pageId],
-          },
-        })),
+        set((state) => {
+          if (state.allRevealed[pageId]) {
+            const { [pageId]: _, ...rest } = state.allRevealed;
+            return { allRevealed: rest };
+          }
+          return { allRevealed: { ...state.allRevealed, [pageId]: true } };
+        }),
     }),
     {
       name: "ui-store",
