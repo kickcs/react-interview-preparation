@@ -46,6 +46,8 @@ export async function QuestionView({
 
       <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>
 
+      <div className="content-separator" />
+
       <Spoiler id={`${meta.category}/${meta.slug}`}>
         <MDXRemote
           source={content}
@@ -55,6 +57,8 @@ export async function QuestionView({
           }}
         />
       </Spoiler>
+
+      <div className="content-separator" />
 
       <QuestionNavigation adjacent={adjacent} />
     </article>

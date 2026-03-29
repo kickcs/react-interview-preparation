@@ -156,6 +156,41 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Content separator */
+.content-separator {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(1 0 0 / 6%) 20%,
+    oklch(1 0 0 / 6%) 80%,
+    transparent
+  );
+  margin: 28px 0;
+}
+
+/* Improved prose typography */
+.dark .prose {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.dark .prose :where(h2, h3):not(:where([class~="not-prose"] *)) {
+  border-bottom: 1px solid oklch(1 0 0 / 6%);
+  padding-bottom: 8px;
+}
+
+.dark .prose :where(li):not(:where([class~="not-prose"] *)) {
+  margin-bottom: 8px;
+}
+
+.dark .prose :where(:not(pre) > code):not(:where([class~="not-prose"] *)) {
+  background: oklch(1 0 0 / 6%);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 13.5px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
