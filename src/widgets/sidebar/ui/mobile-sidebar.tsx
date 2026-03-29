@@ -57,7 +57,7 @@ export function MobileSidebar({
               <CollapseAllButton slugs={slugs} />
             </div>
           </SheetTitle>
-          <ScrollArea className="h-[calc(100vh-73px)]">
+          <ScrollArea className="h-[calc(100dvh-73px)]">
             <SidebarNav
               categories={categories}
               questionsByCategory={questionsByCategory}
