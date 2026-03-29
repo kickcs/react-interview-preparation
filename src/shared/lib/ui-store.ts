@@ -12,6 +12,8 @@ interface UIState {
   toggleHint: (id: string) => void;
   revealedSolutions: Record<string, boolean>;
   toggleSolution: (id: string) => void;
+  allRevealed: Record<string, boolean>;
+  toggleAllRevealed: (pageId: string) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -56,6 +58,15 @@ export const useUIStore = create<UIState>()(
             [id]: !state.revealedSolutions[id],
           },
         })),
+      allRevealed: {},
+      toggleAllRevealed: (pageId) =>
+        set((state) => {
+          if (state.allRevealed[pageId]) {
+            const { [pageId]: _, ...rest } = state.allRevealed;
+            return { allRevealed: rest };
+          }
+          return { allRevealed: { ...state.allRevealed, [pageId]: true } };
+        }),
     }),
     {
       name: "ui-store",

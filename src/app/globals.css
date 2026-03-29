@@ -6,11 +6,29 @@
 
 /* Code block styling for MDX content */
 [data-rehype-pretty-code-figure] pre {
-  @apply overflow-x-auto rounded-lg border border-border p-4;
+  @apply overflow-x-auto rounded-lg border border-border;
+  padding: 14px 0;
 }
 
 [data-rehype-pretty-code-figure] code {
-  @apply text-sm leading-relaxed;
+  font-size: 14px;
+  line-height: 1.7;
+  counter-reset: line;
+}
+
+[data-rehype-pretty-code-figure] code[data-line-numbers] > [data-line]::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: oklch(0.371 0 0);
+  user-select: none;
+}
+
+[data-rehype-pretty-code-figure] [data-line] {
+  padding: 0 16px;
 }
 
 /* Inline code */
@@ -136,6 +154,41 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Content separator */
+.content-separator {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(1 0 0 / 6%) 20%,
+    oklch(1 0 0 / 6%) 80%,
+    transparent
+  );
+  margin: 28px 0;
+}
+
+/* Improved prose typography */
+.dark .prose {
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.dark .prose :where(h2, h3):not(:where([class~="not-prose"] *)) {
+  border-bottom: 1px solid oklch(1 0 0 / 6%);
+  padding-bottom: 8px;
+}
+
+.dark .prose :where(li):not(:where([class~="not-prose"] *)) {
+  margin-bottom: 8px;
+}
+
+.dark .prose :where(:not(pre) > code):not(:where([class~="not-prose"] *)) {
+  background: oklch(1 0 0 / 6%);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 13.5px;
 }
 
 @layer base {

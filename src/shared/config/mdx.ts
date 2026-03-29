@@ -7,6 +7,9 @@ export const rehypePlugins: Pluggable[] = [
     {
       theme: "github-dark-default",
       keepBackground: true,
+      defaultLang: {
+        block: "text",
+      },
     },
   ],
 ];

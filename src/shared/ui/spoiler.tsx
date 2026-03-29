@@ -12,7 +12,9 @@ interface SpoilerProps {
 
 export function Spoiler({ id, children }: SpoilerProps) {
   const hydrated = useHydrated();
-  const revealed = useUIStore((s) => s.revealedQuestions[id] ?? false);
+  const isOpen = useUIStore(
+    (s) => (s.revealedQuestions[id] ?? false) || (s.allRevealed[id] ?? false)
+  );
   const toggle = useUIStore((s) => s.toggleQuestion);
 
   if (!hydrated) {
@@ -23,10 +25,10 @@ export function Spoiler({ id, children }: SpoilerProps) {
     <div>
       <button
         onClick={() => toggle(id)}
-        aria-expanded={revealed}
+        aria-expanded={isOpen}
         className="mb-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-3.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground"
       >
-        {revealed ? (
+        {isOpen ? (
           <>
             <EyeOff className="h-4 w-4" />
             Скрыть ответ / Hide answer
@@ -42,7 +44,7 @@ export function Spoiler({ id, children }: SpoilerProps) {
       <div
         className={cn(
           "grid transition-all duration-300 ease-in-out",
-          revealed
+          isOpen
             ? "grid-rows-[1fr] opacity-100"
             : "grid-rows-[0fr] opacity-0"
         )}
