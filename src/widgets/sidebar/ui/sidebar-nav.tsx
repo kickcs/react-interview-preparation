@@ -7,6 +7,8 @@ import {
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
+  Eye,
+  EyeOff,
   Globe,
   FishingHook,
   FlaskConical,
@@ -86,6 +88,37 @@ export function CollapseAllButton({ slugs }: { slugs: string[] }) {
         <ChevronsUpDown className="h-4 w-4" />
       ) : (
         <ChevronsDownUp className="h-4 w-4" />
+      )}
+    </Button>
+  );
+}
+
+export function ToggleAllAnswersButton() {
+  const hydrated = useHydrated();
+  const allAnswersRevealed = useUIStore((s) => s.allAnswersRevealed);
+  const toggleAllAnswersRevealed = useUIStore(
+    (s) => s.toggleAllAnswersRevealed
+  );
+
+  if (!hydrated) return null;
+
+  const label = allAnswersRevealed ? "Скрыть все ответы" : "Показать все ответы";
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggleAllAnswersRevealed}
+      aria-label={label}
+      title={label}
+      className={cn(
+        allAnswersRevealed && "text-indigo-400 hover:text-indigo-300"
+      )}
+    >
+      {allAnswersRevealed ? (
+        <EyeOff className="h-4 w-4" />
+      ) : (
+        <Eye className="h-4 w-4" />
       )}
     </Button>
   );

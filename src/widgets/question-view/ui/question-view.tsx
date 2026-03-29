@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Answer } from "@/shared/ui/answer";
 import { AnswerGroup } from "@/shared/ui/answer-group";
 import { Spoiler } from "@/shared/ui/spoiler";
-import { ToggleAllAnswers } from "./toggle-all-answers";
 import { QuestionNavigation } from "./question-navigation";
 import type { QuestionMeta, AdjacentQuestions } from "@/entities/question";
 import { MDXRemote } from "next-mdx-remote/rsc";
@@ -32,8 +31,6 @@ export async function QuestionView({
   questionIndex,
   totalQuestions,
 }: QuestionViewProps) {
-  const pageId = `${meta.category}/${meta.slug}`;
-
   return (
     <article className="mx-auto max-w-[900px] px-4 py-6 md:px-12 md:py-10">
       <div className="mb-4 text-sm text-muted-foreground">
@@ -49,11 +46,9 @@ export async function QuestionView({
 
       <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>
 
-      <ToggleAllAnswers pageId={pageId} />
-
       <div className="content-separator" />
 
-      <Spoiler id={pageId}>
+      <Spoiler id={`${meta.category}/${meta.slug}`}>
         <MDXRemote
           source={content}
           components={mdxComponents}

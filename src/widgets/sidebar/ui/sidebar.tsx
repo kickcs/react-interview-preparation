@@ -1,5 +1,9 @@
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { SidebarNav, CollapseAllButton } from "./sidebar-nav";
+import {
+  SidebarNav,
+  CollapseAllButton,
+  ToggleAllAnswersButton,
+} from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
 import type { ChallengeCategoryMeta, ChallengeMeta } from "@/entities/challenge";
@@ -31,7 +35,10 @@ export function Sidebar({
             Подготовка к собеседованию
           </div>
         </div>
-        <CollapseAllButton slugs={slugs} />
+        <div className="flex items-center gap-1">
+          <ToggleAllAnswersButton />
+          <CollapseAllButton slugs={slugs} />
+        </div>
       </div>
       <ScrollArea className="h-[calc(100vh-73px)]">
         <SidebarNav

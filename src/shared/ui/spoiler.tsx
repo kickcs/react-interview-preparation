@@ -12,8 +12,9 @@ interface SpoilerProps {
 
 export function Spoiler({ id, children }: SpoilerProps) {
   const hydrated = useHydrated();
+  const allAnswersRevealed = useUIStore((s) => s.allAnswersRevealed);
   const isOpen = useUIStore(
-    (s) => (s.revealedQuestions[id] ?? false) || (s.allRevealed[id] ?? false)
+    (s) => (s.revealedQuestions[id] ?? false) || s.allAnswersRevealed
   );
   const toggle = useUIStore((s) => s.toggleQuestion);
 
@@ -23,23 +24,25 @@ export function Spoiler({ id, children }: SpoilerProps) {
 
   return (
     <div>
-      <button
-        onClick={() => toggle(id)}
-        aria-expanded={isOpen}
-        className="mb-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-3.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground"
-      >
-        {isOpen ? (
-          <>
-            <EyeOff className="h-4 w-4" />
-            Скрыть ответ / Hide answer
-          </>
-        ) : (
-          <>
-            <Eye className="h-4 w-4" />
-            Показать ответ / Show answer
-          </>
-        )}
-      </button>
+      {!allAnswersRevealed && (
+        <button
+          onClick={() => toggle(id)}
+          aria-expanded={isOpen}
+          className="mb-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-5 py-3.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/50 hover:text-foreground"
+        >
+          {isOpen ? (
+            <>
+              <EyeOff className="h-4 w-4" />
+              Скрыть ответ / Hide answer
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4" />
+              Показать ответ / Show answer
+            </>
+          )}
+        </button>
+      )}
 
       <div
         className={cn(
