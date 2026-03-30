@@ -9,7 +9,7 @@ export const getCategories = cache(async (): Promise<CategoryMeta[]> => {
   const categories: CategoryMeta[] = [];
 
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || entry.name === "live-coding") continue;
 
     const metaPath = path.join(CONTENT_DIR, entry.name, "_meta.json");
     try {
