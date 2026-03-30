@@ -169,7 +169,7 @@ export function SidebarSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Поиск вопросов…"
-        className="h-8 pl-8 pr-8 text-xs"
+        className="h-8 pl-8 pr-8 text-base md:text-xs"
       />
       {value && (
         <button
