@@ -1,8 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   SidebarNav,
+  SidebarSearch,
   CollapseAllButton,
   ToggleAllAnswersButton,
+  buildAllCategorySlugs,
 } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
@@ -21,10 +26,8 @@ export function Sidebar({
   challengeCategories,
   challengesByCategory,
 }: SidebarProps) {
-  const slugs = [
-    ...categories.map((c) => c.slug),
-    ...challengeCategories.map((c) => `live-coding-${c.slug}`),
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const slugs = buildAllCategorySlugs(categories, challengeCategories);
 
   return (
     <aside className="sticky top-0 h-screen hidden w-[320px] shrink-0 border-r border-border md:block">
@@ -40,12 +43,14 @@ export function Sidebar({
           <CollapseAllButton slugs={slugs} />
         </div>
       </div>
-      <ScrollArea className="h-[calc(100vh-73px)]">
+      <SidebarSearch value={searchQuery} onChange={setSearchQuery} />
+      <ScrollArea className="h-[calc(100vh-73px-52px)]">
         <SidebarNav
           categories={categories}
           questionsByCategory={questionsByCategory}
           challengeCategories={challengeCategories}
           challengesByCategory={challengesByCategory}
+          searchQuery={searchQuery}
         />
       </ScrollArea>
     </aside>

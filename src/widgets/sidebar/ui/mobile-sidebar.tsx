@@ -12,8 +12,10 @@ import {
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   SidebarNav,
+  SidebarSearch,
   CollapseAllButton,
   ToggleAllAnswersButton,
+  buildAllCategorySlugs,
 } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
 import type { QuestionMeta } from "@/entities/question";
@@ -33,14 +35,12 @@ export function MobileSidebar({
   challengesByCategory,
 }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
-  const slugs = [
-    ...categories.map((c) => c.slug),
-    ...challengeCategories.map((c) => `live-coding-${c.slug}`),
-  ];
+  const [searchQuery, setSearchQuery] = useState("");
+  const slugs = buildAllCategorySlugs(categories, challengeCategories);
 
   return (
     <div className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
-      <Sheet open={open} onOpenChange={setOpen}>
+      <Sheet open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearchQuery(""); }}>
         <SheetTrigger render={<Button variant="ghost" size="icon" />}>
           <Menu className="h-5 w-5" />
         </SheetTrigger>
@@ -57,12 +57,14 @@ export function MobileSidebar({
               <CollapseAllButton slugs={slugs} />
             </div>
           </SheetTitle>
-          <ScrollArea className="h-[calc(100dvh-73px)]">
+          <SidebarSearch value={searchQuery} onChange={setSearchQuery} />
+          <ScrollArea className="h-[calc(100dvh-73px-52px)]">
             <SidebarNav
               categories={categories}
               questionsByCategory={questionsByCategory}
               challengeCategories={challengeCategories}
               challengesByCategory={challengesByCategory}
+              searchQuery={searchQuery}
               onNavigate={() => setOpen(false)}
             />
           </ScrollArea>
