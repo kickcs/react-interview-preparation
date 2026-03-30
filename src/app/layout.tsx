@@ -59,14 +59,12 @@ export default async function RootLayout({
       className={`dark ${inter.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
-      <head>
+      <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         <Script
           src="https://cloud.umami.is/script.js"
           data-website-id="709413fd-2e6d-4ac3-a999-0f5ef384b405"
           strategy="lazyOnload"
         />
-      </head>
-      <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         <div className="flex min-h-screen">
           <Sidebar
             categories={categories}
