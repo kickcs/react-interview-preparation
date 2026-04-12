@@ -167,4 +167,38 @@ describe("ws integration", () => {
     const payload = await left;
     expect(typeof payload.participantId).toBe("string");
   });
+
+  it("relays console:output from author to peers", async () => {
+    const a = connect(harness.url);
+    const b = connect(harness.url);
+    clients.push(a, b);
+    const aJoined = new Promise<void>((res) => a.emit("room:join", { roomId: "r1", nickname: "alice" }, () => res()));
+    await aJoined;
+    const bJoined = new Promise<void>((res) => b.emit("room:join", { roomId: "r1", nickname: "bob" }, () => res()));
+    await bJoined;
+
+    const received = wait<{ participantId: string; logs: Array<{ id: string }> }>(
+      b,
+      "room:peer-console-output"
+    );
+    a.emit("console:output", {
+      logs: [{ id: "l1", method: "log", data: ["hi"], timestamp: 1 }],
+    });
+    const payload = await received;
+    expect(payload.logs[0]?.id).toBe("l1");
+    expect(payload.participantId).toBeTruthy();
+  });
+
+  it("relays console:clear from author to peers", async () => {
+    const a = connect(harness.url);
+    const b = connect(harness.url);
+    clients.push(a, b);
+    await new Promise<void>((res) => a.emit("room:join", { roomId: "r1", nickname: "alice" }, () => res()));
+    await new Promise<void>((res) => b.emit("room:join", { roomId: "r1", nickname: "bob" }, () => res()));
+
+    const received = wait<{ participantId: string }>(b, "room:peer-console-cleared");
+    a.emit("console:clear");
+    const payload = await received;
+    expect(payload.participantId).toBeTruthy();
+  });
 });

@@ -1,10 +1,12 @@
 "use client";
 import type { ReactNode } from "react";
+import { gridClassForCount } from "../lib/grid-class-for-count";
 
-export function EditorsGrid({ children }: { children: ReactNode[] }) {
-  return (
-    <div className="grid h-full min-h-0 grid-cols-2 grid-rows-2 gap-3">
-      {children}
-    </div>
-  );
+interface Props {
+  count: number;
+  children: ReactNode[];
+}
+
+export function EditorsGrid({ count, children }: Props) {
+  return <div className={gridClassForCount(count)}>{children}</div>;
 }

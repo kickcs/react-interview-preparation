@@ -2,6 +2,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { RoomView } from "@/widgets/room-view";
 import { JoinRoomForm } from "@/features/room-join/ui/join-room-form";
+import { useAutoCollapseOnRouteEnter } from "@/shared/lib/use-auto-collapse-on-route-enter";
 import type { TaskContent } from "@/shared/contracts";
 
 interface Props {
@@ -19,6 +20,7 @@ export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
     () => sessionStorage.getItem(`rooms.nickname.${roomId}`),
     () => undefined,
   );
+  useAutoCollapseOnRouteEnter(roomId);
 
   if (stored === undefined) {
     return (

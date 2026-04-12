@@ -7,6 +7,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
 import { useCopyRoomLink } from "../lib/use-copy-room-link";
+import { SidebarToggleButton } from "@/features/toggle-sidebar";
 
 interface Props {
   roomId: string;
@@ -60,6 +61,7 @@ export function TopBar({ roomId, participants, allReady }: Props) {
         )}
       </div>
       <div className="flex items-center gap-2">
+        <SidebarToggleButton variant="outline" />
         <Button type="button" size="sm" variant="outline" onClick={copy}>
           <Copy />
           {copied ? "Скопировано" : "Скопировать"}

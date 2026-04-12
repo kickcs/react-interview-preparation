@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { ScrollArea } from "@/shared/ui/scroll-area";
+import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
+import { SidebarToggleButton } from "@/features/toggle-sidebar";
 import {
   SidebarNav,
   SidebarSearch,
@@ -28,10 +30,23 @@ export function Sidebar({
   challengesByCategory,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const hydrated = useHydrated();
+  const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const slugs = useMemo(
     () => buildAllCategorySlugs(categories, challengeCategories),
     [categories, challengeCategories]
   );
+
+  const isCollapsed = hydrated && collapsed;
+
+  if (isCollapsed) {
+    return (
+      <aside className="sticky top-0 h-screen hidden w-14 shrink-0 border-r border-border md:flex md:flex-col md:items-center md:py-4 md:gap-3">
+        <div className="text-xs font-bold tracking-tight">RI</div>
+        <SidebarToggleButton />
+      </aside>
+    );
+  }
 
   return (
     <aside className="sticky top-0 h-screen hidden w-[320px] shrink-0 border-r border-border md:block">
@@ -45,6 +60,7 @@ export function Sidebar({
         <div className="flex items-center gap-1">
           <ToggleAllAnswersButton />
           <CollapseAllButton slugs={slugs} />
+          <SidebarToggleButton />
         </div>
       </div>
       <SidebarSearch value={searchQuery} onChange={setSearchQuery} />

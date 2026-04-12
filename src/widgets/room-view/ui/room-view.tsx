@@ -3,13 +3,12 @@ import { useMemo } from "react";
 import { useStore } from "zustand";
 import { roomStore } from "@/shared/lib/room-store";
 import { useRoomSocket } from "@/shared/lib/use-room-socket";
-import { MAX_PARTICIPANTS, type ParticipantPublic, type TaskContent } from "@/shared/contracts";
+import { type ParticipantPublic, type TaskContent } from "@/shared/contracts";
 import { TopBar } from "./top-bar";
 import { TaskPanel } from "./task-panel";
 import { EditorsGrid } from "./editors-grid";
 import { MyEditorCell } from "./my-editor-cell";
 import { PeerEditorCell } from "./peer-editor-cell";
-import { EmptySlot } from "./empty-slot";
 import { RoomErrors } from "./room-errors";
 
 interface Props {
@@ -20,19 +19,26 @@ interface Props {
 
 export function RoomView({ roomId, nickname, task }: Props) {
   const state = useStore(roomStore);
-  const { status, error, emitCodeUpdate, emitShare, emitUnshare, emitStatus } =
-    useRoomSocket(roomId, nickname);
+  const {
+    status,
+    error,
+    emitCodeUpdate,
+    emitShare,
+    emitUnshare,
+    emitStatus,
+    emitConsoleOutput,
+    emitConsoleClear,
+  } = useRoomSocket(roomId, nickname);
 
   const { participantsList, slots } = useMemo(() => {
     const list = Array.from(state.participants.values());
     const me = state.selfId ? state.participants.get(state.selfId) : undefined;
-    const ordered: Array<ParticipantPublic | null> = [];
+    const ordered: ParticipantPublic[] = [];
     if (me) ordered.push(me);
     list.forEach((p) => {
       if (p.id !== state.selfId) ordered.push(p);
     });
-    while (ordered.length < MAX_PARTICIPANTS) ordered.push(null);
-    return { participantsList: list, slots: ordered };
+    return { participantsList: list, slots: ordered.slice(0, 4) };
   }, [state.participants, state.selfId]);
 
   const allReady = state.allReady();
@@ -45,9 +51,9 @@ export function RoomView({ roomId, nickname, task }: Props) {
           title={state.task?.title ?? task.title}
           markdown={state.task?.markdown ?? task.markdown}
         />
-        <EditorsGrid>
-          {slots.map((p, i) => {
-            if (p && p.id === state.selfId) {
+        <EditorsGrid count={slots.length}>
+          {slots.map((p) => {
+            if (p.id === state.selfId) {
               return (
                 <MyEditorCell
                   key="me"
@@ -65,21 +71,20 @@ export function RoomView({ roomId, nickname, task }: Props) {
                     else emitShare();
                   }}
                   onStatusChange={emitStatus}
+                  onConsoleBatch={emitConsoleOutput}
+                  onConsoleClear={emitConsoleClear}
                 />
               );
             }
-            if (p) {
-              return (
-                <PeerEditorCell
-                  key={p.id}
-                  participant={p}
-                  sharedCode={state.sharedCodes.get(p.id)}
-                  collapsed={state.collapsedPeers.has(p.id)}
-                  onToggleCollapsed={() => roomStore.getState().togglePeerCollapsed(p.id)}
-                />
-              );
-            }
-            return <EmptySlot key={`slot-${i}`} roomId={roomId} />;
+            return (
+              <PeerEditorCell
+                key={p.id}
+                participant={p}
+                sharedCode={state.sharedCodes.get(p.id)}
+                collapsed={state.collapsedPeers.has(p.id)}
+                onToggleCollapsed={() => roomStore.getState().togglePeerCollapsed(p.id)}
+              />
+            );
           })}
         </EditorsGrid>
       </div>

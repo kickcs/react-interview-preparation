@@ -3,10 +3,13 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { getRoomSocket, type RoomSocket } from "./ws-client";
 import { roomStore } from "./room-store";
 import type {
+  ConsoleMessage,
   JoinAck,
   Language,
   ParticipantPublic,
   ParticipantStatus,
+  PeerConsoleClearedPayload,
+  PeerConsoleOutputPayload,
 } from "@/shared/contracts";
 
 export type ConnectionStatus = "connecting" | "joined" | "disconnected" | "error";
@@ -18,6 +21,8 @@ export interface UseRoomSocketResult {
   emitShare: () => void;
   emitUnshare: () => void;
   emitStatus: (status: ParticipantStatus) => void;
+  emitConsoleOutput: (logs: ConsoleMessage[]) => void;
+  emitConsoleClear: () => void;
 }
 
 const SESSION_NICK_KEY = (roomId: string) => `rooms.nickname.${roomId}`;
@@ -71,6 +76,10 @@ export function useRoomSocket(roomId: string, nickname: string): UseRoomSocketRe
       roomStore.getState().applyEvent({ type: "room:shared-code-updated", payload: p });
     const onSharedCleared = (p: { participantId: string }) =>
       roomStore.getState().applyEvent({ type: "room:shared-code-cleared", payload: p });
+    const onPeerConsoleOutput = (p: PeerConsoleOutputPayload) =>
+      roomStore.getState().appendPeerConsole(p.participantId, p.logs);
+    const onPeerConsoleCleared = (p: PeerConsoleClearedPayload) =>
+      roomStore.getState().clearPeerConsole(p.participantId);
     const onError = ({ code }: { code: string }) => setError(code);
 
     if (socket.connected) onConnect();
@@ -83,6 +92,8 @@ export function useRoomSocket(roomId: string, nickname: string): UseRoomSocketRe
     socket.on("room:participant-status", onStatus);
     socket.on("room:shared-code-updated", onSharedUpdated);
     socket.on("room:shared-code-cleared", onSharedCleared);
+    socket.on("room:peer-console-output", onPeerConsoleOutput);
+    socket.on("room:peer-console-cleared", onPeerConsoleCleared);
     socket.on("room:error", onError);
 
     return () => {
@@ -94,6 +105,8 @@ export function useRoomSocket(roomId: string, nickname: string): UseRoomSocketRe
       socket.off("room:participant-status", onStatus);
       socket.off("room:shared-code-updated", onSharedUpdated);
       socket.off("room:shared-code-cleared", onSharedCleared);
+      socket.off("room:peer-console-output", onPeerConsoleOutput);
+      socket.off("room:peer-console-cleared", onPeerConsoleCleared);
       socket.off("room:error", onError);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -122,5 +135,16 @@ export function useRoomSocket(roomId: string, nickname: string): UseRoomSocketRe
     socketRef.current?.emit("status:set", { status });
   }, []);
 
-  return { status, error, emitCodeUpdate, emitShare, emitUnshare, emitStatus };
+  const emitConsoleOutput = useCallback((logs: ConsoleMessage[]) => {
+    if (!roomStore.getState().isSharing) return;
+    if (logs.length === 0) return;
+    socketRef.current?.emit("console:output", { logs });
+  }, []);
+
+  const emitConsoleClear = useCallback(() => {
+    if (!roomStore.getState().isSharing) return;
+    socketRef.current?.emit("console:clear");
+  }, []);
+
+  return { status, error, emitCodeUpdate, emitShare, emitUnshare, emitStatus, emitConsoleOutput, emitConsoleClear };
 }

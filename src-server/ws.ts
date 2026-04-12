@@ -174,6 +174,25 @@ export function attachWs(
         });
       });
 
+      socket.on("console:output", (payload) => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        if (!payload || !Array.isArray(payload.logs)) return;
+        const logs = payload.logs.slice(0, 50);
+        socket.to(roomId).emit("room:peer-console-output", {
+          participantId: socket.id,
+          logs,
+        });
+      });
+
+      socket.on("console:clear", () => {
+        const roomId = socket.data.roomId;
+        if (!roomId) return;
+        socket.to(roomId).emit("room:peer-console-cleared", {
+          participantId: socket.id,
+        });
+      });
+
       socket.on("disconnect", () => {
         const roomId = socket.data.roomId;
         if (!roomId) return;

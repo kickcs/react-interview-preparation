@@ -6,6 +6,11 @@ import type {
   TaskContent,
 } from "./room";
 import type { RoomErrorCode } from "./errors";
+import type {
+  ConsoleOutputPayload,
+  PeerConsoleOutputPayload,
+  PeerConsoleClearedPayload,
+} from "./console";
 
 export interface JoinAckOk {
   ok: true;
@@ -28,6 +33,8 @@ export interface ServerToClientEvents {
   "room:participant-status": (payload: { participantId: string; status: ParticipantStatus }) => void;
   "room:shared-code-updated": (payload: { participantId: string; code: string; language: Language }) => void;
   "room:shared-code-cleared": (payload: { participantId: string }) => void;
+  "room:peer-console-output": (payload: PeerConsoleOutputPayload) => void;
+  "room:peer-console-cleared": (payload: PeerConsoleClearedPayload) => void;
   "room:error": (payload: { code: RoomErrorCode; message: string }) => void;
 }
 
@@ -40,4 +47,6 @@ export interface ClientToServerEvents {
   "code:share": () => void;
   "code:unshare": () => void;
   "status:set": (payload: { status: ParticipantStatus }) => void;
+  "console:output": (payload: ConsoleOutputPayload) => void;
+  "console:clear": () => void;
 }

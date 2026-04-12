@@ -13,6 +13,6 @@ export const SANDPACK_FILES: Record<Language, string> = {
 };
 
 export const SANDPACK_OPTIONS = {
-  recompileMode: "delayed",
-  recompileDelay: 400,
+  autorun: false,
+  autoReload: false,
 } as const;

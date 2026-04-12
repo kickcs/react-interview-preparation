@@ -1,10 +1,15 @@
 "use client";
 import { Check, CircleDashed, EyeOff, Lock, Share2 } from "lucide-react";
+import { useStore } from "zustand";
+import { roomStore } from "@/shared/lib/room-store";
 import { ReadOnlyEditor } from "@/features/code-editor/ui/read-only-editor";
 import { PeerPanelCollapse } from "@/features/hide-peer-code/ui/peer-panel-collapse";
-import type { Language, ParticipantPublic } from "@/shared/contracts";
+import { PeerConsoleView } from "@/features/code-editor/ui/peer-console-view";
+import type { ConsoleMessage, Language, ParticipantPublic } from "@/shared/contracts";
 import { Badge } from "@/shared/ui/badge";
 import { cn } from "@/shared/lib/utils";
+
+const EMPTY_LOGS: ConsoleMessage[] = [];
 
 interface Props {
   participant: ParticipantPublic;
@@ -19,6 +24,10 @@ export function PeerEditorCell({
   collapsed,
   onToggleCollapsed,
 }: Props) {
+  const logs = useStore(
+    roomStore,
+    (s) => s.peerConsoles.get(participant.id) ?? EMPTY_LOGS,
+  );
   const ready = participant.status === "ready";
   const StatusIcon = ready ? Check : sharedCode ? Share2 : CircleDashed;
   const hidden = collapsed || !sharedCode;
@@ -58,8 +67,11 @@ export function PeerEditorCell({
           )}
         </div>
       ) : (
-        <div className="min-h-0 flex-1">
-          <ReadOnlyEditor value={sharedCode.code} language={sharedCode.language} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1">
+            <ReadOnlyEditor value={sharedCode!.code} language={sharedCode!.language} />
+          </div>
+          <PeerConsoleView logs={logs} />
         </div>
       )}
     </div>

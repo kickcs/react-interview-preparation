@@ -14,6 +14,9 @@ interface UIState {
   toggleSolution: (id: string) => void;
   allAnswersRevealed: boolean;
   toggleAllAnswersRevealed: () => void;
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+  setSidebarCollapsed: (value: boolean) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -61,12 +64,17 @@ export const useUIStore = create<UIState>()(
       allAnswersRevealed: false,
       toggleAllAnswersRevealed: () =>
         set((state) => ({ allAnswersRevealed: !state.allAnswersRevealed })),
+      sidebarCollapsed: false,
+      toggleSidebar: () =>
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      setSidebarCollapsed: (value) => set(() => ({ sidebarCollapsed: value })),
     }),
     {
       name: "ui-store",
       partialize: (state) => ({
         collapsedCategories: state.collapsedCategories,
         allAnswersRevealed: state.allAnswersRevealed,
+        sidebarCollapsed: state.sidebarCollapsed,
       }),
     }
   )

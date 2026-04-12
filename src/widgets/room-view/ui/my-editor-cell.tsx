@@ -3,7 +3,7 @@ import { Check, CircleDashed, Share2 } from "lucide-react";
 import { CodeEditor } from "@/features/code-editor/ui/code-editor";
 import { ShareCodeToggle } from "@/features/share-code/ui/share-code-toggle";
 import { ReadyToggle } from "@/features/ready-toggle/ui/ready-toggle";
-import type { Language, ParticipantStatus } from "@/shared/contracts";
+import type { ConsoleMessage, Language, ParticipantStatus } from "@/shared/contracts";
 import { Badge } from "@/shared/ui/badge";
 import { cn } from "@/shared/lib/utils";
 
@@ -16,6 +16,8 @@ interface Props {
   onCodeChange: (code: string) => void;
   onShareToggle: () => void;
   onStatusChange: (next: ParticipantStatus) => void;
+  onConsoleBatch?: (logs: ConsoleMessage[]) => void;
+  onConsoleClear?: () => void;
 }
 
 export function MyEditorCell({
@@ -27,6 +29,8 @@ export function MyEditorCell({
   onCodeChange,
   onShareToggle,
   onStatusChange,
+  onConsoleBatch,
+  onConsoleClear,
 }: Props) {
   const ready = status === "ready";
   const StatusIcon = ready ? Check : isSharing ? Share2 : CircleDashed;
@@ -52,7 +56,13 @@ export function MyEditorCell({
         </div>
       </div>
       <div className="min-h-0 flex-1">
-        <CodeEditor value={code} language={language} onChange={onCodeChange} />
+        <CodeEditor
+          value={code}
+          language={language}
+          onChange={onCodeChange}
+          onConsoleBatch={onConsoleBatch}
+          onConsoleClear={onConsoleClear}
+        />
       </div>
     </div>
   );

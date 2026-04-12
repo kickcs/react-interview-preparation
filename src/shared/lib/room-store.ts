@@ -1,11 +1,14 @@
 import { createStore } from "zustand/vanilla";
 import type {
+  ConsoleMessage,
   ParticipantPublic,
   ParticipantStatus,
   RoomSnapshot,
   Language,
   TaskContent,
 } from "@/shared/contracts";
+
+const MAX_PEER_LOG_BUFFER = 200;
 
 export interface SharedCode {
   code: string;
@@ -30,6 +33,7 @@ export interface RoomState {
   myStatus: ParticipantStatus;
   isSharing: boolean;
   task: TaskContent | null;
+  peerConsoles: Map<string, ConsoleMessage[]>;
 }
 
 export interface RoomActions {
@@ -47,6 +51,9 @@ export interface RoomActions {
   togglePeerCollapsed(id: string): void;
   reset(): void;
   allReady(): boolean;
+  appendPeerConsole(id: string, logs: ConsoleMessage[]): void;
+  clearPeerConsole(id: string): void;
+  removePeerConsole(id: string): void;
 }
 
 export type RoomStoreState = RoomState & RoomActions;
@@ -62,6 +69,7 @@ const initial = (): RoomState => ({
   myStatus: "thinking",
   isSharing: false,
   task: null,
+  peerConsoles: new Map(),
 });
 
 export function createRoomStore() {
@@ -83,7 +91,9 @@ export function createRoomStore() {
             sharedCodes.delete(event.payload.participantId);
             const collapsedPeers = new Set(state.collapsedPeers);
             collapsedPeers.delete(event.payload.participantId);
-            return { participants, sharedCodes, collapsedPeers };
+            const peerConsoles = new Map(state.peerConsoles);
+            peerConsoles.delete(event.payload.participantId);
+            return { participants, sharedCodes, collapsedPeers, peerConsoles };
           }
           case "room:participant-status": {
             const p = state.participants.get(event.payload.participantId);
@@ -109,7 +119,11 @@ export function createRoomStore() {
             const participants = new Map(state.participants);
             const p = participants.get(event.payload.participantId);
             if (p) participants.set(p.id, { ...p, hasSharedCode: false });
-            return { sharedCodes, participants };
+            const peerConsoles = new Map(state.peerConsoles);
+            if (peerConsoles.has(event.payload.participantId)) {
+              peerConsoles.set(event.payload.participantId, []);
+            }
+            return { sharedCodes, participants, peerConsoles };
           }
           default:
             return state;
@@ -128,6 +142,7 @@ export function createRoomStore() {
         participants,
         sharedCodes: sharedMap,
         collapsedPeers: new Set(),
+        peerConsoles: new Map(),
       });
     },
 
@@ -153,6 +168,35 @@ export function createRoomStore() {
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return { collapsedPeers: next };
+      });
+    },
+
+    appendPeerConsole(id, logs) {
+      set((state) => {
+        const next = new Map(state.peerConsoles);
+        const current = next.get(id) ?? [];
+        const combined = current.concat(logs);
+        const trimmed = combined.length > MAX_PEER_LOG_BUFFER
+          ? combined.slice(combined.length - MAX_PEER_LOG_BUFFER)
+          : combined;
+        next.set(id, trimmed);
+        return { peerConsoles: next };
+      });
+    },
+
+    clearPeerConsole(id) {
+      set((state) => {
+        const next = new Map(state.peerConsoles);
+        next.set(id, []);
+        return { peerConsoles: next };
+      });
+    },
+
+    removePeerConsole(id) {
+      set((state) => {
+        const next = new Map(state.peerConsoles);
+        next.delete(id);
+        return { peerConsoles: next };
       });
     },
 
