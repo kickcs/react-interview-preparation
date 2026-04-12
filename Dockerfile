@@ -1,10 +1,16 @@
 FROM oven/bun:1-alpine AS base
 
-# --- Dependencies ---
+# --- Dependencies (full, for build) ---
 FROM base AS deps
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
+
+# --- Production deps (for ws-server runtime) ---
+FROM base AS prod-deps
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --production --frozen-lockfile
 
 # --- Build ---
 FROM base AS builder
@@ -31,21 +37,13 @@ COPY --from=builder /app/content ./content
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/dist-server ./dist-server
-
-# ws-server runtime deps (standalone tracing doesn't see src-server/)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/fastify ./node_modules/fastify
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@fastify ./node_modules/@fastify
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/socket.io ./node_modules/socket.io
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/engine.io ./node_modules/engine.io
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/socket.io-adapter ./node_modules/socket.io-adapter
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/socket.io-parser ./node_modules/socket.io-parser
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/engine.io-parser ./node_modules/engine.io-parser
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/nanoid ./node_modules/nanoid
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pino ./node_modules/pino
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pino-std-serializers ./node_modules/pino-std-serializers
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/gray-matter ./node_modules/gray-matter
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+# Overlay production node_modules with full transitive trees for ws-server deps.
+# Standalone output already provides Next's own deps; this adds fastify/socket.io/etc
+# with all their transitive dependencies (which selective COPY cannot do because
+# bun installs them hoisted to the flat node_modules root).
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000 3001
