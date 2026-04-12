@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN bun run build:next
-RUN bunx tsc -p tsconfig.server.json
+RUN bun run build:ws
 
 # --- Runner ---
 FROM node:20-alpine AS runner
