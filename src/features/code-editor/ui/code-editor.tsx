@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   SandpackProvider,
   SandpackCodeEditor,
@@ -15,12 +15,29 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
 }
 
-function ChangeBridge({ onChange, file }: { onChange: (v: string) => void; file: string }) {
+function ChangeBridge({
+  value,
+  onChange,
+  file,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  file: string;
+}) {
   const { sandpack } = useSandpack();
   const code = sandpack.files[file]?.code ?? "";
+  const onChangeRef = useRef(onChange);
+
   useEffect(() => {
-    onChange(code);
-  }, [code, onChange]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (code !== value) {
+      onChangeRef.current(code);
+    }
+  }, [code, value]);
+
   return null;
 }
 
@@ -42,7 +59,7 @@ export function CodeEditor({ value, language, onChange }: CodeEditorProps) {
           <SandpackConsole />
         </div>
       </div>
-      <ChangeBridge onChange={onChange} file={file} />
+      <ChangeBridge value={value} onChange={onChange} file={file} />
     </SandpackProvider>
   );
 }
