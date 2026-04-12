@@ -45,11 +45,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/nanoid ./node_module
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pino ./node_modules/pino
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pino-std-serializers ./node_modules/pino-std-serializers
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/gray-matter ./node_modules/gray-matter
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/concurrently ./node_modules/concurrently
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
 USER nextjs
 EXPOSE 3000 3001
 
-CMD ["node", "node_modules/concurrently/dist/bin/concurrently.js", "--kill-others-on-fail", \
-     "node server.js", \
-     "node dist-server/src-server/ws-server.js"]
+CMD ["node", "scripts/start-prod.js"]
