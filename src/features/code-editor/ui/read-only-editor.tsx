@@ -1,4 +1,5 @@
 "use client";
+import { useMemo } from "react";
 import {
   SandpackProvider,
   SandpackCodeEditor,
@@ -12,11 +13,16 @@ interface ReadOnlyEditorProps {
 }
 
 export function ReadOnlyEditor({ value, language }: ReadOnlyEditorProps) {
+  const file = SANDPACK_FILES[language];
+  const files = useMemo(
+    () => ({ [file]: { code: value, active: true } }),
+    [file, value],
+  );
   return (
     <SandpackProvider
       template={SANDPACK_TEMPLATES[language]}
       theme="dark"
-      files={{ [SANDPACK_FILES[language]]: { code: value, active: true } }}
+      files={files}
     >
       <SandpackCodeEditor
         readOnly

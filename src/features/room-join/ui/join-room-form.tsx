@@ -1,6 +1,11 @@
 "use client";
 import { useState } from "react";
-import { isValidNickname } from "@/entities/room/lib/is-valid-nickname";
+import {
+  MAX_PARTICIPANTS,
+  NICKNAME_MAX_LEN,
+  ROOM_ERROR_LABELS,
+  validateNickname,
+} from "@/shared/contracts";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Badge } from "@/shared/ui/badge";
@@ -17,11 +22,13 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = () => {
-    if (!isValidNickname(nickname)) {
-      setError("Никнейм 1–20 символов без < >");
+    setError(null);
+    const check = validateNickname(nickname);
+    if (!check.ok) {
+      setError(ROOM_ERROR_LABELS.NICKNAME_INVALID);
       return;
     }
-    onSubmit(nickname.trim());
+    onSubmit(check.value);
   };
 
   return (
@@ -33,7 +40,7 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
           </p>
           <p className="mt-1 font-mono text-sm font-medium">{roomId}</p>
         </div>
-        <Badge variant="outline">{participantCount}/4</Badge>
+        <Badge variant="outline">{participantCount}/{MAX_PARTICIPANTS}</Badge>
       </div>
 
       <div className="my-5 border-t border-border" />
@@ -47,7 +54,7 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSubmit();
           }}
-          maxLength={20}
+          maxLength={NICKNAME_MAX_LEN}
           placeholder="alice"
           autoFocus
         />

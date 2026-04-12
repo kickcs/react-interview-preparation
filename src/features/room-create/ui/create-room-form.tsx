@@ -1,13 +1,17 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { TaskSource } from "@/shared/contracts";
-import { isValidNickname } from "@/entities/room/lib/is-valid-nickname";
+import {
+  NICKNAME_MAX_LEN,
+  ROOM_ERROR_LABELS,
+  validateNickname,
+  type TaskSource,
+} from "@/shared/contracts";
 import { WS_BASE_URL } from "@/shared/config/ws";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { Textarea } from "@/shared/ui/textarea";
 import { FieldLabel } from "@/shared/ui/field-label";
-import { cn } from "@/shared/lib/utils";
 
 interface CatalogOption {
   category: string;
@@ -19,8 +23,8 @@ interface CreateRoomFormProps {
   catalog: CatalogOption[];
 }
 
-const fieldClasses =
-  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 dark:bg-input/30";
+const selectClasses =
+  "h-9 w-full min-w-0 appearance-none rounded-lg border border-input bg-transparent px-2.5 py-1 pr-8 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 dark:bg-input/30";
 
 export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
   const router = useRouter();
@@ -33,8 +37,10 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
   const [pending, start] = useTransition();
 
   const submit = () => {
-    if (!isValidNickname(nickname)) {
-      setError("Никнейм 1–20 символов без < >");
+    setError(null);
+    const nickCheck = validateNickname(nickname);
+    if (!nickCheck.ok) {
+      setError(ROOM_ERROR_LABELS.NICKNAME_INVALID);
       return;
     }
     let taskSource: TaskSource;
@@ -66,7 +72,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
           return;
         }
         const { id } = (await res.json()) as { id: string };
-        sessionStorage.setItem(`rooms.nickname.${id}`, nickname.trim());
+        sessionStorage.setItem(`rooms.nickname.${id}`, nickCheck.value);
         router.push(`/rooms/${id}`);
       } catch {
         setError("Сервер недоступен");
@@ -103,7 +109,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
           <FieldLabel htmlFor="room-task">Задача</FieldLabel>
           <select
             id="room-task"
-            className={cn(fieldClasses, "appearance-none pr-8")}
+            className={selectClasses}
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
           >
@@ -127,12 +133,12 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
           </div>
           <div className="space-y-2">
             <FieldLabel htmlFor="room-md">Условие (Markdown)</FieldLabel>
-            <textarea
+            <Textarea
               id="room-md"
               rows={8}
               value={customMd}
               onChange={(e) => setCustomMd(e.target.value)}
-              className={cn(fieldClasses, "h-auto py-2 font-mono leading-relaxed resize-y")}
+              className="font-mono leading-relaxed resize-y"
               placeholder="## Задача..."
             />
           </div>
@@ -147,7 +153,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
           id="room-nickname"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
-          maxLength={20}
+          maxLength={NICKNAME_MAX_LEN}
           placeholder="alice"
         />
       </div>

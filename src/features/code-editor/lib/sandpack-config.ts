@@ -11,3 +11,8 @@ export const SANDPACK_FILES: Record<Language, string> = {
   ts: "/index.ts",
   react: "/App.tsx",
 };
+
+export const SANDPACK_OPTIONS = {
+  recompileMode: "delayed",
+  recompileDelay: 400,
+} as const;

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   SandpackProvider,
   SandpackCodeEditor,
@@ -7,7 +7,11 @@ import {
   useSandpack,
 } from "@codesandbox/sandpack-react";
 import type { Language } from "@/shared/contracts";
-import { SANDPACK_TEMPLATES, SANDPACK_FILES } from "../lib/sandpack-config";
+import {
+  SANDPACK_TEMPLATES,
+  SANDPACK_FILES,
+  SANDPACK_OPTIONS,
+} from "../lib/sandpack-config";
 
 interface CodeEditorProps {
   value: string;
@@ -44,12 +48,16 @@ function ChangeBridge({
 export function CodeEditor({ value, language, onChange }: CodeEditorProps) {
   const template = SANDPACK_TEMPLATES[language];
   const file = SANDPACK_FILES[language];
+  const files = useMemo(
+    () => ({ [file]: { code: value, active: true } }),
+    [file, value],
+  );
   return (
     <SandpackProvider
       template={template}
       theme="dark"
-      files={{ [file]: { code: value, active: true } }}
-      options={{ recompileMode: "delayed", recompileDelay: 400 }}
+      files={files}
+      options={SANDPACK_OPTIONS}
     >
       <div className="flex h-full flex-col">
         <div className="min-h-0 flex-1">
