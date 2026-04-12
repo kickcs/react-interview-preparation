@@ -1,0 +1,132 @@
+---
+title: "Фильтрация пользователей из API"
+order: 12
+---
+
+Дан список пользователей, который уже пришёл с API. Нужно реализовать поиск по имени, фильтр по роли и сортировку по имени. В результате на экране должны показываться только подходящие пользователи.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+const apiUsers = [
+  { id: 1, name: 'Alice Johnson', role: 'admin', active: true },
+  { id: 2, name: 'Bob Smith', role: 'user', active: false },
+  { id: 3, name: 'Charlie Brown', role: 'user', active: true },
+  { id: 4, name: 'Diana Miller', role: 'manager', active: true },
+  { id: 5, name: 'Eve Davis', role: 'admin', active: false },
+];
+
+export default function App() {
+  const [query, setQuery] = useState('');
+  const [role, setRole] = useState('all');
+  const [sort, setSort] = useState('asc');
+
+  const filteredUsers = apiUsers;
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search by name"
+      />
+
+      <select value={role} onChange={e => setRole(e.target.value)}>
+        <option value="all">All roles</option>
+        <option value="admin">Admin</option>
+        <option value="manager">Manager</option>
+        <option value="user">User</option>
+      </select>
+
+      <select value={sort} onChange={e => setSort(e.target.value)}>
+        <option value="asc">A-Z</option>
+        <option value="desc">Z-A</option>
+      </select>
+
+      <ul>
+        {filteredUsers.map(user => (
+          <li key={user.id}>
+            {user.name} — {user.role} — {user.active ? 'active' : 'inactive'}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Сначала сделайте `.filter(...)` по `query`, приводя и строку поиска, и `user.name` к нижнему регистру.
+</Hint>
+
+<Hint title="Подсказка 2">
+Добавьте второй фильтр по роли: если выбрано `all`, пропускайте всех. Затем скопируйте массив через `[...filtered]` и отсортируйте по `name`.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+const apiUsers = [
+  { id: 1, name: 'Alice Johnson', role: 'admin', active: true },
+  { id: 2, name: 'Bob Smith', role: 'user', active: false },
+  { id: 3, name: 'Charlie Brown', role: 'user', active: true },
+  { id: 4, name: 'Diana Miller', role: 'manager', active: true },
+  { id: 5, name: 'Eve Davis', role: 'admin', active: false },
+];
+
+export default function App() {
+  const [query, setQuery] = useState('');
+  const [role, setRole] = useState('all');
+  const [sort, setSort] = useState('asc');
+
+  const filteredUsers = apiUsers
+    .filter(user => {
+      const matchesQuery = user.name.toLowerCase().includes(query.toLowerCase());
+      const matchesRole = role === 'all' || user.role === role;
+
+      return matchesQuery && matchesRole;
+    })
+    .sort((a, b) => {
+      const result = a.name.localeCompare(b.name);
+      return sort === 'asc' ? result : -result;
+    });
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search by name"
+      />
+
+      <select value={role} onChange={e => setRole(e.target.value)}>
+        <option value="all">All roles</option>
+        <option value="admin">Admin</option>
+        <option value="manager">Manager</option>
+        <option value="user">User</option>
+      </select>
+
+      <select value={sort} onChange={e => setSort(e.target.value)}>
+        <option value="asc">A-Z</option>
+        <option value="desc">Z-A</option>
+      </select>
+
+      <ul>
+        {filteredUsers.map(user => (
+          <li key={user.id}>
+            {user.name} — {user.role} — {user.active ? 'active' : 'inactive'}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+</Solution>

@@ -1,0 +1,100 @@
+---
+title: "Компонент Accordion"
+order: 11
+---
+
+Напишите компонент `Accordion`, который принимает массив секций и позволяет раскрывать только **одну** секцию за раз. При повторном клике по уже открытой секции она должна закрываться.
+
+<StarterCode>
+
+```jsx
+import { useState } from 'react';
+
+const items = [
+  {
+    id: 1,
+    title: 'Что такое React?',
+    content: 'React — библиотека для построения пользовательских интерфейсов.',
+  },
+  {
+    id: 2,
+    title: 'Что такое props?',
+    content: 'Props — входные данные компонента, которые приходят от родителя.',
+  },
+  {
+    id: 3,
+    title: 'Что такое state?',
+    content: 'State — внутреннее состояние компонента, которое может меняться со временем.',
+  },
+];
+
+function Accordion({ items }) {
+  // Ваш код здесь
+}
+
+export default function App() {
+  return <Accordion items={items} />;
+}
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Храните `activeId` в `useState`. Если пользователь кликает по уже открытой секции, сбрасывайте его в `null`.
+</Hint>
+
+<Hint title="Подсказка 2">
+Сделайте `map` по `items`, рендерите кнопку с заголовком и условно показывайте содержимое, если `item.id === activeId`.
+</Hint>
+
+<Solution>
+
+```jsx
+import { useState } from 'react';
+
+const items = [
+  {
+    id: 1,
+    title: 'Что такое React?',
+    content: 'React — библиотека для построения пользовательских интерфейсов.',
+  },
+  {
+    id: 2,
+    title: 'Что такое props?',
+    content: 'Props — входные данные компонента, которые приходят от родителя.',
+  },
+  {
+    id: 3,
+    title: 'Что такое state?',
+    content: 'State — внутреннее состояние компонента, которое может меняться со временем.',
+  },
+];
+
+function Accordion({ items }) {
+  const [activeId, setActiveId] = useState(null);
+
+  function handleToggle(id) {
+    setActiveId(currentId => (currentId === id ? null : id));
+  }
+
+  return (
+    <div>
+      {items.map(item => (
+        <div key={item.id}>
+          <button onClick={() => handleToggle(item.id)}>
+            {item.title}
+          </button>
+
+          {item.id === activeId ? <p>{item.content}</p> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function App() {
+  return <Accordion items={items} />;
+}
+```
+
+</Solution>

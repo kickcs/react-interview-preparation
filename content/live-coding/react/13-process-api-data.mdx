@@ -1,0 +1,93 @@
+---
+title: "Обработка данных из API"
+order: 13
+---
+
+С API пришли два массива: пользователи и заказы. Подготовьте данные для UI: для каждого пользователя нужно посчитать количество заказов, общую сумму и добавить флаг `isVip`, если сумма заказов больше 500.
+
+<StarterCode>
+
+```jsx
+const apiResponse = {
+  users: [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+    { id: 3, name: 'Charlie' },
+  ],
+  orders: [
+    { id: 101, userId: 1, total: 120 },
+    { id: 102, userId: 1, total: 430 },
+    { id: 103, userId: 2, total: 80 },
+    { id: 104, userId: 1, total: 70 },
+    { id: 105, userId: 3, total: 600 },
+  ],
+};
+
+function buildUsersSummary(response) {
+  // Ваш код здесь
+}
+
+const result = buildUsersSummary(apiResponse);
+
+console.log(result);
+// [
+//   { id: 1, name: 'Alice', ordersCount: 3, totalSpent: 620, isVip: true },
+//   { id: 2, name: 'Bob', ordersCount: 1, totalSpent: 80, isVip: false },
+//   { id: 3, name: 'Charlie', ordersCount: 1, totalSpent: 600, isVip: true },
+// ]
+```
+
+</StarterCode>
+
+<Hint title="Подсказка 1">
+Для каждого пользователя отфильтруйте `orders` по `userId`, затем через `reduce` посчитайте сумму заказов.
+</Hint>
+
+<Hint title="Подсказка 2">
+Верните новый массив через `users.map(...)`, не мутируя исходный ответ API.
+</Hint>
+
+<Solution>
+
+```jsx
+const apiResponse = {
+  users: [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+    { id: 3, name: 'Charlie' },
+  ],
+  orders: [
+    { id: 101, userId: 1, total: 120 },
+    { id: 102, userId: 1, total: 430 },
+    { id: 103, userId: 2, total: 80 },
+    { id: 104, userId: 1, total: 70 },
+    { id: 105, userId: 3, total: 600 },
+  ],
+};
+
+function buildUsersSummary(response) {
+  return response.users.map(user => {
+    const userOrders = response.orders.filter(order => order.userId === user.id);
+    const totalSpent = userOrders.reduce((sum, order) => sum + order.total, 0);
+
+    return {
+      id: user.id,
+      name: user.name,
+      ordersCount: userOrders.length,
+      totalSpent,
+      isVip: totalSpent > 500,
+    };
+  });
+}
+
+const result = buildUsersSummary(apiResponse);
+
+console.log(result);
+// [
+//   { id: 1, name: 'Alice', ordersCount: 3, totalSpent: 620, isVip: true },
+//   { id: 2, name: 'Bob', ordersCount: 1, totalSpent: 80, isVip: false },
+//   { id: 3, name: 'Charlie', ordersCount: 1, totalSpent: 600, isVip: true },
+// ]
+```
+
+</Solution>
