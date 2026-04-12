@@ -1,0 +1,6 @@
+{
+  "title": "Security",
+  "order": 17,
+  "description": "OWASP Top 10, JWT/OAuth2, RBAC, шифрование, CSP, rate limiting, HIPAA, audit logging",
+  "icon": "shield"
+}

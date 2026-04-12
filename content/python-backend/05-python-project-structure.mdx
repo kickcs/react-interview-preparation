@@ -1,0 +1,85 @@
+---
+title: "Структура Python backend проекта: clean architecture и слои"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A well-structured Python backend separates concerns into distinct layers, making the codebase testable and scalable. The standard approach for FastAPI projects is a **routers / services / repositories** layering, loosely inspired by Clean Architecture. **Routers** (or controllers) handle HTTP concerns: parsing requests, calling services, formatting responses. **Services** contain business logic and orchestration — they are framework-agnostic and should be unit-testable without a running server. **Repositories** abstract data access — all SQL or ORM calls live here, never in services or routers.
+
+The rule: **dependencies point inward**. Routers depend on services, services depend on repositories and external adapters, but repositories know nothing about services or HTTP. This means you can swap PostgreSQL for Redis in a repository without touching any business logic. For AI/LLM backends, add an `integrations/` layer for third-party APIs (OpenAI, Anthropic, AWS Bedrock) — these are adapters, not services.
+
+Common mistakes to avoid: putting database queries directly in route handlers (untestable, mixed concerns); giant `main.py` files; using global mutable state instead of dependency injection; flat `models.py` files that mix SQLAlchemy ORM models, Pydantic schemas, and domain entities. Keep SQLAlchemy ORM models in `db/models.py`, Pydantic request/response schemas in `schemas/`, and pure domain dataclasses in `domain/` if needed.
+
+</Answer>
+<Answer lang="ru">
+
+Хорошо структурированный Python-бэкенд разделяет ответственности на чёткие слои, делая кодовую базу тестируемой и масштабируемой. Стандартный подход для FastAPI-проектов — разделение **routers / services / repositories**, вдохновлённое принципами Clean Architecture. **Routers** (контроллеры) обрабатывают HTTP-аспекты: разбор запросов, вызов сервисов, форматирование ответов. **Services** содержат бизнес-логику и оркестрацию — они независимы от фреймворка и должны быть unit-тестируемыми без запущенного сервера. **Repositories** абстрагируют доступ к данным — все SQL или ORM-вызовы живут здесь, но не в сервисах или роутерах.
+
+Правило: **зависимости направлены внутрь**. Роутеры зависят от сервисов, сервисы — от репозиториев и внешних адаптеров, а репозитории ничего не знают о сервисах или HTTP. Это позволяет заменить PostgreSQL на Redis в репозитории, не трогая бизнес-логику. Для AI/LLM-бэкендов добавьте слой `integrations/` для сторонних API (OpenAI, Anthropic, AWS Bedrock) — это адаптеры, не сервисы.
+
+Типичные ошибки: запросы к БД прямо в обработчиках маршрутов (нетестируемо, смешивание ответственностей); гигантские `main.py`; использование глобального изменяемого состояния вместо DI; плоские `models.py`, смешивающие ORM-модели SQLAlchemy, Pydantic-схемы и доменные сущности. Держите ORM-модели в `db/models.py`, Pydantic-схемы в `schemas/`, а чистые доменные датаклассы в `domain/` при необходимости.
+
+</Answer>
+</AnswerGroup>
+
+```txt
+# Recommended project layout for a FastAPI + AI backend
+my_backend/
+├── app/
+│   ├── main.py                  # FastAPI app factory + lifespan
+│   ├── config.py                # BaseSettings
+│   ├── routers/                 # HTTP layer only
+│   │   ├── __init__.py
+│   │   ├── chat.py              # /chat endpoints
+│   │   ├── users.py
+│   │   └── documents.py
+│   ├── services/                # Business logic (no HTTP, no SQL)
+│   │   ├── chat_service.py
+│   │   ├── user_service.py
+│   │   └── document_service.py
+│   ├── repositories/            # Data access (SQL/ORM only)
+│   │   ├── user_repo.py
+│   │   └── document_repo.py
+│   ├── integrations/            # Third-party adapters
+│   │   ├── openai_client.py
+│   │   ├── bedrock_client.py
+│   │   └── s3_client.py
+│   ├── db/
+│   │   ├── session.py           # Engine + session factory
+│   │   └── models.py            # SQLAlchemy ORM models
+│   └── schemas/                 # Pydantic request/response schemas
+│       ├── chat.py
+│       └── user.py
+└── tests/
+    ├── unit/                    # Test services with mocked repos
+    └── integration/             # Test routers with httpx AsyncClient
+```
+
+```python
+# app/services/chat_service.py — pure business logic, no HTTP or SQL
+from app.integrations.openai_client import OpenAIClient
+from app.repositories.document_repo import DocumentRepository
+from app.schemas.chat import ChatRequest, ChatResponse
+
+
+class ChatService:
+    def __init__(
+        self,
+        document_repo: DocumentRepository,
+        llm_client: OpenAIClient,
+    ) -> None:
+        self._repo = document_repo
+        self._llm = llm_client
+
+    async def answer(self, req: ChatRequest) -> ChatResponse:
+        # RAG: fetch relevant docs, then call LLM
+        docs = await self._repo.search_similar(req.query, limit=5)
+        context = "\n".join(d.content for d in docs)
+        reply = await self._llm.complete(
+            system=f"Use this context:\n{context}",
+            user=req.query,
+        )
+        return ChatResponse(reply=reply, sources=[d.id for d in docs])
+```

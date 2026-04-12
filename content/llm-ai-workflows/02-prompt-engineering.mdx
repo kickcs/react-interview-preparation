@@ -1,0 +1,97 @@
+---
+title: "Что такое prompt engineering и какие техники работают на практике?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Prompt engineering** is the practice of designing inputs to LLMs to reliably produce the desired output. The **system prompt** sets the model's role, constraints, and output format — it is evaluated once and cached efficiently. The **user prompt** contains the actual task. Separating these concerns is important: system prompts define invariant instructions; user prompts contain variable data. In the Anthropic API, a well-crafted system prompt can dramatically improve consistency across many user turns.
+
+Key techniques: **Few-shot prompting** provides 2–5 examples of input-output pairs before the actual task — this is more reliable than describing the desired behavior in prose, especially for formatting and classification tasks. **Chain-of-thought (CoT)** asks the model to reason step-by-step before giving a final answer (`"Think step by step before answering"`), improving accuracy on multi-step reasoning. For reliability in production, **JSON mode** or **structured output** (with a Zod/Pydantic schema) eliminates parsing fragility — the model is constrained to valid JSON matching your schema.
+
+**Temperature** and **top_p** control randomness: `temperature=0` makes output deterministic (best for classification, extraction, structured output); `temperature=0.7` allows creative variation (better for generation tasks). **Role prompting** (`"You are an expert data analyst..."`) improves domain-specific quality. Critical pitfalls: prompts longer than ~5k tokens often cause models to "forget" middle instructions (lost-in-the-middle problem) — put the most important instructions at the start and end. **Prompt injection** from user content is a real attack vector — always clearly delimit user-provided data from instructions using XML tags or other unambiguous markers.
+
+</Answer>
+<Answer lang="ru">
+
+**Prompt engineering** — практика проектирования входных данных для LLM с целью надёжного получения нужного вывода. **System prompt** задаёт роль модели, ограничения и формат вывода — вычисляется один раз и эффективно кешируется. **User prompt** содержит конкретную задачу. Разделение этих concerns важно: system prompts определяют инвариантные инструкции; user prompts содержат переменные данные. В Anthropic API хорошо составленный system prompt значительно улучшает стабильность результатов.
+
+Ключевые техники: **Few-shot prompting** предоставляет 2–5 примеров пар ввод-вывод перед реальной задачей — это надёжнее описания желаемого поведения в прозе, особенно для форматирования и классификации. **Chain-of-thought (CoT)** просит модель рассуждать пошагово перед финальным ответом (`"Думай шаг за шагом"`), улучшая точность на многошаговых рассуждениях. Для надёжности в production **JSON mode** или **structured output** (со схемой Zod/Pydantic) устраняют хрупкость парсинга.
+
+**Temperature** и **top_p** управляют случайностью: `temperature=0` делает вывод детерминированным (лучше для классификации, извлечения, structured output); `temperature=0.7` допускает вариацию (лучше для генерации). **Role prompting** (`"Ты эксперт-аналитик данных..."`) улучшает качество в профессиональной области. Ключевые ловушки: промпты длиннее ~5k токенов часто приводят к "забыванию" инструкций в середине (lost-in-the-middle) — важнейшие инструкции должны быть в начале и конце. **Prompt injection** из пользовательского контента — реальный вектор атаки: всегда явно разделяй пользовательские данные и инструкции с помощью XML-тегов или других однозначных маркеров.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Prompt engineering: system/user разделение, few-shot, structured output
+
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+
+const client = new Anthropic();
+
+// Схема для structured output
+const ClassificationSchema = z.object({
+  category: z.enum(["billing", "technical", "general", "complaint", "feature_request"]),
+  urgency: z.enum(["low", "medium", "high", "critical"]),
+  sentiment: z.enum(["positive", "neutral", "negative"]),
+  summary: z.string().max(100),
+  requiresHuman: z.boolean(),
+});
+
+type Classification = z.infer<typeof ClassificationSchema>;
+
+// System prompt — инвариантные инструкции, кешируется
+const SYSTEM_PROMPT = `You are a customer support ticket classifier for a B2B SaaS platform.
+
+Classify support tickets into structured JSON. Always respond with valid JSON only — no prose, no markdown.
+
+Examples:
+Input: "I can't log into my account since the update yesterday"
+Output: {"category":"technical","urgency":"high","sentiment":"negative","summary":"Login broken after update","requiresHuman":false}
+
+Input: "Invoice #4521 shows wrong amount, we need a refund"
+Output: {"category":"billing","urgency":"high","sentiment":"negative","summary":"Invoice amount incorrect, refund requested","requiresHuman":true}
+
+Input: "Would love to see dark mode in the dashboard"
+Output: {"category":"feature_request","urgency":"low","sentiment":"positive","summary":"Dark mode feature request","requiresHuman":false}
+
+Rules:
+- requiresHuman=true for billing disputes, legal threats, and critical outages
+- urgency=critical only for complete service outages affecting production
+- summary must be under 100 characters`;
+
+async function classifyTicket(userMessage: string): Promise<Classification> {
+  // Prompt injection defense: wrap user content in XML tags
+  const safeUserContent = `<ticket>\n${userMessage.slice(0, 2000)}\n</ticket>`;
+
+  const response = await client.messages.create({
+    model: "claude-3-5-haiku-20241022",
+    max_tokens: 256,
+    temperature: 0,  // deterministic for classification
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: safeUserContent }],
+  });
+
+  const text = (response.content[0] as { text: string }).text;
+
+  // Parse and validate with Zod
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`LLM returned non-JSON: ${text.slice(0, 200)}`);
+  }
+
+  return ClassificationSchema.parse(parsed); // throws ZodError on schema mismatch
+}
+
+// Usage
+const result = await classifyTicket(
+  "Our entire team is locked out since 9am. This is blocking all production work. Please fix ASAP."
+);
+// { category: 'technical', urgency: 'critical', sentiment: 'negative',
+//   summary: 'Full team lockout blocking production', requiresHuman: false }
+```

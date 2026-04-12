@@ -1,0 +1,97 @@
+---
+title: "Как правильно реализовать шифрование данных at rest и in transit?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Encryption in transit** protects data moving across networks. The standard is **TLS 1.3**, which is faster (1-RTT handshake) and more secure than TLS 1.2 (removed weak cipher suites like RC4, 3DES, SHA-1). In production, enforce a minimum TLS version, use HSTS with a long `max-age`, and pin certificates for internal service-to-service communication. Never terminate TLS at a load balancer and pass plaintext to backend services without re-encrypting — use **mTLS** (mutual TLS) for internal service mesh communication.
+
+**Encryption at rest** protects data on disk, in backups, and in object storage. **AES-256-GCM** is the standard symmetric cipher — it provides both confidentiality and integrity (AEAD). The real challenge is **key management**. Storing encryption keys alongside the data they protect defeats the purpose. **KMS (AWS KMS, Google Cloud KMS, Azure Key Vault)** or **HashiCorp Vault** are the right tools: keys never leave the HSM boundary, all key operations are audited, and you can rotate keys without re-encrypting all data immediately.
+
+**Envelope encryption** is the pattern used by all major cloud providers: a **Data Encryption Key (DEK)** encrypts the actual data; the DEK itself is then encrypted by a **Key Encryption Key (KEK)** stored in KMS. To decrypt: call KMS to decrypt the DEK, then use the DEK locally. This means KMS is only called once per session/record, not per byte of data. For PHI (Protected Health Information) under HIPAA, each patient's data should ideally be encrypted with a distinct DEK to limit blast radius on key compromise.
+
+</Answer>
+<Answer lang="ru">
+
+**Шифрование in transit** защищает данные при передаче по сети. Стандарт — **TLS 1.3**: быстрее (1-RTT handshake) и безопаснее TLS 1.2 (удалены слабые cipher suites: RC4, 3DES, SHA-1). В production: минимальная версия TLS, HSTS с длинным `max-age`, пиннинг сертификатов для внутреннего межсервисного взаимодействия. Никогда не терминируй TLS на балансировщике, передавая plaintext на бэкенд без повторного шифрования — используй **mTLS** для внутренней service mesh коммуникации.
+
+**Шифрование at rest** защищает данные на диске, в бэкапах и объектном хранилище. Стандартный симметричный алгоритм — **AES-256-GCM**: обеспечивает и конфиденциальность, и целостность (AEAD). Главная сложность — **управление ключами**. Хранить ключи шифрования рядом с зашифрованными данными бессмысленно. **KMS (AWS KMS, Google Cloud KMS, Azure Key Vault)** или **HashiCorp Vault** — правильные инструменты: ключи никогда не покидают HSM, все операции аудируются, ключи можно ротировать без немедленного перешифрования данных.
+
+**Envelope encryption** — паттерн, используемый всеми облачными провайдерами: **DEK (Data Encryption Key)** шифрует сами данные; DEK шифруется **KEK (Key Encryption Key)** из KMS. Для расшифровки: вызвать KMS для расшифровки DEK, затем использовать DEK локально. KMS вызывается один раз на сессию/запись, а не на каждый байт. Для PHI (персональные медицинские данные) по требованиям HIPAA каждый пациент должен иметь отдельный DEK — это ограничивает ущерб при компрометации ключа.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Envelope encryption с AWS KMS в TypeScript
+
+import { KMSClient, GenerateDataKeyCommand, DecryptCommand } from "@aws-sdk/client-kms";
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+
+const kms = new KMSClient({ region: process.env.AWS_REGION });
+const MASTER_KEY_ARN = process.env.KMS_MASTER_KEY_ARN!;
+
+interface EncryptedPayload {
+  encryptedDek: string;   // base64, encrypted by KMS
+  iv: string;             // base64, AES-GCM initialization vector
+  ciphertext: string;     // base64
+  authTag: string;        // base64, GCM authentication tag
+}
+
+// Encrypt — вызывается при сохранении PHI
+export async function encryptPHI(plaintext: string): Promise<EncryptedPayload> {
+  // 1. Запросить DEK у KMS (plaintext DEK используется локально и не сохраняется)
+  const { Plaintext: dek, CiphertextBlob: encryptedDek } = await kms.send(
+    new GenerateDataKeyCommand({ KeyId: MASTER_KEY_ARN, KeySpec: "AES_256" })
+  );
+
+  if (!dek || !encryptedDek) throw new Error("KMS key generation failed");
+
+  // 2. Шифровать данные локально (AES-256-GCM)
+  const iv = randomBytes(12); // 96-bit IV для GCM
+  const cipher = createCipheriv("aes-256-gcm", Buffer.from(dek), iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  // 3. DEK из памяти больше не нужен
+  dek.fill(0); // zero out plaintext DEK
+
+  return {
+    encryptedDek: Buffer.from(encryptedDek).toString("base64"),
+    iv: iv.toString("base64"),
+    ciphertext: encrypted.toString("base64"),
+    authTag: authTag.toString("base64"),
+  };
+}
+
+// Decrypt — вызывается при чтении PHI
+export async function decryptPHI(payload: EncryptedPayload): Promise<string> {
+  // 1. Расшифровать DEK через KMS (каждый вызов логируется в CloudTrail)
+  const { Plaintext: dek } = await kms.send(
+    new DecryptCommand({
+      KeyId: MASTER_KEY_ARN,
+      CiphertextBlob: Buffer.from(payload.encryptedDek, "base64"),
+    })
+  );
+
+  if (!dek) throw new Error("KMS decryption failed");
+
+  // 2. Расшифровать данные локально
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(dek),
+    Buffer.from(payload.iv, "base64")
+  );
+  decipher.setAuthTag(Buffer.from(payload.authTag, "base64"));
+
+  const plaintext = Buffer.concat([
+    decipher.update(Buffer.from(payload.ciphertext, "base64")),
+    decipher.final(),
+  ]).toString("utf8");
+
+  dek.fill(0);
+  return plaintext;
+}
+```

@@ -1,0 +1,83 @@
+---
+title: "Почему PostgreSQL: MVCC, JSONB, расширения и типы сканирования"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**PostgreSQL** is the go-to relational database for modern backend applications because it combines ACID guarantees with features typically found only in specialized databases. Its **MVCC (Multi-Version Concurrency Control)** model means readers never block writers and writers never block readers — each transaction sees a consistent snapshot of the data. Unlike MySQL's locking-based concurrency, Postgres maintains multiple row versions and uses a background **VACUUM** process to reclaim dead tuples. This makes Postgres excellent for read-heavy workloads with concurrent writes.
+
+**JSONB** is a first-class binary JSON column type that supports indexing with GIN indexes — enabling efficient querying of JSON fields without a full table scan. This eliminates the need for a separate document store (MongoDB) in many cases. Extensions dramatically expand PostgreSQL's capabilities: **pgvector** adds vector similarity search for AI/RAG use cases; **PostGIS** adds geospatial types and queries; **pg_trgm** adds trigram fuzzy search; **timescaledb** adds time-series optimizations. The extension model means you can keep all your data in one system with one set of ACID transactions.
+
+**Sequential scan** reads every row in a table in physical storage order — fast for small tables or when reading >5–10% of rows. **Index scan** uses a B-tree or other index to find specific rows — efficient for highly selective queries returning less than 1% of rows. **Bitmap index scan** is a middle ground: reads the index to build a bitmap of matching rows, then fetches pages in physical order, avoiding random I/O. Understanding which scan type EXPLAIN chooses is fundamental to query performance analysis.
+
+</Answer>
+<Answer lang="ru">
+
+**PostgreSQL** — главная реляционная база данных для современных бэкенд-приложений, поскольку сочетает гарантии ACID с функциями, обычно встречающимися лишь в специализированных базах. Модель **MVCC (Multi-Version Concurrency Control)** означает, что читатели никогда не блокируют писателей и наоборот — каждая транзакция видит консистентный снимок данных. В отличие от блокировочной конкурентности MySQL, Postgres поддерживает множество версий строк и использует фоновый процесс **VACUUM** для сборки мусора. Это делает Postgres отличным выбором для read-heavy нагрузок с параллельными записями.
+
+**JSONB** — полноценный бинарный тип JSON-колонки, поддерживающий индексирование через GIN-индексы для эффективной выборки JSON-полей без полного сканирования. Это устраняет необходимость в отдельном документном хранилище (MongoDB) во многих случаях. Расширения кардинально расширяют возможности PostgreSQL: **pgvector** добавляет поиск по векторному сходству для AI/RAG; **PostGIS** — геопространственные типы и запросы; **pg_trgm** — нечёткий поиск по триграммам; **timescaledb** — оптимизации для временных рядов. Модель расширений позволяет хранить все данные в одной системе с единым набором ACID-транзакций.
+
+**Sequential scan** читает каждую строку таблицы в порядке физического хранения — быстро для маленьких таблиц или при чтении >5–10% строк. **Index scan** использует B-tree или другой индекс для поиска конкретных строк — эффективно для высокоселективных запросов, возвращающих less than 1% строк. **Bitmap index scan** — промежуточный вариант: читает индекс для построения битовой карты совпадающих строк, затем загружает страницы в физическом порядке, избегая случайного I/O. Понимание того, какой тип сканирования выбирает EXPLAIN, — основа анализа производительности запросов.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- JSONB: querying and indexing semi-structured data
+CREATE TABLE events (
+    id        BIGSERIAL PRIMARY KEY,
+    type      TEXT NOT NULL,
+    payload   JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- GIN index on full JSONB column for @> (contains) queries
+CREATE INDEX idx_events_payload ON events USING GIN (payload);
+
+-- Query: find all LLM completion events with model=gpt-4o
+-- Uses GIN index efficiently (no sequential scan)
+SELECT id, payload->>'duration_ms' AS duration
+FROM events
+WHERE type = 'llm_completion'
+  AND payload @> '{"model": "gpt-4o"}';
+
+-- JSONB path query (more expressive, also uses GIN index)
+SELECT id, payload #>> '{usage,total_tokens}' AS total_tokens
+FROM events
+WHERE payload @? '$.usage.total_tokens ? (@ > 1000)';
+
+-- pgvector: AI embedding similarity search
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE documents (
+    id        BIGSERIAL PRIMARY KEY,
+    content   TEXT NOT NULL,
+    embedding vector(1536)  -- OpenAI text-embedding-3-small dimension
+);
+
+-- HNSW index for fast approximate nearest-neighbor search
+CREATE INDEX idx_documents_embedding
+    ON documents USING hnsw (embedding vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+-- Find 5 most similar documents to a query embedding
+SELECT id, content, 1 - (embedding <=> '[0.1, 0.2, ...]'::vector) AS similarity
+FROM documents
+ORDER BY embedding <=> '[0.1, 0.2, ...]'::vector
+LIMIT 5;
+
+-- MVCC demonstration: two concurrent transactions see different snapshots
+-- Session A:
+BEGIN;
+SELECT count(*) FROM documents;  -- Returns 100
+
+-- Session B (concurrent):
+INSERT INTO documents (content, embedding) VALUES ('new doc', '[...]');
+COMMIT;
+
+-- Session A (still in transaction, sees snapshot from BEGIN):
+SELECT count(*) FROM documents;  -- Still returns 100 (snapshot isolation)
+COMMIT;
+```

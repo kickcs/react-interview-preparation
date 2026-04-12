@@ -1,0 +1,111 @@
+---
+title: "Как реализовать rate limiting для защиты API?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Rate limiting** controls how many requests a client can make in a given time window. Without it, APIs are vulnerable to brute force attacks (credential stuffing, password guessing), scraping, and denial-of-service from a single abusive client. The two dominant algorithms are **token bucket** and **sliding window log/counter**.
+
+**Token bucket**: each client has a bucket of N tokens. Each request consumes one token; tokens refill at a fixed rate. Allows short bursts up to the bucket capacity, which is user-friendly for legitimate clients. **Sliding window counter** in Redis counts requests in a rolling time window (e.g., last 60 seconds) using a sorted set or a two-bucket interpolation. It is more precise than a fixed window (avoids the "boundary spike" problem where a client makes 2N requests at the window boundary) and is Redis-friendly.
+
+Key design decisions: **per-IP** limiting catches volumetric attacks and bots, but fails against distributed botnets — supplement with per-user or per-API-key limits post-authentication. Use **different limits per endpoint**: `/api/auth/login` should be far stricter (5 req/min) than `/api/search` (100 req/min). Return `Retry-After` and `X-RateLimit-*` headers so well-behaved clients can back off gracefully. Implement **progressive delays** (exponential backoff enforced server-side) for brute force protection rather than outright blocks, which trigger account lockout abuse. In Next.js, Redis-based rate limiting in middleware runs at the edge before any compute.
+
+</Answer>
+<Answer lang="ru">
+
+**Rate limiting** контролирует количество запросов от клиента за заданный период. Без него API уязвимы к brute force атакам (credential stuffing, перебор паролей), скрапингу и DoS от одного агрессивного клиента. Два основных алгоритма — **token bucket** и **sliding window**.
+
+**Token bucket**: у каждого клиента есть «корзина» на N токенов. Каждый запрос тратит один токен; токены восполняются с фиксированной скоростью. Позволяет короткие всплески до ёмкости корзины — удобно для легитимных клиентов. **Sliding window** в Redis считает запросы в скользящем временном окне (например, последние 60 секунд) через sorted set или интерполяцию двух бакетов. Точнее fixed window (нет «boundary spike» — когда клиент делает 2N запросов на границе окна) и хорошо ложится на Redis.
+
+Ключевые решения при проектировании: **per-IP** ловит объёмные атаки и ботов, но бессилен против распределённых ботнетов — дополняй per-user или per-API-key лимитами после аутентификации. **Разные лимиты на разные эндпоинты**: `/api/auth/login` должен быть значительно строже (5 req/min), чем `/api/search` (100 req/min). Возвращай `Retry-After` и `X-RateLimit-*` заголовки, чтобы корректные клиенты могли отступить. Для защиты от brute force используй **прогрессивные задержки** (принудительный exponential backoff на сервере), а не полную блокировку — полные блокировки позволяют злоумышленнику заблокировать чужие аккаунты. В Next.js Redis-based rate limiting в middleware работает на edge ещё до выполнения compute.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Sliding window rate limiting с Redis (Upstash) в Next.js middleware
+
+import { Redis } from "@upstash/redis";
+import { NextRequest, NextResponse } from "next/server";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_URL!,
+  token: process.env.UPSTASH_REDIS_TOKEN!,
+});
+
+interface RateLimitConfig {
+  windowSeconds: number;
+  maxRequests: number;
+  keyPrefix: string;
+}
+
+const ENDPOINT_CONFIGS: Record<string, RateLimitConfig> = {
+  "/api/auth/login":    { windowSeconds: 60, maxRequests: 5,   keyPrefix: "rl:login" },
+  "/api/auth/register": { windowSeconds: 3600, maxRequests: 3, keyPrefix: "rl:register" },
+  "/api/chat":          { windowSeconds: 60, maxRequests: 20,  keyPrefix: "rl:chat" },
+  default:              { windowSeconds: 60, maxRequests: 100, keyPrefix: "rl:default" },
+};
+
+async function slidingWindowRateLimit(
+  key: string,
+  config: RateLimitConfig
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  const now = Date.now();
+  const windowStart = now - config.windowSeconds * 1000;
+
+  const pipeline = redis.pipeline();
+  // Remove old entries outside the window
+  pipeline.zremrangebyscore(key, 0, windowStart);
+  // Count requests in current window
+  pipeline.zcard(key);
+  // Add current request
+  pipeline.zadd(key, { score: now, member: `${now}-${Math.random()}` });
+  // Set TTL so Redis cleans up automatically
+  pipeline.expire(key, config.windowSeconds * 2);
+
+  const results = await pipeline.exec();
+  const count = (results[1] as number) + 1; // +1 for current request
+
+  return {
+    allowed: count <= config.maxRequests,
+    remaining: Math.max(0, config.maxRequests - count),
+    resetAt: now + config.windowSeconds * 1000,
+  };
+}
+
+export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  const config = ENDPOINT_CONFIGS[pathname] ?? ENDPOINT_CONFIGS.default;
+
+  // Use user ID post-auth, IP pre-auth
+  const userId = req.headers.get("x-user-id");
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+  const identifier = userId ?? ip;
+  const key = `${config.keyPrefix}:${identifier}`;
+
+  const { allowed, remaining, resetAt } = await slidingWindowRateLimit(key, config);
+
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too Many Requests", retryAfter: Math.ceil((resetAt - Date.now()) / 1000) },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((resetAt - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(config.maxRequests),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.ceil(resetAt / 1000)),
+        },
+      }
+    );
+  }
+
+  const res = NextResponse.next();
+  res.headers.set("X-RateLimit-Limit", String(config.maxRequests));
+  res.headers.set("X-RateLimit-Remaining", String(remaining));
+  res.headers.set("X-RateLimit-Reset", String(Math.ceil(resetAt / 1000)));
+  return res;
+}
+```

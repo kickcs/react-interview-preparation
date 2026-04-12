@@ -1,0 +1,100 @@
+---
+title: "Оптимизация запросов: N+1, LATERAL joins, CTE и материализованные представления"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Query optimization** starts with understanding what the database actually does — use `EXPLAIN ANALYZE` first, then optimize. The most impactful improvements come from a few patterns: proper indexing, eliminating unnecessary joins, and batching requests. The **N+1 problem** at the SQL level occurs when an application executes one query per row of a parent result set. The fix is always to use a single JOIN or `IN` clause to fetch all child data in one query, then assemble in application code.
+
+**`LIMIT` without `ORDER BY`** is a common anti-pattern — it returns an arbitrary subset of rows with no guaranteed ordering, which is non-deterministic and makes pagination broken. Always pair `LIMIT` with `ORDER BY` on an indexed column, and for offset-based pagination on large datasets, prefer keyset (cursor) pagination: `WHERE id > :last_id ORDER BY id LIMIT 20`, which stays O(log N) regardless of page number. Traditional `OFFSET` becomes O(N) because PostgreSQL must read and discard all preceding rows.
+
+**`LATERAL` joins** are SQL's equivalent of a correlated subquery that can reference outer query columns — they enable per-row subqueries efficiently. A `LATERAL` is ideal for "top N per group" queries. **CTEs** (Common Table Expressions) with `WITH` improve readability but in PostgreSQL 12+ are **inline by default** — they do not materialize unless you add `MATERIALIZED`. Add `MATERIALIZED` when the CTE is referenced multiple times or when you want to prevent the planner from pushing predicates inside. **Materialized views** store the query result physically on disk, enabling instant reads at the cost of staleness — refresh with `REFRESH MATERIALIZED VIEW CONCURRENTLY` to avoid locking.
+
+</Answer>
+<Answer lang="ru">
+
+**Оптимизация запросов** начинается с понимания того, что база данных реально делает — сначала используйте `EXPLAIN ANALYZE`, затем оптимизируйте. Наибольший эффект дают несколько паттернов: правильная индексация, устранение лишних join-ов и батчинг запросов. **Проблема N+1** на уровне SQL возникает, когда приложение выполняет один запрос на каждую строку родительского результата. Решение — всегда использовать единый JOIN или предложение `IN` для загрузки всех дочерних данных одним запросом, а затем собирать результат в коде приложения.
+
+**`LIMIT` без `ORDER BY`** — распространённый антипаттерн: возвращает произвольное подмножество строк без гарантии порядка, что недетерминированно и ломает пагинацию. Всегда сочетайте `LIMIT` с `ORDER BY` по индексированной колонке. Для пагинации больших датасетов предпочитайте keyset (cursor) пагинацию: `WHERE id > :last_id ORDER BY id LIMIT 20` — сложность O(log N) независимо от номера страницы. Традиционный `OFFSET` даёт O(N), так как PostgreSQL должен прочитать и отбросить все предшествующие строки.
+
+**`LATERAL` join-ы** — SQL-эквивалент коррелированного подзапроса, который может обращаться к колонкам внешнего запроса; позволяют эффективно делать подзапросы для каждой строки. `LATERAL` идеален для запросов "top N на группу". **CTE** с `WITH` улучшают читаемость, но в PostgreSQL 12+ **инлайнированы по умолчанию** — они не материализуются, если не добавить `MATERIALIZED`. Добавляйте его, когда CTE используется многократно или нужно предотвратить проталкивание предикатов. **Материализованные представления** хранят результат запроса физически на диске — мгновенное чтение ценой устаревания данных; обновляйте через `REFRESH MATERIALIZED VIEW CONCURRENTLY`, чтобы избежать блокировок.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- ===== N+1: the wrong way =====
+-- Application code: for each user, run: SELECT * FROM orders WHERE user_id = ?
+-- 1 + N queries total. Fix: use a JOIN.
+
+-- N+1 fix: single query with aggregation
+SELECT
+    u.id,
+    u.name,
+    COUNT(o.id)    AS order_count,
+    SUM(o.total)   AS total_revenue
+FROM users u
+LEFT JOIN orders o ON o.user_id = u.id AND o.status = 'completed'
+GROUP BY u.id, u.name;
+
+
+-- ===== Keyset pagination (fast, stable) =====
+-- Traditional OFFSET (slow for large pages):
+SELECT * FROM posts ORDER BY created_at DESC OFFSET 10000 LIMIT 20;  -- reads 10020 rows!
+
+-- Keyset pagination (always O(log N)):
+SELECT * FROM posts
+WHERE created_at < :last_cursor   -- pass created_at of last seen row
+ORDER BY created_at DESC
+LIMIT 20;
+
+
+-- ===== LATERAL: top 3 orders per user =====
+SELECT u.id, u.name, recent.title, recent.total
+FROM users u
+CROSS JOIN LATERAL (
+    SELECT title, total
+    FROM orders o
+    WHERE o.user_id = u.id
+    ORDER BY o.created_at DESC
+    LIMIT 3
+) AS recent;
+-- Without LATERAL, "top N per group" requires a window function + CTE
+
+
+-- ===== CTE: readable query with MATERIALIZED hint =====
+WITH
+-- Materialized: computed once, referenced twice below
+active_users AS MATERIALIZED (
+    SELECT id, name FROM users WHERE deleted_at IS NULL AND plan = 'pro'
+),
+recent_orders AS (
+    SELECT user_id, COUNT(*) AS cnt
+    FROM orders
+    WHERE created_at > now() - interval '30 days'
+    GROUP BY user_id
+)
+SELECT au.name, COALESCE(ro.cnt, 0) AS orders_last_30d
+FROM active_users au
+LEFT JOIN recent_orders ro ON ro.user_id = au.id
+ORDER BY orders_last_30d DESC;
+
+
+-- ===== Materialized view: cache expensive aggregation =====
+CREATE MATERIALIZED VIEW monthly_revenue AS
+SELECT
+    date_trunc('month', created_at) AS month,
+    SUM(total)                       AS revenue,
+    COUNT(*)                         AS order_count
+FROM orders
+WHERE status = 'completed'
+GROUP BY 1
+ORDER BY 1;
+
+CREATE UNIQUE INDEX ON monthly_revenue (month);  -- required for CONCURRENTLY
+
+-- Refresh without locking (reads still work during refresh):
+REFRESH MATERIALIZED VIEW CONCURRENTLY monthly_revenue;
+```

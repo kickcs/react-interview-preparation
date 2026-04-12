@@ -1,0 +1,6 @@
+{
+  "title": "PostgreSQL",
+  "order": 15,
+  "description": "Индексы (B-tree, GIN, pgvector), EXPLAIN, миграции, партиционирование, full-text search",
+  "icon": "postgresql"
+}

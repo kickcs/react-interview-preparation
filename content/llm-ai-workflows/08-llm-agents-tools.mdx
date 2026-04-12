@@ -1,0 +1,170 @@
+---
+title: "Что такое LLM-агенты и инструменты и когда они не работают?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+An **LLM agent** is a system where the language model acts as a reasoning engine that decides which **tools** to call, in what order, and with what arguments, iterating until a goal is achieved. The foundational pattern is **ReAct (Reasoning + Acting)**: the model alternates between "Thought" (reasoning about what to do next) and "Action" (invoking a tool), then observes the tool's output and continues. This gives agents the ability to handle tasks that cannot be fully specified upfront — searching the web, running code, querying databases, or taking actions in the world.
+
+**Tool calling** in modern APIs (Anthropic `tool_use`, OpenAI `function_calling`) makes this concrete: you define tools with a name, description, and JSON Schema for inputs; the model decides when and how to invoke them; your code executes the actual function and returns the result. The quality of **tool descriptions** is the most underappreciated factor in agent performance — a poorly worded description causes the model to misuse or ignore the tool. Tool names should be verbs (`search_database`, not `database`), descriptions should explain what the tool does and when NOT to use it, and input schemas should match exactly what the tool accepts.
+
+**When agents fail**: agents are poor at tasks requiring more than ~5 tool calls (error compounds with each step), tasks with ambiguous success criteria (the model loops until hitting the step limit), tasks requiring real-world state that changes between steps (the model's world model becomes stale), and tasks where a single wrong step causes irreversible harm. **Multi-agent systems** (one "orchestrator" agent delegating to specialized "worker" agents) improve reliability on complex tasks but add communication latency and coordination overhead. Always add hard limits: max steps, max cost, timeout. Humans in the loop (requiring approval before high-stakes actions) are not optional for production agentic systems.
+
+</Answer>
+<Answer lang="ru">
+
+**LLM-агент** — система, в которой языковая модель выступает reasoning-движком, решающим какие **инструменты** вызывать, в каком порядке и с какими аргументами, итерируя до достижения цели. Фундаментальный паттерн — **ReAct (Reasoning + Acting)**: модель чередует "Мысль" (рассуждение о следующем шаге) и "Действие" (вызов инструмента), затем наблюдает вывод инструмента и продолжает. Это даёт агентам возможность решать задачи, которые нельзя полностью специфицировать заранее.
+
+**Tool calling** в современных API (Anthropic `tool_use`, OpenAI `function_calling`) делает это конкретным: определяешь инструменты с именем, описанием и JSON Schema для входов; модель решает когда и как их вызывать; твой код выполняет реальную функцию и возвращает результат. **Качество описаний инструментов** — самый недооценённый фактор производительности агентов: плохо сформулированное описание приводит к неправильному использованию или игнорированию инструмента. Имена инструментов должны быть глаголами (`search_database`, не `database`), описания — объяснять что делает инструмент и когда его НЕ использовать, а input schemas — точно соответствовать тому, что инструмент принимает.
+
+**Когда агенты не работают**: агенты плохо справляются с задачами, требующими более ~5 вызовов инструментов (ошибка накапливается на каждом шаге), задачами с нечёткими критериями успеха (модель зацикливается до лимита шагов), задачами с реальным состоянием мира, изменяющимся между шагами, и задачами, где один неверный шаг причиняет необратимый вред. **Multi-agent системы** (оркестратор, делегирующий специализированным воркерам) улучшают надёжность на сложных задачах, но добавляют задержку и накладные расходы. Всегда добавляй жёсткие лимиты: max steps, max cost, timeout. Человек в контуре (требование одобрения перед высокорисковыми действиями) обязателен для production аgentic систем.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// ReAct-агент с tool calling (Anthropic SDK, TypeScript)
+
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+// AST-whitelist math evaluator — `new Function()` and `eval()` on LLM-controlled
+// input have full Node.js runtime access (process, require, globals) and are
+// trivially exploitable. Only allow literal numbers and +, -, *, /, %.
+function safeMathEval(expression: string): number {
+  const tokens = expression.match(/\s*([0-9]+(?:\.[0-9]+)?|[+\-*/%()])\s*/g);
+  if (!tokens || tokens.join("").replace(/\s/g, "") !== expression.replace(/\s/g, "")) {
+    throw new Error("disallowed characters");
+  }
+  // Shunting-yard → RPN → evaluate
+  const out: (number | string)[] = [];
+  const ops: string[] = [];
+  const prec: Record<string, number> = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2 };
+  for (const raw of tokens) {
+    const t = raw.trim();
+    if (/^[0-9.]+$/.test(t)) out.push(parseFloat(t));
+    else if (t === "(") ops.push(t);
+    else if (t === ")") {
+      while (ops.length && ops[ops.length - 1] !== "(") out.push(ops.pop()!);
+      ops.pop();
+    } else {
+      while (ops.length && prec[ops[ops.length - 1]] >= prec[t]) out.push(ops.pop()!);
+      ops.push(t);
+    }
+  }
+  while (ops.length) out.push(ops.pop()!);
+
+  const stack: number[] = [];
+  for (const tok of out) {
+    if (typeof tok === "number") stack.push(tok);
+    else {
+      const b = stack.pop()!, a = stack.pop()!;
+      stack.push(tok === "+" ? a + b : tok === "-" ? a - b : tok === "*" ? a * b : tok === "/" ? a / b : a % b);
+    }
+  }
+  return stack[0];
+}
+
+// Tool implementations
+const tools = {
+  async search_database(query: string, table: string): Promise<string> {
+    // Real implementation would execute a safe parameterized query
+    return JSON.stringify({ results: [{ id: 1, name: "Example", value: 42 }] });
+  },
+
+  async calculate(expression: string): Promise<string> {
+    try {
+      return String(safeMathEval(expression));
+    } catch {
+      return "Error: invalid expression";
+    }
+  },
+
+  async send_report(to: string, subject: string, body: string): Promise<string> {
+    // Would send actual email — requires human approval in production
+    return `Report queued for delivery to ${to}`;
+  },
+};
+
+const TOOL_DEFINITIONS: Anthropic.Tool[] = [
+  {
+    name: "search_database",
+    description: "Search the analytics database. Use for data retrieval questions. Do NOT use for calculations.",
+    input_schema: {
+      type: "object" as const,
+      required: ["query", "table"],
+      properties: {
+        query: { type: "string", description: "SQL WHERE clause fragment (no DROP/UPDATE/DELETE)" },
+        table: { type: "string", enum: ["sales", "users", "events"] },
+      },
+    },
+  },
+  {
+    name: "calculate",
+    description: "Evaluate a mathematical expression. Use after retrieving data to compute metrics.",
+    input_schema: {
+      type: "object" as const,
+      required: ["expression"],
+      properties: {
+        expression: { type: "string", description: "Math expression, e.g. '(1500 - 1200) / 1200 * 100'" },
+      },
+    },
+  },
+  {
+    name: "send_report",
+    description: "Send a report by email. Only call this when the user explicitly asks to send results.",
+    input_schema: {
+      type: "object" as const,
+      required: ["to", "subject", "body"],
+      properties: {
+        to: { type: "string" },
+        subject: { type: "string" },
+        body: { type: "string" },
+      },
+    },
+  },
+];
+
+async function runAgent(userTask: string, maxSteps = 5): Promise<string> {
+  const messages: Anthropic.MessageParam[] = [{ role: "user", content: userTask }];
+
+  for (let step = 0; step < maxSteps; step++) {
+    const response = await client.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1024,
+      tools: TOOL_DEFINITIONS,
+      messages,
+    });
+
+    messages.push({ role: "assistant", content: response.content });
+
+    if (response.stop_reason === "end_turn") {
+      const textBlock = response.content.find((b) => b.type === "text");
+      return textBlock ? (textBlock as { text: string }).text : "Task complete";
+    }
+
+    if (response.stop_reason !== "tool_use") break;
+
+    // Execute all tool calls in this turn
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+    for (const block of response.content) {
+      if (block.type !== "tool_use") continue;
+      const toolFn = tools[block.name as keyof typeof tools];
+      if (!toolFn) {
+        toolResults.push({ type: "tool_result", tool_use_id: block.id, content: "Unknown tool" });
+        continue;
+      }
+      const result = await (toolFn as Function)(...Object.values(block.input));
+      toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+    }
+
+    messages.push({ role: "user", content: toolResults });
+  }
+
+  return "Agent exceeded max steps";
+}
+```

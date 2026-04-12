@@ -1,0 +1,107 @@
+---
+title: "IAM: users vs roles, политики, least privilege и STS AssumeRole"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**AWS IAM (Identity and Access Management)** controls who can do what in your AWS account. The two key principal types are **IAM users** (long-lived credentials for humans or legacy applications) and **IAM roles** (temporary credentials assumed by services, EC2 instances, Lambda, or cross-account identities). Best practice: never create IAM users with programmatic access for applications — use IAM roles. For humans, use IAM Identity Center (SSO) instead of individual IAM users.
+
+**IAM policies** are JSON documents with `Effect`, `Action`, `Resource`, and optional `Condition` fields. **AWS-managed policies** (like `AmazonS3ReadOnlyAccess`) are convenient but often overly permissive. **Customer-managed policies** let you define exactly what is needed. **Inline policies** are embedded directly in a role — useful for unique, non-reusable permissions. The **least privilege principle** means granting only the minimum permissions required: `s3:GetObject` on specific prefixes, not `s3:*` on `*`. Use IAM Access Analyzer to identify unused permissions and generate least-privilege policies automatically from CloudTrail activity.
+
+**`STS:AssumeRole`** is the mechanism for cross-account access and service-to-service delegation. A Lambda function with role A can assume role B in account 2 to read from its S3 bucket. The assuming role needs `sts:AssumeRole` permission; the target role's **trust policy** must list the assuming principal. Temporary credentials from `AssumeRole` expire after 15 minutes to 12 hours. For GitHub Actions, use **OIDC federation** instead of storing long-lived AWS credentials as secrets — GitHub's OIDC provider issues a token that assumes an IAM role directly, with no static credentials involved.
+
+</Answer>
+<Answer lang="ru">
+
+**AWS IAM (Identity and Access Management)** управляет тем, кто и что может делать в вашем аккаунте AWS. Два ключевых типа principals: **IAM users** (долгоживущие учётные данные для людей или устаревших приложений) и **IAM roles** (временные учётные данные, принимаемые сервисами, EC2, Lambda или межаккаунтными идентичностями). Лучшая практика: никогда не создавайте IAM users с программным доступом для приложений — используйте IAM roles. Для людей используйте IAM Identity Center (SSO), а не отдельных IAM users.
+
+**IAM-политики** — JSON-документы с полями `Effect`, `Action`, `Resource` и необязательным `Condition`. **AWS-managed политики** (например, `AmazonS3ReadOnlyAccess`) удобны, но часто избыточно разрешительны. **Customer-managed политики** позволяют определить ровно то, что нужно. **Inline политики** встроены непосредственно в роль — полезны для уникальных, неиспользуемых повторно разрешений. Принцип **минимальных привилегий**: предоставляйте только минимально необходимые разрешения. Используйте IAM Access Analyzer для выявления неиспользуемых разрешений и автоматической генерации минимальных политик из активности CloudTrail.
+
+**`STS:AssumeRole`** — механизм межаккаунтного доступа и делегирования между сервисами. Lambda-функция с ролью A может принять роль B в аккаунте 2 для чтения из его S3. Принимающей роли нужно разрешение `sts:AssumeRole`; **trust policy** целевой роли должна включать принимающий principal. Временные учётные данные от `AssumeRole` истекают через 15 минут – 12 часов. Для GitHub Actions используйте **OIDC federation** вместо хранения долгоживущих учётных данных AWS — GitHub OIDC-провайдер выдаёт токен, напрямую принимающий IAM role.
+
+</Answer>
+</AnswerGroup>
+
+```json
+// IAM role trust policy: allow ECS tasks to assume this role
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+```json
+// Least-privilege permissions policy for a FastAPI service
+// Allows: read specific S3 prefix, read specific Secrets, publish specific SQS queue
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3DocumentAccess",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::my-app-bucket/documents/*"
+    },
+    {
+      "Sid": "SecretsAccess",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": "arn:aws:secretsmanager:us-east-1:123456789:secret:myapp/*"
+    },
+    {
+      "Sid": "SqsPublish",
+      "Effect": "Allow",
+      "Action": ["sqs:SendMessage"],
+      "Resource": "arn:aws:sqs:us-east-1:123456789:ai-jobs"
+    },
+    {
+      "Sid": "BedrockInvoke",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel"],
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-*"
+    }
+  ]
+}
+```
+
+```python
+# STS: cross-account role assumption (Python)
+import boto3
+
+def get_cross_account_client(role_arn: str, service: str, region: str = "us-east-1"):
+    """Assume a role in another account and return a service client."""
+    sts = boto3.client("sts")
+    assumed = sts.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName="fastapi-cross-account",
+        DurationSeconds=3600,
+    )
+    creds = assumed["Credentials"]
+    return boto3.client(
+        service,
+        region_name=region,
+        aws_access_key_id=creds["AccessKeyId"],
+        aws_secret_access_key=creds["SecretAccessKey"],
+        aws_session_token=creds["SessionToken"],
+    )
+
+# GitHub Actions OIDC — no static credentials needed
+# .github/workflows/deploy.yml:
+# - uses: aws-actions/configure-aws-credentials@v4
+#   with:
+#     role-to-assume: arn:aws:iam::123456789:role/github-actions-deploy
+#     aws-region: us-east-1
+# Trust policy for github-actions-deploy role includes:
+# Principal: {"Federated": "arn:aws:iam::123456789:oidc-provider/token.actions.githubusercontent.com"}
+# Condition: {"StringEquals": {"token.actions.githubusercontent.com:sub": "repo:myorg/myrepo:ref:refs/heads/main"}}
+```

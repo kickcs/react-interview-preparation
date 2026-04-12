@@ -1,0 +1,106 @@
+---
+title: "RBAC против ABAC: когда достаточно ролей, а когда нужны атрибуты?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**RBAC (Role-Based Access Control)** assigns permissions to roles, and roles to users. It is simple, auditable, and maps well to organizational structure: `admin`, `analyst`, `viewer`. The key advantage is predictability — you can enumerate exactly what each role can do. The limitation becomes apparent at scale: you end up creating highly specific roles (`regional_analyst_us_west`, `bi_viewer_pii_redacted`) to handle fine-grained requirements, leading to **role explosion**.
+
+**ABAC (Attribute-Based Access Control)** evaluates policies against attributes of the subject (user), resource, and environment at request time. Instead of "admin can do X", you express "a user whose `department=finance` can read documents with `sensitivity=internal` during `time_of_day=business_hours`". This is far more expressive but harder to audit — "what can this user do?" requires policy evaluation, not a simple role lookup.
+
+In practice, most systems use a **hybrid approach**: RBAC for coarse-grained access (does this user have the `analyst` role?), then ABAC-style attribute checks for fine-grained decisions (can they access this specific patient record or tenant's data?). Policy engines like **Open Policy Agent (OPA)** implement ABAC/ReBAC as Rego policies, making authorization logic testable and decoupled from application code. For healthcare or multi-tenant analytics platforms, combining RBAC with **row-level security** in the database (e.g., PostgreSQL RLS policies) is a pragmatic pattern that enforces authorization at the data layer, preventing accidental data leaks even if application logic has bugs.
+
+</Answer>
+<Answer lang="ru">
+
+**RBAC (Role-Based Access Control)** назначает права ролям, а роли — пользователям. Это простой, аудируемый подход, хорошо отражающий организационную структуру: `admin`, `analyst`, `viewer`. Ключевое преимущество — предсказуемость: можно перечислить, что может делать каждая роль. Ограничение проявляется при масштабировании: для тонкой гранулярности начинается **role explosion** — создание специфичных ролей типа `regional_analyst_us_west`, `bi_viewer_pii_redacted`.
+
+**ABAC (Attribute-Based Access Control)** вычисляет политики на основе атрибутов субъекта (пользователь), ресурса и окружения в момент запроса. Вместо «admin может делать X» формулируется: «пользователь с `department=finance` может читать документы с `sensitivity=internal` в `time_of_day=business_hours`». Это гораздо выразительнее, но труднее аудировать — ответ на «что может этот пользователь?» требует вычисления политик, а не простого поиска по ролям.
+
+На практике большинство систем использует **гибридный подход**: RBAC для крупнозернистого доступа (есть ли у пользователя роль `analyst`?), затем ABAC-проверки для тонкой гранулярности (может ли он получить доступ к конкретной записи пациента или данным тенанта?). Движки политик вроде **Open Policy Agent (OPA)** реализуют ABAC/ReBAC в виде Rego-политик — авторизационная логика становится тестируемой и отделённой от кода приложения. Для healthcare- и мультитенантных аналитических платформ сочетание RBAC с **row-level security** в БД (PostgreSQL RLS) — прагматичный паттерн, который применяет авторизацию на уровне данных и предотвращает утечки даже при ошибках в логике приложения.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Гибридный RBAC + ABAC с OPA в TypeScript
+
+// Типы
+interface User {
+  id: string;
+  roles: string[];
+  department: string;
+  orgId: string;
+}
+
+interface Resource {
+  id: string;
+  type: "report" | "patient_record" | "dashboard";
+  ownerId: string;
+  orgId: string;
+  sensitivity: "public" | "internal" | "restricted" | "phi";
+}
+
+interface AuthzInput {
+  user: User;
+  resource: Resource;
+  action: "read" | "write" | "delete" | "export";
+}
+
+// OPA client wrapper
+async function checkPolicy(input: AuthzInput): Promise<boolean> {
+  const res = await fetch(`${process.env.OPA_URL}/v1/data/authz/allow`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input }),
+  });
+  const data = await res.json();
+  return data.result === true;
+}
+
+// Middleware для Next.js API routes
+import { NextRequest, NextResponse } from "next/server";
+
+export async function withAuthorization(
+  req: NextRequest,
+  action: AuthzInput["action"],
+  getResource: () => Promise<Resource>
+) {
+  const user = req.headers.get("x-auth-user");
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const authUser: User = JSON.parse(user);
+  const resource = await getResource();
+
+  // Fast path: RBAC check (no OPA call needed for admins)
+  if (authUser.roles.includes("super_admin")) return null; // allow
+
+  // Tenant isolation — always enforce at app layer regardless of OPA
+  if (resource.orgId !== authUser.orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Full ABAC evaluation via OPA
+  const allowed = await checkPolicy({ user: authUser, resource, action });
+  if (!allowed) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return null; // proceed
+}
+
+// PostgreSQL RLS policy (raw SQL, add to migration)
+/*
+  ALTER TABLE patient_records ENABLE ROW LEVEL SECURITY;
+
+  CREATE POLICY patient_org_isolation ON patient_records
+    USING (org_id = current_setting('app.current_org_id')::uuid);
+
+  CREATE POLICY phi_role_required ON patient_records
+    USING (
+      current_setting('app.user_roles')::text[] && ARRAY['clinician','admin']
+    );
+*/
+```

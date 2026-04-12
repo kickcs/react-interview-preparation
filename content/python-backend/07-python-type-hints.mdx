@@ -1,0 +1,113 @@
+---
+title: "Type hints в Python: typing, generics, Protocol и mypy"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Type hints** in Python are annotations that document the expected types of variables, function parameters, and return values. They are enforced at development time by static analyzers like **mypy** or **pyright**, not at runtime (unless you use Pydantic or `beartype`). Since Python 3.10, built-in types like `list`, `dict`, `tuple`, and `|` for unions can be used directly instead of `typing.List`, `typing.Dict`, `typing.Optional`.
+
+**Generics** let you parameterize classes and functions over types. `TypeVar` is the traditional approach; Python 3.12 introduced the `type` statement for cleaner syntax. Use `Generic[T]` to create reusable container types. **`Protocol`** is structural subtyping — it defines an interface without inheritance. If a class has the right methods and attributes, it satisfies the `Protocol` regardless of its class hierarchy. This is the Pythonic alternative to abstract base classes for duck typing with type safety.
+
+For FastAPI/Pydantic projects, type hints are functional — Pydantic reads them at runtime to build validation schemas, and FastAPI uses them to generate OpenAPI docs and parse request bodies. **`Annotated[T, metadata]`** attaches extra metadata (like `Field(...)` constraints) to a type without creating a new type. Best practices: run `mypy --strict` in CI, use `reveal_type()` for debugging, prefer `Protocol` over importing concrete classes in service layers to keep dependencies loose, and always annotate return types on public functions.
+
+</Answer>
+<Answer lang="ru">
+
+**Type hints** в Python — аннотации, документирующие ожидаемые типы переменных, параметров функций и возвращаемых значений. Они проверяются при разработке статическими анализаторами — **mypy** или **pyright**, а не в runtime (если только не используете Pydantic или `beartype`). Начиная с Python 3.10 можно использовать встроенные типы `list`, `dict`, `tuple` и `|` для union прямо, вместо `typing.List`, `typing.Dict`, `typing.Optional`.
+
+**Обобщённые типы (generics)** позволяют параметризовать классы и функции по типам. `TypeVar` — традиционный подход; Python 3.12 ввёл синтаксис `type` для более чистого объявления. Используйте `Generic[T]` для создания переиспользуемых контейнеров. **`Protocol`** — структурная типизация: определяет интерфейс без наследования. Если класс имеет нужные методы и атрибуты, он удовлетворяет `Protocol` независимо от иерархии классов. Это Pythonic-альтернатива абстрактным базовым классам для утиной типизации с безопасностью типов.
+
+В проектах FastAPI/Pydantic type hints функциональны — Pydantic читает их в runtime для построения схем валидации, а FastAPI использует для генерации OpenAPI-доков и разбора тела запросов. **`Annotated[T, metadata]`** прикрепляет дополнительные метаданные (например, ограничения `Field(...)`) к типу без создания нового. Лучшие практики: запускайте `mypy --strict` в CI, используйте `reveal_type()` для отладки, предпочитайте `Protocol` импорту конкретных классов в сервисном слое для слабого связывания, всегда аннотируйте возвращаемые типы публичных функций.
+
+</Answer>
+</AnswerGroup>
+
+```python
+from __future__ import annotations
+
+from typing import Annotated, Any, Generic, Protocol, TypeVar, runtime_checkable
+
+# Python 3.12+ syntax (PEP 695)
+type JSON = dict[str, Any]
+type Vector = list[float]
+
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+
+
+# --- Generic repository pattern ---
+class Repository(Generic[T]):
+    """Type-safe repository base class."""
+
+    async def get(self, id: int) -> T | None: ...
+    async def save(self, entity: T) -> T: ...
+    async def delete(self, id: int) -> None: ...
+
+
+# --- Protocol: structural subtyping (duck typing + type safety) ---
+@runtime_checkable
+class Embeddable(Protocol):
+    """Anything that can return a vector embedding."""
+
+    @property
+    def text_content(self) -> str: ...
+    def to_dict(self) -> JSON: ...
+
+
+class Document:
+    def __init__(self, content: str) -> None:
+        self._content = content
+
+    @property
+    def text_content(self) -> str:
+        return self._content
+
+    def to_dict(self) -> JSON:
+        return {"content": self._content}
+
+
+# Document satisfies Embeddable without inheriting from it
+def embed(item: Embeddable) -> Vector:
+    assert isinstance(item, Embeddable)  # runtime_checkable enables this
+    return [0.1, 0.2, 0.3]  # placeholder
+
+
+# --- Annotated: combine type with metadata ---
+from pydantic import Field
+
+UserId = Annotated[int, Field(gt=0, description="Positive user identifier")]
+EmbeddingVector = Annotated[list[float], Field(min_length=1, max_length=4096)]
+
+
+# --- Overloads for functions with multiple signatures ---
+from typing import overload
+
+
+@overload
+def parse_id(value: str) -> int: ...
+@overload
+def parse_id(value: int) -> int: ...
+
+
+def parse_id(value: str | int) -> int:
+    return int(value)
+
+
+# --- TypedDict for structured dicts (e.g. LLM API payloads) ---
+from typing import TypedDict, NotRequired
+
+
+class ChatMessage(TypedDict):
+    role: str
+    content: str
+    name: NotRequired[str]  # Optional key
+
+
+def build_messages(system: str, user: str) -> list[ChatMessage]:
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+```

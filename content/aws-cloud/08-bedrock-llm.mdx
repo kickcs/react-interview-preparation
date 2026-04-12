@@ -1,0 +1,112 @@
+---
+title: "AWS Bedrock: управляемые LLM, Knowledge Bases и сравнение с прямым API"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**AWS Bedrock** is a fully managed service that provides access to foundation models from Anthropic (Claude), Amazon (Titan, Nova), Meta (Llama), Cohere, AI21, and Stability AI through a unified API. The key value proposition: models run within your AWS VPC boundary — data is not sent to third-party servers outside AWS, model providers cannot see your prompts or use them for training, and you can use IAM policies to control which users/services can invoke which models. This makes Bedrock the default choice for enterprise and regulated industry workloads.
+
+**Bedrock Knowledge Bases** is a managed RAG service. You point it at an S3 bucket with your documents, it chunks and embeds them automatically (using Titan Embeddings or Cohere), stores vectors in your choice of vector store (Aurora PostgreSQL + pgvector, OpenSearch Serverless, or Pinecone), and provides a `RetrieveAndGenerate` API that handles the full RAG pipeline. Use it when you want to get RAG working quickly without building the ingestion pipeline yourself. The limitations: less control over chunking strategy, limited metadata filtering, and vendor lock-in to Bedrock's orchestration layer.
+
+Versus **direct API calls** to OpenAI or Anthropic: direct API is simpler, often cheaper per token (especially OpenAI's batch API), and models may be available earlier than on Bedrock. The tradeoff is that data leaves AWS, you manage API keys as secrets, and there is no native integration with IAM or VPC endpoints. For most production AI backends in AWS environments, a practical approach is: use Bedrock for compliance-critical workloads and when using Claude or Titan Embeddings, use direct Anthropic/OpenAI API for cutting-edge models not yet on Bedrock, and abstract the LLM provider behind a service interface so you can swap implementations.
+
+</Answer>
+<Answer lang="ru">
+
+**AWS Bedrock** — полностью управляемый сервис, предоставляющий доступ к фундаментальным моделям от Anthropic (Claude), Amazon (Titan, Nova), Meta (Llama), Cohere, AI21 и Stability AI через единый API. Ключевое преимущество: модели работают в границах вашего AWS VPC — данные не отправляются на сторонние серверы за пределами AWS, провайдеры моделей не видят ваши промпты и не используют их для обучения, а IAM-политики контролируют, кто и какие модели может вызывать. Это делает Bedrock выбором по умолчанию для корпоративных и регулируемых отраслей.
+
+**Bedrock Knowledge Bases** — управляемый RAG-сервис. Укажите S3-бакет с документами: сервис автоматически разобьёт их на чанки, создаст эмбеддинги (Titan Embeddings или Cohere), сохранит векторы в выбранном векторном хранилище (Aurora PostgreSQL + pgvector, OpenSearch Serverless, Pinecone) и предоставит API `RetrieveAndGenerate` для полного RAG-пайплайна. Используйте, когда хотите быстро запустить RAG без построения собственного пайплайна. Ограничения: меньше контроля над стратегией чанкинга, ограниченная фильтрация по метаданным и vendor lock-in.
+
+Vs **прямые API-вызовы** к OpenAI или Anthropic: прямой API проще, часто дешевле за токен, модели доступны раньше, чем на Bedrock. Компромисс: данные покидают AWS, нужно управлять API-ключами как секретами, нет нативной интеграции с IAM или VPC. Практический подход: используйте Bedrock для compliance-критичных нагрузок и Claude/Titan Embeddings; прямой Anthropic/OpenAI API — для cutting-edge моделей, ещё не появившихся на Bedrock; абстрагируйте LLM-провайдера за интерфейс сервиса для смены реализаций.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import json
+from abc import ABC, abstractmethod
+from typing import AsyncIterator
+
+import aioboto3
+
+# --- Abstract LLM interface: swap Bedrock <-> direct API ---
+class LLMClient(ABC):
+    @abstractmethod
+    async def complete(self, system: str, user: str, max_tokens: int = 1024) -> str: ...
+
+    @abstractmethod
+    async def stream(self, system: str, user: str) -> AsyncIterator[str]: ...
+
+
+# --- Bedrock implementation (aioboto3 — non-blocking in async code) ---
+class BedrockClient(LLMClient):
+    def __init__(self, model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"):
+        self._session = aioboto3.Session()
+        self._model_id = model_id
+
+    async def complete(self, system: str, user: str, max_tokens: int = 1024) -> str:
+        body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+        async with self._session.client("bedrock-runtime", region_name="us-east-1") as client:
+            response = await client.invoke_model(
+                modelId=self._model_id,
+                body=json.dumps(body),
+                contentType="application/json",
+            )
+            payload = await response["body"].read()
+        result = json.loads(payload)
+        return result["content"][0]["text"]
+
+    async def stream(self, system: str, user: str) -> AsyncIterator[str]:
+        body = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 2048,
+            "system": system,
+            "messages": [{"role": "user", "content": user}],
+        }
+        async with self._session.client("bedrock-runtime", region_name="us-east-1") as client:
+            response = await client.invoke_model_with_response_stream(
+                modelId=self._model_id, body=json.dumps(body)
+            )
+            async for event in response["body"]:
+                chunk = json.loads(event["chunk"]["bytes"])
+                if chunk.get("type") == "content_block_delta":
+                    yield chunk["delta"].get("text", "")
+
+
+# --- Bedrock Knowledge Bases: managed RAG ---
+async def rag_with_knowledge_base(question: str, kb_id: str, model_id: str) -> str:
+    session = aioboto3.Session()
+    async with session.client("bedrock-agent-runtime", region_name="us-east-1") as client:
+        response = await client.retrieve_and_generate(
+            input={"text": question},
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": {
+                    "knowledgeBaseId": kb_id,
+                    "modelArn": f"arn:aws:bedrock:us-east-1::foundation-model/{model_id}",
+                    "retrievalConfiguration": {
+                        "vectorSearchConfiguration": {"numberOfResults": 5}
+                    },
+                },
+            },
+        )
+    return response["output"]["text"]
+
+
+# Usage: dependency injection makes it easy to swap implementations
+from app.config import Settings
+
+def get_llm_client(settings: Settings) -> LLMClient:
+    if settings.llm_provider == "bedrock":
+        return BedrockClient(model_id=settings.bedrock_model_id)
+    else:
+        from app.integrations.anthropic_client import AnthropicClient
+        return AnthropicClient(api_key=settings.anthropic_api_key)
+```

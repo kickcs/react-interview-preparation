@@ -1,0 +1,102 @@
+---
+title: "Pydantic v2: модели, валидация, сериализация и BaseSettings"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Pydantic v2** is the data validation library at the heart of FastAPI. It rewrote the v1 core in Rust (via `pydantic-core`), achieving 5–50x speed improvements. A `BaseModel` defines the schema: field names, types, and optional validators. When you instantiate a model, Pydantic coerces and validates all input data, raising `ValidationError` with detailed field-level messages on failure.
+
+Key features: **field validators** with `@field_validator` run custom logic per field; **model validators** with `@model_validator` validate cross-field constraints. The `Field()` function adds metadata — min/max values, regex patterns, descriptions that appear in OpenAPI. **Computed fields** with `@computed_field` generate derived values at serialization time without storing them. `model_dump()` serializes to dict (pass `mode="json"` for JSON-ready types like ISO `datetime`), and `model_dump_json()` returns a JSON string directly — both support `exclude` and `include`.
+
+**`BaseSettings`** (from `pydantic-settings`) is the recommended pattern for config management. It reads from environment variables, `.env` files, and secrets paths, with the same validation guarantees as any model. This eliminates a whole class of config bugs — a missing `DATABASE_URL` will fail loudly at startup, not silently at the first database call. Always use `BaseSettings` instead of `os.environ.get()` scattered through your codebase.
+
+</Answer>
+<Answer lang="ru">
+
+**Pydantic v2** — библиотека валидации данных в основе FastAPI. Она переписала ядро v1 на Rust (через `pydantic-core`), достигнув ускорения в 5–50 раз. `BaseModel` определяет схему: имена полей, типы и опциональные валидаторы. При создании экземпляра модели Pydantic приводит и валидирует все входные данные, выбрасывая `ValidationError` с детальными сообщениями по каждому полю.
+
+Ключевые возможности: **валидаторы полей** через `@field_validator` запускают произвольную логику для отдельного поля; **валидаторы модели** через `@model_validator` валидируют межполевые ограничения. Функция `Field()` добавляет метаданные — min/max значения, regex-паттерны, описания, которые отображаются в OpenAPI. **Вычисляемые поля** через `@computed_field` генерируют производные значения при сериализации без их хранения. `model_dump()` сериализует в dict (с параметром `mode="json"` типы вроде `datetime` сериализуются в ISO-строку), а `model_dump_json()` сразу возвращает JSON-строку; оба метода поддерживают `exclude` и `include`.
+
+**`BaseSettings`** (из `pydantic-settings`) — рекомендуемый паттерн для управления конфигурацией. Читает из переменных окружения, `.env`-файлов и путей к секретам с теми же гарантиями валидации. Это устраняет целый класс ошибок конфигурации — отсутствующий `DATABASE_URL` завершит приложение с ошибкой при старте, а не молча при первом обращении к БД. Всегда используйте `BaseSettings` вместо `os.environ.get()`, разбросанного по коду.
+
+</Answer>
+</AnswerGroup>
+
+```python
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Annotated, Any
+
+from pydantic import (
+    BaseModel,
+    Field,
+    SecretStr,
+    computed_field,
+    field_validator,
+    model_validator,
+)
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# --- Application config via BaseSettings ---
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    database_url: str  # Required — startup fails if missing
+    secret_key: SecretStr  # Masked in logs/repr
+    debug: bool = False
+    max_connections: int = Field(default=10, ge=1, le=100)
+    allowed_origins: list[str] = ["http://localhost:3000"]
+
+
+settings = Settings()  # Reads from env + .env file
+
+
+# --- Domain model with full validation ---
+class UserCreate(BaseModel):
+    email: str = Field(..., pattern=r"^[^@]+@[^@]+\.[^@]+$")
+    username: str = Field(..., min_length=3, max_length=32, pattern=r"^[a-z0-9_]+$")
+    age: Annotated[int, Field(ge=18, le=120)]
+    role: str = Field(default="user")
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+    @model_validator(mode="after")
+    def check_admin_age(self) -> UserCreate:
+        if self.role == "admin" and self.age < 21:
+            raise ValueError("Admin users must be at least 21 years old")
+        return self
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    username: str
+    created_at: datetime
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        return f"@{self.username}"
+
+    model_config = {"from_attributes": True}  # Enable ORM mode
+
+
+# --- Usage ---
+user_data = UserCreate(email="ALICE@Example.com", username="alice", age=25)
+print(user_data.email)  # "alice@example.com" — normalized
+
+user_row = UserResponse(
+    id=1, email="alice@example.com", username="alice", created_at=datetime.now()
+)
+# model_dump_json() always returns a JSON string with ISO-formatted datetime
+print(user_row.model_dump_json())
+# {"id":1,"email":"...","username":"alice","created_at":"2024-...","display_name":"@alice"}
+```

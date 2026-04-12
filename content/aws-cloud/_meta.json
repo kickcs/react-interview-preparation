@@ -1,0 +1,6 @@
+{
+  "title": "AWS Cloud",
+  "order": 16,
+  "description": "S3, Lambda, ECS/Fargate, RDS, SQS/SNS, CloudWatch, IAM, Bedrock, CI/CD",
+  "icon": "cloud"
+}

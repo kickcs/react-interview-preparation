@@ -1,0 +1,112 @@
+---
+title: "pgvector для AI: хранение эмбеддингов, HNSW-индекс и RAG-паттерн"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**pgvector** is a PostgreSQL extension that adds a `vector` data type and distance operators for similarity search. It is the foundation for implementing **RAG (Retrieval-Augmented Generation)** — a pattern where you retrieve relevant documents from a vector store before generating an LLM response, grounding the model in factual context. pgvector supports three distance metrics: `<=>` (cosine distance, best for normalized embeddings from text models), `<->` (L2/Euclidean distance), and `<#>` (inner product, equivalent to cosine for unit vectors).
+
+**HNSW (Hierarchical Navigable Small World)** is the recommended index for production vector search. It builds a multi-layer graph where each node is connected to its closest neighbors — queries traverse from high-level (coarse) to low-level (fine) layers, achieving approximate nearest-neighbor search in O(log N) time instead of exact O(N). The tradeoff: HNSW is approximate (may miss the true nearest neighbor) and uses significant memory (`m * 8 bytes * rows`). Parameters: `m` controls graph connectivity (default 16, higher = better recall but more memory), `ef_construction` controls build quality (default 64). For query quality, set `SET hnsw.ef_search = 100` per session.
+
+The practical **RAG implementation** in PostgreSQL: store document chunks with their embeddings, create an HNSW index, query for the top-K most similar chunks given a query embedding, then pass those chunks as context to the LLM. Combine with metadata filters using `WHERE` clauses — pgvector performs vector search on the filtered subset. For fresh data with low selectivity, a sequential scan with IVFFlat or no index may outperform HNSW on small tables (under 100K rows). Monitor index build time and recall quality with `pgvector`'s `vector_cosine_ops` operator class.
+
+</Answer>
+<Answer lang="ru">
+
+**pgvector** — расширение PostgreSQL, добавляющее тип данных `vector` и операторы расстояний для поиска по сходству. Это основа для реализации **RAG (Retrieval-Augmented Generation)** — паттерна, где перед генерацией ответа LLM извлекаются релевантные документы из векторного хранилища. pgvector поддерживает три метрики расстояния: `<=>` (косинусное расстояние, лучше для нормализованных эмбеддингов текстовых моделей), `<->` (L2/евклидово расстояние) и `<#>` (скалярное произведение, эквивалентно косинусному для единичных векторов).
+
+**HNSW (Hierarchical Navigable Small World)** — рекомендуемый индекс для поиска по векторам в production. Строит многослойный граф, где каждый узел связан с ближайшими соседями — запросы проходят от высокоуровневого (грубого) к низкоуровневому (точному) слою, достигая приближённого поиска ближайших соседей за O(log N) вместо точного O(N). Компромисс: HNSW приближённый и использует значительную память. Параметры: `m` управляет связностью графа (по умолчанию 16, выше = лучше recall, но больше памяти), `ef_construction` — качеством построения (по умолчанию 64). Для качества запросов устанавливайте `SET hnsw.ef_search = 100` на сессию.
+
+Практическая **реализация RAG** в PostgreSQL: храните чанки документов с их эмбеддингами, создайте HNSW-индекс, запрашивайте top-K наиболее похожих чанков для эмбеддинга запроса, затем передавайте эти чанки как контекст LLM. Комбинируйте с фильтрацией метаданных через `WHERE` — pgvector выполняет векторный поиск на отфильтрованном подмножестве. Для небольших таблиц (менее 100K строк) последовательное сканирование может опережать HNSW.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# Full RAG pipeline: ingest + search + generate
+import asyncio
+
+import asyncpg
+from openai import AsyncOpenAI
+
+openai = AsyncOpenAI()
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIM = 1536
+
+
+async def embed(text: str) -> list[float]:
+    resp = await openai.embeddings.create(model=EMBEDDING_MODEL, input=text)
+    return resp.data[0].embedding
+
+
+async def setup_schema(conn: asyncpg.Connection) -> None:
+    await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS doc_chunks (
+            id          BIGSERIAL PRIMARY KEY,
+            doc_id      BIGINT NOT NULL,
+            chunk_index INT NOT NULL,
+            content     TEXT NOT NULL,
+            metadata    JSONB DEFAULT '{}',
+            embedding   vector(1536)
+        )
+    """)
+    # HNSW index: m=16 for good recall/memory balance
+    await conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_chunks_embedding
+        ON doc_chunks USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64)
+    """)
+
+
+async def ingest_document(conn: asyncpg.Connection, doc_id: int, text: str) -> None:
+    # Simple fixed-size chunking (production: use semantic chunking)
+    chunk_size = 512
+    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+
+    embeddings = await asyncio.gather(*[embed(chunk) for chunk in chunks])
+
+    await conn.executemany(
+        """
+        INSERT INTO doc_chunks (doc_id, chunk_index, content, embedding)
+        VALUES ($1, $2, $3, $4)
+        """,
+        [(doc_id, i, chunk, emb) for i, (chunk, emb) in enumerate(zip(chunks, embeddings))],
+    )
+
+
+async def retrieve_context(
+    conn: asyncpg.Connection,
+    query: str,
+    top_k: int = 5,
+    metadata_filter: dict | None = None,
+) -> list[str]:
+    query_embedding = await embed(query)
+
+    # Hybrid: vector similarity + metadata filter
+    sql = """
+        SELECT content, 1 - (embedding <=> $1::vector) AS similarity
+        FROM doc_chunks
+        WHERE ($2::jsonb IS NULL OR metadata @> $2)
+        ORDER BY embedding <=> $1::vector
+        LIMIT $3
+    """
+    rows = await conn.fetch(sql, query_embedding, metadata_filter, top_k)
+    return [row["content"] for row in rows]
+
+
+async def rag_answer(conn: asyncpg.Connection, question: str) -> str:
+    context_chunks = await retrieve_context(conn, question, top_k=5)
+    context = "\n\n---\n\n".join(context_chunks)
+
+    response = await openai.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": f"Answer based on this context:\n\n{context}"},
+            {"role": "user", "content": question},
+        ],
+    )
+    return response.choices[0].message.content
+```

@@ -1,0 +1,95 @@
+---
+title: "Что такое LLM workflows и какие production-проблемы они создают?"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+An **LLM workflow** is any application pattern that uses a language model to process inputs and produce outputs as part of a larger system. They range from a simple **single-call** (one prompt → one response) to **chains** (the output of one LLM call is the input of the next) to **agents** (the LLM decides which tools to call and loops until a goal is met). Complexity and autonomy increase along this spectrum, as do latency, cost, and the difficulty of debugging failures.
+
+**Single-call patterns** are the most reliable: deterministic input/output, easy to test, predictable latency (~1–5s). **Chains** (e.g., extract → summarize → classify) accumulate latency at each step and can propagate errors — if the first step hallucinates, every downstream step builds on a false premise. Chains should be designed so each step validates its input. **Agents** with tool use introduce non-determinism: the model decides what to do next, which makes end-to-end testing hard and failure modes open-ended.
+
+The core **production challenges** are: **latency** (LLM calls are slow — P99 can exceed 30s; use streaming, parallel calls, and caching to mitigate), **cost** (input/output token costs add up — cache prompts, use smaller models for simpler subtasks), **reliability** (models return errors, rate limits, and occasional malformed output — implement retries with exponential backoff and fallback chains), and **observability** (tracing multi-step workflows requires LLM-aware tooling like **LangSmith**, **Langfuse**, or **Arize Phoenix** to capture prompts, completions, latency, and token counts at each step).
+
+</Answer>
+<Answer lang="ru">
+
+**LLM workflow** — любой паттерн приложения, использующего языковую модель для обработки входных данных в рамках более крупной системы. Спектр: от простого **single-call** (один промпт → один ответ) до **chains** (выход одного LLM-вызова является входом следующего) до **agents** (LLM сам решает, какие инструменты вызвать, и работает в цикле до достижения цели). По мере роста сложности и автономности растут задержка, стоимость и сложность отладки.
+
+**Single-call** — самый надёжный паттерн: детерминированный ввод/вывод, легко тестировать, предсказуемая задержка (~1–5с). **Chains** (например, извлечь → резюмировать → классифицировать) накапливают задержку на каждом шаге и могут распространять ошибки — если первый шаг галлюцинирует, все последующие строятся на ложной посылке. Каждый шаг chain должен валидировать свой вход. **Agents** с tool use вводят недетерминизм: модель сама решает, что делать дальше, что делает end-to-end тестирование трудным, а сценарии отказов — открытыми.
+
+Ключевые **production-проблемы**: **задержка** (LLM-вызовы медленные — P99 может превышать 30с; используй streaming, параллельные вызовы и кеширование), **стоимость** (токены дорогостоящи — кешируй промпты, используй меньшие модели для простых подзадач), **надёжность** (модели возвращают ошибки, rate limits, иногда неструктурированный вывод — retries с exponential backoff и fallback chains), **наблюдаемость** (трейсинг многошаговых workflows требует LLM-aware инструментов: **LangSmith**, **Langfuse** или **Arize Phoenix** для захвата промптов, completions, задержки и количества токенов на каждом шаге).
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Простой LLM workflow с параллельными вызовами и observability
+
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+interface AnalysisResult {
+  sentiment: string;
+  entities: string[];
+  summary: string;
+  processingTimeMs: number;
+}
+
+// Параллельный chain: выполняет независимые задачи одновременно
+async function analyzeDocument(document: string): Promise<AnalysisResult> {
+  const start = Date.now();
+
+  // Параллельные вызовы — не последовательные
+  const [sentimentRes, entitiesRes, summaryRes] = await Promise.all([
+    client.messages.create({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 50,
+      messages: [{
+        role: "user",
+        content: `Classify sentiment as positive/negative/neutral. Reply with ONE word only.\n\n${document}`,
+      }],
+    }),
+    client.messages.create({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 200,
+      messages: [{
+        role: "user",
+        content: `Extract named entities (people, orgs, locations) as JSON array of strings.\n\n${document}`,
+      }],
+    }),
+    // Summary uses a more capable model
+    client.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 300,
+      messages: [{
+        role: "user",
+        content: `Summarize in 2-3 sentences.\n\n${document}`,
+      }],
+    }),
+  ]);
+
+  const processingTimeMs = Date.now() - start;
+
+  // Log for observability (in production: send to Langfuse/LangSmith)
+  console.log({
+    event: "llm_workflow_complete",
+    workflow: "document_analysis",
+    steps: ["sentiment", "entities", "summary"],
+    totalMs: processingTimeMs,
+    inputTokens:
+      (sentimentRes.usage.input_tokens + entitiesRes.usage.input_tokens + summaryRes.usage.input_tokens),
+    outputTokens:
+      (sentimentRes.usage.output_tokens + entitiesRes.usage.output_tokens + summaryRes.usage.output_tokens),
+  });
+
+  return {
+    sentiment: (sentimentRes.content[0] as { text: string }).text.trim(),
+    entities: JSON.parse((entitiesRes.content[0] as { text: string }).text),
+    summary: (summaryRes.content[0] as { text: string }).text,
+    processingTimeMs,
+  };
+}
+```

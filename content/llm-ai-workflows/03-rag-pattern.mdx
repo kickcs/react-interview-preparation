@@ -1,0 +1,135 @@
+---
+title: "Что такое RAG и как его правильно реализовать?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**RAG (Retrieval-Augmented Generation)** is a pattern that grounds LLM responses in specific, up-to-date documents rather than relying solely on the model's training data. The architecture has three stages: **Retrieval** (find relevant documents/chunks from a vector store using embedding similarity search), **Augmentation** (inject the retrieved context into the prompt), and **Generation** (the LLM generates a response grounded in the provided context). RAG solves the knowledge cutoff problem, reduces hallucinations on domain-specific questions, and provides source attribution.
+
+**Chunking strategy** is critical and often underestimated. Fixed-size chunking (512 tokens with 20% overlap) is simple but splits sentences mid-thought. **Semantic chunking** splits at paragraph or section boundaries, preserving coherence. **Recursive character splitting** with overlap is a pragmatic middle ground. Chunk size affects recall: too small → each chunk lacks context; too large → retrieved chunks dilute relevance. **Metadata filtering** (filter by document type, date, department before vector search) dramatically improves precision and reduces latency.
+
+**Embedding models** matter for retrieval quality. `text-embedding-3-small` (OpenAI) or `voyage-3` (Anthropic) produce dense vectors; **late interaction models** like ColBERT trade storage for higher accuracy. In production, the retrieval step should use **hybrid search**: dense vector similarity + BM25 keyword search, combined with **Reciprocal Rank Fusion (RRF)**. Re-ranking retrieved chunks with a cross-encoder before feeding to the LLM significantly improves answer quality. Evaluate retrieval separately from generation — a high-quality retrieval pipeline is the biggest lever for RAG performance.
+
+</Answer>
+<Answer lang="ru">
+
+**RAG (Retrieval-Augmented Generation)** — паттерн, который заземляет ответы LLM в конкретных, актуальных документах вместо полного опоры на обучающие данные модели. Архитектура состоит из трёх этапов: **Retrieval** (поиск релевантных документов/чанков из vector store через embedding similarity search), **Augmentation** (инжекция найденного контекста в промпт), **Generation** (LLM генерирует ответ, опираясь на предоставленный контекст). RAG решает проблему knowledge cutoff, снижает галлюцинации на доменных вопросах и обеспечивает атрибуцию источников.
+
+**Стратегия чанкинга** критична и часто недооценивается. Фиксированный размер (512 токенов с 20% перекрытием) прост, но может разрывать предложения. **Семантический чанкинг** делит по границам параграфов или секций, сохраняя когерентность. **Recursive character splitting** с перекрытием — прагматичный компромисс. Размер чанка влияет на recall: слишком маленький → каждый чанк лишён контекста; слишком большой → retrieved чанки размывают релевантность. **Метаданные-фильтрация** (фильтр по типу документа, дате, отделу до vector search) значительно повышает точность.
+
+**Качество эмбеддингов** влияет на retrieval. `text-embedding-3-small` или `voyage-3` дают dense vectors; **late interaction модели** вроде ColBERT жертвуют хранилищем ради высокой точности. В production retrieval должен использовать **hybrid search**: dense vector + BM25 keyword search с **Reciprocal Rank Fusion (RRF)**. Re-ranking retrieved чанков cross-encoder перед подачей в LLM значительно улучшает качество ответов. Оценивай retrieval отдельно от generation — качественный retrieval pipeline — главный рычаг производительности RAG.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// RAG pipeline с hybrid search и reranking (TypeScript + pgvector)
+
+import Anthropic from "@anthropic-ai/sdk";
+import { Pool } from "pg";
+import OpenAI from "openai";
+
+const anthropic = new Anthropic();
+const openai = new OpenAI();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+interface DocumentChunk {
+  id: string;
+  content: string;
+  metadata: { source: string; page: number; department: string };
+  similarity: number;
+}
+
+// Step 1: Embed the query
+async function embedQuery(text: string): Promise<number[]> {
+  const res = await openai.embeddings.create({
+    model: "text-embedding-3-small",
+    input: text,
+  });
+  return res.data[0].embedding;
+}
+
+// Step 2: Hybrid search (vector + BM25 keyword with RRF)
+async function hybridSearch(
+  query: string,
+  embedding: number[],
+  filter?: { department?: string },
+  topK = 10
+): Promise<DocumentChunk[]> {
+  const embeddingStr = `[${embedding.join(",")}]`;
+
+  // Parameterize every user-controlled value — never interpolate into SQL
+  const params: (string | number)[] = [embeddingStr, query, topK];
+  let departmentFilter = "";
+  if (filter?.department) {
+    params.push(filter.department);
+    departmentFilter = `AND metadata->>'department' = $${params.length}`;
+  }
+
+  // Combines pgvector similarity search with PostgreSQL full-text search via RRF
+  const rows = await pool.query(
+    `WITH vector_search AS (
+       SELECT id, content, metadata,
+              1 - (embedding <=> $1::vector) AS similarity,
+              ROW_NUMBER() OVER (ORDER BY embedding <=> $1::vector) AS rn
+       FROM document_chunks
+       WHERE 1=1 ${departmentFilter}
+       ORDER BY embedding <=> $1::vector
+       LIMIT $3
+     ),
+     keyword_search AS (
+       SELECT id, content, metadata,
+              ts_rank(to_tsvector('english', content), plainto_tsquery('english', $2)) AS similarity,
+              ROW_NUMBER() OVER (ORDER BY ts_rank(to_tsvector('english', content), plainto_tsquery('english', $2)) DESC) AS rn
+       FROM document_chunks
+       WHERE to_tsvector('english', content) @@ plainto_tsquery('english', $2) ${departmentFilter}
+       LIMIT $3
+     )
+     SELECT COALESCE(v.id, k.id) AS id,
+            COALESCE(v.content, k.content) AS content,
+            COALESCE(v.metadata, k.metadata) AS metadata,
+            (1.0 / (60 + COALESCE(v.rn, $3+1)) + 1.0 / (60 + COALESCE(k.rn, $3+1))) AS rrf_score
+     FROM vector_search v
+     FULL OUTER JOIN keyword_search k USING (id)
+     ORDER BY rrf_score DESC
+     LIMIT $3`,
+    params
+  );
+
+  return rows.rows;
+}
+
+// Step 3: Generate answer with retrieved context
+async function ragQuery(
+  userQuestion: string,
+  filter?: { department?: string }
+): Promise<{ answer: string; sources: string[] }> {
+  const embedding = await embedQuery(userQuestion);
+  const chunks = await hybridSearch(userQuestion, embedding, filter, 5);
+
+  if (chunks.length === 0) {
+    return { answer: "No relevant documents found.", sources: [] };
+  }
+
+  const context = chunks
+    .map((c, i) => `[${i + 1}] (${c.metadata.source}, p.${c.metadata.page})\n${c.content}`)
+    .join("\n\n");
+
+  const response = await anthropic.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    system: `Answer questions based ONLY on the provided context. If the answer is not in the context, say "I don't have that information." Cite sources as [1], [2], etc.`,
+    messages: [{
+      role: "user",
+      content: `Context:\n${context}\n\nQuestion: ${userQuestion}`,
+    }],
+  });
+
+  return {
+    answer: (response.content[0] as { text: string }).text,
+    sources: chunks.map((c) => `${c.metadata.source} p.${c.metadata.page}`),
+  };
+}
+```

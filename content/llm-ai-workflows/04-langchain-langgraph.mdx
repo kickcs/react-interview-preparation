@@ -1,0 +1,123 @@
+---
+title: "LangChain vs LangGraph: когда использовать фреймворки, а когда обходиться без них?"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**LangChain** is a Python/TypeScript framework for composing LLM applications. Its **LCEL (LangChain Expression Language)** uses a pipe-based composition model (`prompt | model | parser`) that makes simple chains concise. LangChain provides a unified interface across model providers, built-in retrievers, memory abstractions, and integrations with hundreds of tools. The criticism of LangChain is its abstraction complexity: debugging a multi-layer chain often requires diving through multiple abstraction layers, and the framework moves fast with frequent breaking changes.
+
+**LangGraph** is a separate library (built on LangChain primitives) for building **stateful, cyclical workflows** as directed graphs. Unlike chains (which are DAGs — no loops), LangGraph allows conditional edges and cycles: an agent can observe tool output, decide to call another tool, and loop until done. Each node is a Python function; state is passed between nodes as a typed dict. LangGraph is the right tool when your workflow is genuinely stateful — an agent that needs to revise its plan based on tool results, or a multi-agent system where agents hand off work.
+
+**When to skip frameworks entirely**: for simple 1–3 step workflows, direct SDK calls (Anthropic SDK, OpenAI SDK) are simpler, have fewer dependencies, and are much easier to debug. Frameworks add value when you need provider abstraction, built-in retry/streaming handling, or tight integration with observability platforms. A pragmatic approach: **start with raw SDK calls**, extract a thin abstraction only when the pattern repeats, and adopt LangGraph only when you actually need a state machine. The cognitive overhead of frameworks is real — "it's just Python calling an API" remains a valuable mental model.
+
+</Answer>
+<Answer lang="ru">
+
+**LangChain** — Python/TypeScript фреймворк для компоновки LLM-приложений. Его **LCEL (LangChain Expression Language)** использует pipe-based композицию (`prompt | model | parser`), делая простые chains лаконичными. LangChain предоставляет унифицированный интерфейс для разных провайдеров, встроенные retrievers, memory-абстракции и сотни интеграций. Критика LangChain — сложность абстракций: отладка многослойного chain требует погружения через несколько уровней, а фреймворк часто меняется с breaking changes.
+
+**LangGraph** — отдельная библиотека (на примитивах LangChain) для **stateful, циклических workflows** в виде направленных графов. В отличие от chains (DAG без циклов), LangGraph позволяет условные рёбра и циклы: агент может посмотреть вывод инструмента, решить вызвать другой и зациклиться до завершения. Каждый узел — Python-функция; состояние передаётся между узлами как типизированный dict. LangGraph подходит, когда workflow действительно stateful: агент пересматривает план по результатам инструментов или multi-agent система с передачей работы.
+
+**Когда обходиться без фреймворков**: для простых 1–3-шаговых workflows прямые SDK-вызовы (Anthropic SDK, OpenAI SDK) проще, имеют меньше зависимостей и значительно легче отлаживаются. Фреймворки оправданы при нужде в абстракции провайдеров, встроенном retry/streaming или тесной интеграции с observability. Прагматичный подход: **начинай с raw SDK**, выноси тонкую абстракцию только при повторении паттерна, и принимай LangGraph только при реальной нужде в state machine. Когнитивная нагрузка фреймворков реальна — "это просто Python, вызывающий API" остаётся ценной ментальной моделью.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# LangGraph: stateful агент с циклом проверки результата
+
+import ast
+import operator
+from typing import TypedDict, Annotated, Sequence
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
+
+# Типизированный state — передаётся между узлами
+class AgentState(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], operator.add]
+    attempt_count: int
+    final_answer: str | None
+
+# LLM с tools
+model = ChatAnthropic(model="claude-3-5-sonnet-20241022")
+
+def search_database(query: str) -> str:
+    """Search the analytics database for the given query."""
+    # Real implementation would query actual DB
+    return f"Results for '{query}': revenue Q1=$1.2M, Q2=$1.5M"
+
+_SAFE_OPS = {
+    ast.Add: operator.add, ast.Sub: operator.sub,
+    ast.Mult: operator.mul, ast.Div: operator.truediv,
+    ast.Pow: operator.pow, ast.USub: operator.neg,
+}
+
+def _safe_eval(node: ast.AST) -> float:
+    # AST whitelist — `eval()` with empty __builtins__ is NOT safe
+    # (dunder traversal bypasses exist). Only allow numeric literals + arithmetic.
+    if isinstance(node, ast.Expression):
+        return _safe_eval(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return node.value
+    if isinstance(node, ast.BinOp) and type(node.op) in _SAFE_OPS:
+        return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+    if isinstance(node, ast.UnaryOp) and type(node.op) in _SAFE_OPS:
+        return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+
+def calculate_metric(expression: str) -> str:
+    """Evaluate a numeric expression safely."""
+    try:
+        return str(_safe_eval(ast.parse(expression, mode="eval")))
+    except Exception as e:
+        return f"Error: {e}"
+
+tools = [search_database, calculate_metric]
+model_with_tools = model.bind_tools(tools)
+
+# Узлы графа
+def agent_node(state: AgentState) -> dict:
+    response = model_with_tools.invoke(state["messages"])
+    return {
+        "messages": [response],
+        "attempt_count": state["attempt_count"] + 1,
+    }
+
+def should_continue(state: AgentState) -> str:
+    last_message = state["messages"][-1]
+    # Если модель вызвала tool — продолжаем
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        return "tools"
+    # Если превысили лимит попыток — останавливаемся
+    if state["attempt_count"] >= 5:
+        return "end"
+    return "end"
+
+def extract_final_answer(state: AgentState) -> dict:
+    last = state["messages"][-1]
+    return {"final_answer": last.content if hasattr(last, "content") else str(last)}
+
+# Сборка графа
+workflow = StateGraph(AgentState)
+workflow.add_node("agent", agent_node)
+workflow.add_node("tools", ToolNode(tools))
+workflow.add_node("finalize", extract_final_answer)
+
+workflow.set_entry_point("agent")
+workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", "end": "finalize"})
+workflow.add_edge("tools", "agent")   # после tools — обратно к agent
+workflow.add_edge("finalize", END)
+
+app = workflow.compile()
+
+# Запуск
+result = app.invoke({
+    "messages": [HumanMessage(content="What was the revenue growth from Q1 to Q2?")],
+    "attempt_count": 0,
+    "final_answer": None,
+})
+print(result["final_answer"])
+```

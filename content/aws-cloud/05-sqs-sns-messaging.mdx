@@ -1,0 +1,107 @@
+---
+title: "SQS vs SNS vs EventBridge: очереди, pub/sub и паттерны обмена сообщениями"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+AWS offers three managed messaging services with distinct use cases. **SQS (Simple Queue Service)** is a point-to-point queue — one sender, one consumer group. Messages are stored durably until a consumer receives and deletes them. The key SQS concepts: **visibility timeout** (how long a message is hidden from other consumers while being processed — prevents double-processing), **Dead Letter Queue (DLQ)** (messages that fail processing after N attempts go here for inspection), and **FIFO queues** (exactly-once processing, strictly ordered, but limited to 3,000 messages/second vs 30,000+ for standard queues).
+
+**SNS (Simple Notification Service)** is pub/sub — one publisher, many subscribers. A message published to a Topic is immediately delivered to all subscriptions (SQS queues, Lambda, HTTP endpoints, email). Messages are not stored — if a subscriber is unavailable, the message is lost unless the subscription is an SQS queue. The classic **fan-out pattern**: an SNS topic with multiple SQS queue subscriptions lets one event trigger multiple independent processing pipelines with durability. For example, "order placed" → SNS → [fulfillment queue, analytics queue, notification queue].
+
+**EventBridge** is a serverless event bus with **content-based routing** — you write rules that match event patterns and route to multiple targets. Unlike SNS, EventBridge can filter by content (route error events to alerting, success events to analytics), supports schema discovery and registry, and integrates natively with 200+ AWS services and SaaS events (Stripe, GitHub). Use EventBridge for complex event routing, cross-account/region event delivery, or scheduled events (cron-like triggers). The tradeoff: EventBridge has higher latency (~250ms) than direct SQS/SNS and is more expensive per million events.
+
+</Answer>
+<Answer lang="ru">
+
+AWS предлагает три управляемых сервиса обмена сообщениями с различными случаями использования. **SQS (Simple Queue Service)** — очередь точка-точка: один отправитель, одна группа потребителей. Сообщения хранятся до получения и удаления потребителем. Ключевые концепции SQS: **visibility timeout** (время скрытия сообщения от других потребителей во время обработки — предотвращает двойную обработку), **Dead Letter Queue (DLQ)** (сообщения, провалившие обработку N раз, попадают сюда для анализа) и **FIFO-очереди** (строго однократная обработка в порядке поступления, но ограничены 3 000 сообщений/сек против 30 000+ для стандартных).
+
+**SNS (Simple Notification Service)** — pub/sub: один издатель, много подписчиков. Сообщение, опубликованное в Topic, немедленно доставляется всем подпискам (SQS-очереди, Lambda, HTTP, email). Сообщения не хранятся — если подписчик недоступен, сообщение теряется, если подписка не является SQS-очередью. Классический **паттерн fan-out**: SNS-топик с несколькими SQS-подписками позволяет одному событию запустить несколько независимых пайплайнов обработки с durability.
+
+**EventBridge** — serverless шина событий с **маршрутизацией по контенту**: пишите правила, сопоставляющие паттерны событий, и маршрутизируйте к нескольким целям. В отличие от SNS, EventBridge может фильтровать по содержимому (ошибки → алертинг, успех → аналитика), поддерживает реестр схем и интегрируется с 200+ AWS-сервисами и SaaS-событиями. Используйте EventBridge для сложной маршрутизации событий, доставки событий между аккаунтами/регионами или запланированных событий. Компромисс: задержка ~250 мс и выше цена за миллион событий.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import boto3
+import json
+from typing import Any
+
+sqs = boto3.client("sqs", region_name="us-east-1")
+sns = boto3.client("sns", region_name="us-east-1")
+events = boto3.client("events", region_name="us-east-1")
+
+QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/123456789/ai-jobs"
+TOPIC_ARN = "arn:aws:sns:us-east-1:123456789:order-events"
+
+
+# --- SQS: worker polling with visibility timeout ---
+def process_sqs_messages() -> None:
+    while True:
+        response = sqs.receive_message(
+            QueueUrl=QUEUE_URL,
+            MaxNumberOfMessages=10,
+            WaitTimeSeconds=20,          # Long polling: reduces empty receives
+            VisibilityTimeout=120,       # 2 min to process each message
+            MessageAttributeNames=["All"],
+        )
+        for msg in response.get("Messages", []):
+            try:
+                body = json.loads(msg["Body"])
+                embed_document(body["doc_id"])
+                # Delete only on success
+                sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=msg["ReceiptHandle"])
+            except Exception as e:
+                # Don't delete → visibility timeout expires → message becomes visible again
+                # After maxReceiveCount, message goes to DLQ
+                print(f"Failed to process {msg['MessageId']}: {e}")
+
+
+# --- SNS fan-out: one event → multiple SQS queues ---
+def publish_order_event(order_id: str, event_type: str) -> None:
+    sns.publish(
+        TopicArn=TOPIC_ARN,
+        Message=json.dumps({"order_id": order_id, "event": event_type}),
+        MessageAttributes={
+            "event_type": {"DataType": "String", "StringValue": event_type},
+        },
+    )
+    # SNS delivers to: fulfillment-queue, analytics-queue, notification-queue
+    # Each queue processes independently — one failure doesn't affect others
+
+
+# --- EventBridge: content-based routing ---
+def put_embedding_event(doc_id: int, status: str, tokens_used: int) -> None:
+    events.put_events(
+        Entries=[
+            {
+                "Source": "myapp.document-processor",
+                "DetailType": "EmbeddingCompleted",
+                "Detail": json.dumps({
+                    "doc_id": doc_id,
+                    "status": status,
+                    "tokens_used": tokens_used,
+                }),
+            }
+        ]
+    )
+    # EventBridge rules route this event:
+    # Rule 1: status=error → SNS alert topic
+    # Rule 2: tokens_used>5000 → SQS cost-tracking queue
+    # Rule 3: all events → Kinesis Firehose → S3 for audit log
+
+
+# --- Lambda handler: triggered by SQS ---
+def lambda_handler(event: dict, context: Any) -> dict:
+    batch_item_failures = []
+    for record in event["Records"]:
+        try:
+            body = json.loads(record["body"])
+            process_document(body["doc_id"])
+        except Exception as e:
+            # Report partial batch failure — only failed messages go back to queue
+            batch_item_failures.append({"itemIdentifier": record["messageId"]})
+    return {"batchItemFailures": batch_item_failures}
+```

@@ -1,0 +1,109 @@
+---
+title: "Что такое OWASP Top 10 и какие уязвимости наиболее критичны для веб-приложений?"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+The **OWASP Top 10** is an authoritative list of the most critical security risks to web applications, updated every few years based on real-world data from security assessments and CVEs. The 2021 edition reshuffled priorities significantly: **Broken Access Control** moved to #1, reflecting that authorization failures are now the most pervasive vulnerability class.
+
+The most impactful categories for modern web apps include: **Injection** (SQL, NoSQL, command injection — still #3 in 2021), **Cryptographic Failures** (#2 — sensitive data transmitted or stored without proper encryption), **Insecure Design** (#4 — architectural-level flaws that code fixes alone cannot resolve), and **Server-Side Request Forgery (SSRF)** (#10 — newly added, critical for cloud-native apps where metadata services like `169.254.169.254` are reachable).
+
+For a senior engineer, knowing OWASP Top 10 is table stakes. More important is understanding **which controls mitigate which risks**: parameterized queries for injection, least-privilege RBAC for access control, TLS + encryption at rest for cryptographic failures, and egress filtering or SSRF allowlists for SSRF. Compliance frameworks like SOC 2 and HIPAA often map directly to OWASP controls. In analytical and LLM applications, **prompt injection** is an emerging analog to classic injection attacks that belongs in the same mental model.
+
+</Answer>
+<Answer lang="ru">
+
+**OWASP Top 10** — это авторитетный список наиболее критичных угроз безопасности веб-приложений, обновляемый на основе реальных данных о взломах и CVE. В редакции 2021 года **Broken Access Control** поднялся на первое место — сбои авторизации стали самым распространённым классом уязвимостей.
+
+Наиболее важные категории для современных веб-приложений: **Injection** (SQL, NoSQL, командные инъекции — по-прежнему #3), **Cryptographic Failures** (#2 — передача или хранение чувствительных данных без надлежащего шифрования), **Insecure Design** (#4 — архитектурные просчёты, которые нельзя исправить только патчами кода), и **Server-Side Request Forgery (SSRF)** (#10 — новинка, критична для облачных приложений, где сервисы метаданных вроде `169.254.169.254` могут быть доступны).
+
+Для Senior-инженера знание OWASP Top 10 — это базовый минимум. Важнее понимать, **какие меры нейтрализуют какие риски**: параметризованные запросы против инъекций, RBAC с минимальными привилегиями против Broken Access Control, TLS и шифрование at rest против Cryptographic Failures, фильтрация исходящих запросов против SSRF. Фреймворки соответствия SOC 2 и HIPAA напрямую ссылаются на контроли OWASP. В аналитических и LLM-приложениях **prompt injection** — это современный аналог классических инъекционных атак, который нужно держать в той же системе понятий.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Пример: защита от SSRF и Injection в Node.js/TypeScript
+
+import { URL } from "url";
+
+// --- SSRF Protection ---
+const ALLOWED_HOSTS = new Set(["api.internal.company.com", "data.analytics.company.com"]);
+const BLOCKED_RANGES = ["169.254.", "10.", "172.16.", "192.168.", "127."];
+
+function validateOutboundUrl(rawUrl: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("Invalid URL format");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only HTTPS allowed for outbound requests");
+  }
+
+  const hostname = parsed.hostname;
+
+  // Block cloud metadata endpoints and private ranges
+  for (const range of BLOCKED_RANGES) {
+    if (hostname.startsWith(range)) {
+      throw new Error(`Blocked IP range: ${hostname}`);
+    }
+  }
+
+  if (!ALLOWED_HOSTS.has(hostname)) {
+    throw new Error(`Host not in allowlist: ${hostname}`);
+  }
+
+  return parsed;
+}
+
+// --- SQL Injection Prevention (parameterized queries with pg) ---
+import { Pool } from "pg";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+async function getUserReport(userId: string, startDate: string): Promise<object[]> {
+  // WRONG — never do this:
+  // const q = `SELECT * FROM reports WHERE user_id = '${userId}'`;
+
+  // RIGHT — parameterized query:
+  const result = await pool.query(
+    `SELECT id, title, created_at
+     FROM reports
+     WHERE user_id = $1
+       AND created_at >= $2
+       AND deleted_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 100`,
+    [userId, startDate]
+  );
+  return result.rows;
+}
+
+// --- Broken Access Control check ---
+interface AuthContext {
+  userId: string;
+  roles: string[];
+  orgId: string;
+}
+
+async function getReport(reportId: string, auth: AuthContext): Promise<object> {
+  const report = await pool.query(
+    "SELECT * FROM reports WHERE id = $1",
+    [reportId]
+  );
+
+  if (!report.rows[0]) throw new Error("Not found");
+
+  // Enforce ownership — don't rely only on the ID in the URL
+  if (report.rows[0].org_id !== auth.orgId) {
+    throw new Error("Access denied"); // 403, not 404 — avoid enumeration leaks in private apps
+  }
+
+  return report.rows[0];
+}
+```

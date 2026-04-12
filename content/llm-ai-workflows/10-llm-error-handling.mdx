@@ -1,0 +1,159 @@
+---
+title: "Как обрабатывать ошибки и строить fallback-цепочки для LLM-вызовов?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+LLM APIs are external services with their own failure modes: **rate limits** (429), **server errors** (500, 529), **timeouts** (network or model overload), **context window exceeded** (400), and **model outages** (rare but real). Treating LLM calls as infallible HTTP requests is a production anti-pattern. Robust LLM applications need the same resilience patterns used for any external dependency.
+
+**Retries with exponential backoff** are the first line of defense for transient errors (429, 500, 502, 503). The key is to distinguish retryable errors (transient) from non-retryable ones (400 bad request, 401 authentication, context window exceeded — retrying makes no sense). Add **jitter** to backoff to prevent thundering herds — multiple clients retrying simultaneously can worsen a rate limit situation. The Anthropic and OpenAI SDKs have built-in automatic retries, but you should customize the behavior (max retries, backoff factor) and add your own observability on top.
+
+**Fallback chains** handle model unavailability: if the primary model (Claude Opus) fails after retries, fall back to a cheaper/faster model (Claude Haiku), then to a **cached response** (semantic cache lookup for similar queries), then to a graceful degradation message. For mission-critical workflows, implement a **circuit breaker**: after N consecutive failures, open the circuit (fail fast without calling the API) for a cooldown period, then try again with a probe request. This prevents cascading failures when a service is degraded. **Budget alerts** and **per-request cost caps** prevent runaway spending from infinite retry loops or unexpectedly long prompts.
+
+</Answer>
+<Answer lang="ru">
+
+LLM API — внешние сервисы с собственными режимами отказов: **rate limits** (429), **серверные ошибки** (500, 529), **таймауты** (сетевые или из-за перегрузки модели), **превышение context window** (400), **отключение модели** (редко, но реально). Считать LLM-вызовы безотказными HTTP-запросами — anti-pattern в production. Надёжные LLM-приложения нуждаются в тех же паттернах резилентности, что и любые внешние зависимости.
+
+**Retries с exponential backoff** — первая линия защиты от транзиентных ошибок (429, 500, 502, 503). Ключ — различать retryable (транзиентные) и non-retryable ошибки (400 bad request, 401 аутентификация, превышение context window — retry бессмысленен). Добавляй **jitter** к backoff для предотвращения thundering herd — множество клиентов, ретраящих одновременно, могут усугубить rate limit. Anthropic и OpenAI SDK имеют встроенные автоматические retries, но нужно кастомизировать поведение и добавить собственную observability.
+
+**Fallback chains** обрабатывают недоступность модели: если основная модель (Claude Opus) отказывает после retries — fallback на дешёвую/быструю (Claude Haiku), затем на **кешированный ответ** (semantic cache по похожим запросам), затем на graceful degradation сообщение. Для критичных workflows — **circuit breaker**: после N последовательных отказов размыкать цепь (fail fast без вызова API) на период охлаждения, затем пробный запрос. Предотвращает каскадные отказы при деградации сервиса. **Budget alerts** и **лимиты стоимости на запрос** предотвращают неожиданные расходы при бесконечных retry-петлях.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// LLM error handling: retry + fallback chain + circuit breaker
+
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+
+const anthropic = new Anthropic({ maxRetries: 0 }); // управляем retry вручную
+const openai = new OpenAI({ maxRetries: 0 });
+
+// Circuit breaker state (в production хранить в Redis для multi-instance)
+interface CircuitState {
+  failures: number;
+  lastFailure: number;
+  isOpen: boolean;
+}
+const circuits = new Map<string, CircuitState>();
+
+const CIRCUIT_THRESHOLD = 5;
+const CIRCUIT_COOLDOWN_MS = 60_000;
+
+function getCircuit(key: string): CircuitState {
+  return circuits.get(key) ?? { failures: 0, lastFailure: 0, isOpen: false };
+}
+
+function recordSuccess(key: string): void {
+  circuits.set(key, { failures: 0, lastFailure: 0, isOpen: false });
+}
+
+function recordFailure(key: string): void {
+  const c = getCircuit(key);
+  const failures = c.failures + 1;
+  circuits.set(key, {
+    failures,
+    lastFailure: Date.now(),
+    isOpen: failures >= CIRCUIT_THRESHOLD,
+  });
+}
+
+function isCircuitOpen(key: string): boolean {
+  const c = getCircuit(key);
+  if (!c.isOpen) return false;
+  // Auto-reset after cooldown
+  if (Date.now() - c.lastFailure > CIRCUIT_COOLDOWN_MS) {
+    circuits.set(key, { failures: 0, lastFailure: 0, isOpen: false });
+    return false;
+  }
+  return true;
+}
+
+// Retry с exponential backoff + jitter
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  baseDelayMs = 500
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isRetryable = err instanceof Anthropic.APIError && [429, 500, 502, 503, 529].includes(err.status);
+      if (!isRetryable || attempt === maxAttempts) throw err;
+
+      const jitter = Math.random() * 200;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1) + jitter;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Unreachable");
+}
+
+interface LLMRequest {
+  prompt: string;
+  systemPrompt?: string;
+  maxTokens?: number;
+}
+
+// Главная функция с полной fallback-цепочкой
+export async function callLLMWithFallback(req: LLMRequest): Promise<string> {
+  const { prompt, systemPrompt, maxTokens = 1024 } = req;
+
+  // Tier 1: Claude Sonnet (primary)
+  if (!isCircuitOpen("claude-sonnet")) {
+    try {
+      const result = await withRetry(async () => {
+        const res = await anthropic.messages.create({
+          model: "claude-3-5-sonnet-20241022",
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+        });
+        return (res.content[0] as { text: string }).text;
+      }, 3);
+      recordSuccess("claude-sonnet");
+      return result;
+    } catch (err) {
+      recordFailure("claude-sonnet");
+      console.error("Claude Sonnet failed, falling back", err);
+    }
+  }
+
+  // Tier 2: Claude Haiku (cheaper, faster)
+  if (!isCircuitOpen("claude-haiku")) {
+    try {
+      const result = await withRetry(async () => {
+        const res = await anthropic.messages.create({
+          model: "claude-3-5-haiku-20241022",
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+        });
+        return (res.content[0] as { text: string }).text;
+      }, 2);
+      recordSuccess("claude-haiku");
+      return result;
+    } catch (err) {
+      recordFailure("claude-haiku");
+      console.error("Claude Haiku failed, falling back to GPT-4o-mini", err);
+    }
+  }
+
+  // Tier 3: OpenAI GPT-4o-mini (cross-provider fallback)
+  const gptRes = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    max_tokens: maxTokens,
+    messages: [
+      ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
+      { role: "user", content: prompt },
+    ],
+  });
+
+  return gptRes.choices[0].message.content ?? "No response available";
+}
+```

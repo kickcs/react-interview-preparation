@@ -1,0 +1,136 @@
+---
+title: "CI/CD на AWS: GitHub Actions + OIDC, ECR, blue/green deploy и IaC"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A modern AWS CI/CD pipeline combines **GitHub Actions** for the CI/CD orchestration with AWS services for artifact storage and deployment. The key security improvement over classic approaches: **OIDC federation** eliminates static AWS access keys stored in GitHub secrets. Instead, GitHub's OIDC provider issues a short-lived JWT on each workflow run, which AWS STS exchanges for temporary IAM credentials via `AssumeRoleWithWebIdentity`. This means no long-lived credentials to rotate, no credential exposure risk, and fine-grained control over which repos/branches/environments can assume which roles.
+
+The **ECR (Elastic Container Registry)** pipeline: build Docker image in GitHub Actions → tag with git SHA → push to ECR → trigger ECS deployment. Tagging with the git SHA (not `latest`) makes every deployment traceable and rollbacks trivial — you redeploy the previous SHA tag. For ECS, the standard deployment strategy is **rolling update**: ECS replaces old tasks with new ones incrementally. For zero-downtime deployments where you need to validate the new version before routing traffic, use **blue/green deployment** via AWS CodeDeploy — it creates a new task set, shifts a percentage of traffic, runs health checks, then either completes the shift or rolls back automatically.
+
+**Infrastructure as Code (IaC)** is non-negotiable for production: define all AWS resources in code so environments are reproducible and changes are reviewed. **AWS CDK** (Python) is the most expressive option — you write Python classes that synthesize to CloudFormation templates, with full type safety and IDE support. **Terraform** is provider-agnostic and the industry standard for multi-cloud or teams with existing Terraform expertise. **CloudFormation** is the AWS native IaC but has more verbose YAML/JSON syntax. Always version-control your IaC, run `cdk diff` / `terraform plan` in CI before applying, and use separate stacks/workspaces for dev/staging/prod.
+
+</Answer>
+<Answer lang="ru">
+
+Современный CI/CD-пайплайн на AWS сочетает **GitHub Actions** для оркестрации CI/CD с AWS-сервисами для хранения артефактов и деплоя. Ключевое улучшение безопасности: **OIDC federation** устраняет статические AWS access keys в GitHub secrets. Вместо этого OIDC-провайдер GitHub выдаёт короткоживущий JWT при каждом запуске воркфлоу, который AWS STS обменивает на временные IAM-учётные данные через `AssumeRoleWithWebIdentity`. Нет долгоживущих учётных данных для ротации, нет риска их утечки, есть детальный контроль над тем, какие репозитории/ветки могут принимать какие роли.
+
+**ECR (Elastic Container Registry)** пайплайн: сборка Docker-образа в GitHub Actions → тег с git SHA → push в ECR → запуск деплоя ECS. Тегирование git SHA (не `latest`) делает каждый деплой трассируемым, а откаты тривиальными — просто деплоите предыдущий тег. Для ECS стандартная стратегия деплоя — **rolling update**: ECS постепенно заменяет старые задачи новыми. Для zero-downtime с валидацией новой версии перед переключением трафика используйте **blue/green deployment** через AWS CodeDeploy — создаёт новый набор задач, постепенно переключает трафик, выполняет проверки работоспособности, затем либо завершает переключение, либо откатывает автоматически.
+
+**Infrastructure as Code (IaC)** обязателен для production: определяйте все AWS-ресурсы в коде, чтобы окружения были воспроизводимыми, а изменения ревьюировались. **AWS CDK** (Python) — самый выразительный вариант: Python-классы, синтезирующиеся в CloudFormation-шаблоны, с полной типобезопасностью. **Terraform** — мультиоблачный отраслевой стандарт. **CloudFormation** — нативный IaC AWS с более многословным синтаксом YAML/JSON. Всегда версионируйте IaC, запускайте `cdk diff` / `terraform plan` в CI перед применением, используйте отдельные стеки/воркспейсы для dev/staging/prod.
+
+</Answer>
+</AnswerGroup>
+
+```yaml
+# .github/workflows/deploy.yml
+name: Build and Deploy to ECS
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: my-fastapi-app
+  ECS_CLUSTER: production
+  ECS_SERVICE: fastapi-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # OIDC: no static credentials — GitHub gets temporary AWS creds
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::123456789:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}    # Immutable tag = easy rollback
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                     $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Register new task definition revision
+        id: task-def
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Fetch current task definition, patch image, register new revision
+          aws ecs describe-task-definition \
+            --task-definition $ECS_SERVICE \
+            --query 'taskDefinition' \
+            > task-def.json
+          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          jq --arg IMG "$NEW_IMAGE" \
+            '.containerDefinitions[0].image = $IMG
+             | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                   .compatibilities, .registeredAt, .registeredBy)' \
+            task-def.json > new-task-def.json
+          NEW_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-def.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "arn=$NEW_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service to new revision
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --task-definition ${{ steps.task-def.outputs.arn }} \
+            --region $AWS_REGION
+
+      - name: Wait for deployment to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE \
+            --region $AWS_REGION
+```
+
+```python
+# AWS CDK: minimal ECR + ECS deployment pipeline (Python)
+from aws_cdk import (
+    aws_ecr as ecr,
+    aws_ecs as ecs,
+    RemovalPolicy,
+)
+
+# ECR repo with lifecycle policy: keep only last 10 images
+repo = ecr.Repository(
+    self, "AppRepo",
+    repository_name="my-fastapi-app",
+    removal_policy=RemovalPolicy.RETAIN,
+    lifecycle_rules=[
+        ecr.LifecycleRule(
+            description="Keep last 10 images",
+            max_image_count=10,
+            rule_priority=1,
+        )
+    ],
+)
+```

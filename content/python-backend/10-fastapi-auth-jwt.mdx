@@ -1,0 +1,114 @@
+---
+title: "Аутентификация в FastAPI: JWT, OAuth2PasswordBearer и scopes"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+FastAPI provides built-in security utilities in `fastapi.security` that integrate with OpenAPI's security scheme definitions. The most common pattern is **OAuth2 with password flow** using `OAuth2PasswordBearer` — this tells OpenAPI that your API expects a Bearer token in the `Authorization` header and generates a lock icon in Swagger UI. The scheme itself is just a dependency that extracts the token string; you still implement the validation logic.
+
+**JWT (JSON Web Tokens)** are self-contained tokens with three parts: header (algorithm), payload (claims like `sub`, `exp`, `scopes`), and signature. The server signs the token with a secret key (HS256) or private key (RS256). On each request, you verify the signature and expiry — no database lookup required. This is what makes JWT stateless and scalable. The tradeoff: tokens cannot be invalidated before expiry without a server-side blocklist (store invalidated JTIs in Redis).
+
+**Scopes** provide fine-grained authorization: a token may include `["read:documents", "write:documents"]` and route handlers declare which scopes they require via `Security(get_current_user, scopes=["write:documents"])`. For production: use short-lived access tokens (15 minutes) and long-lived refresh tokens (7–30 days). Store refresh tokens in the database so they can be revoked. Never store JWT secrets in code — use `BaseSettings` to read from environment variables. Rotate secrets periodically and support multiple valid keys during rotation.
+
+</Answer>
+<Answer lang="ru">
+
+FastAPI предоставляет встроенные утилиты безопасности в `fastapi.security`, интегрированные с определениями схем безопасности OpenAPI. Самый распространённый паттерн — **OAuth2 с password flow** через `OAuth2PasswordBearer`: это указывает OpenAPI, что API ожидает Bearer-токен в заголовке `Authorization`, и генерирует значок замка в Swagger UI. Схема сама по себе — просто зависимость, извлекающая строку токена; логику валидации реализуете вы.
+
+**JWT (JSON Web Tokens)** — самодостаточные токены из трёх частей: заголовок (алгоритм), полезная нагрузка (claims: `sub`, `exp`, `scopes`) и подпись. Сервер подписывает токен секретным ключом (HS256) или приватным ключом (RS256). На каждый запрос проверяется подпись и срок действия — без обращения к БД. Именно это делает JWT stateless и масштабируемым. Компромисс: токены нельзя инвалидировать до истечения срока без серверного блоклиста (храните инвалидированные JTI в Redis).
+
+**Scopes** обеспечивают детализированную авторизацию: токен может содержать `["read:documents", "write:documents"]`, а обработчики маршрутов объявляют требуемые scopes через `Security(get_current_user, scopes=["write:documents"])`. Для production: используйте короткоживущие access-токены (15 минут) и долгоживущие refresh-токены (7–30 дней). Храните refresh-токены в БД, чтобы их можно было отозвать. Никогда не храните JWT-секреты в коде — используйте `BaseSettings`. Периодически ротируйте секреты и поддерживайте несколько валидных ключей во время ротации.
+
+</Answer>
+</AnswerGroup>
+
+```python
+from datetime import datetime, timedelta, timezone
+from typing import Annotated
+
+import jwt
+from fastapi import Depends, FastAPI, HTTPException, Security, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, SecurityScopes
+from pydantic import BaseModel, ValidationError
+
+from app.config import Settings
+
+settings = Settings()
+app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/token",
+    scopes={
+        "read:documents": "Read documents",
+        "write:documents": "Create and update documents",
+        "admin": "Full administrative access",
+    },
+)
+
+
+class TokenData(BaseModel):
+    sub: str
+    scopes: list[str] = []
+    exp: int  # Unix timestamp — PyJWT decodes `exp` as an int
+
+
+def create_access_token(subject: str, scopes: list[str], expires_minutes: int = 15) -> str:
+    payload = {
+        "sub": subject,
+        "scopes": scopes,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=expires_minutes),
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, settings.secret_key.get_secret_value(), algorithm="HS256")
+
+
+async def get_current_user(
+    security_scopes: SecurityScopes,
+    token: Annotated[str, Depends(oauth2_scheme)],
+) -> TokenData:
+    if security_scopes.scopes:
+        authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
+    else:
+        authenticate_value = "Bearer"
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": authenticate_value},
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.secret_key.get_secret_value(), algorithms=["HS256"]
+        )
+        token_data = TokenData(**payload)
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, ValidationError):
+        raise credentials_exception
+
+    # Check that token has all required scopes
+    for scope in security_scopes.scopes:
+        if scope not in token_data.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Scope required: {scope}",
+                headers={"WWW-Authenticate": authenticate_value},
+            )
+    return token_data
+
+
+@app.post("/auth/token")
+async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> dict:
+    user = await authenticate_user(form.username, form.password)
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    token = create_access_token(subject=user.id, scopes=user.scopes)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@app.get("/documents")
+async def list_documents(
+    current_user: Annotated[TokenData, Security(get_current_user, scopes=["read:documents"])],
+):
+    return await document_service.list_for_user(current_user.sub)
+```

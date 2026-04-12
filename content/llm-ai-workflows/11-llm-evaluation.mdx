@@ -1,0 +1,131 @@
+---
+title: "Как оценивать качество LLM-систем в production?"
+order: 11
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Evaluation (eval)** of LLM systems is fundamentally different from evaluating traditional software. There is no single correct output — "good" is fuzzy and task-dependent. A robust evaluation strategy distinguishes between **offline evals** (run before deployment, against a fixed dataset) and **online evals** (run in production, on real traffic). Both are necessary: offline evals catch regressions before they reach users; online evals catch distribution shift and edge cases that offline datasets don't cover.
+
+**LLM-as-judge** is the most scalable offline eval technique: use a more capable model (or the same model in evaluator mode) to score outputs on dimensions like accuracy, faithfulness to context, completeness, and harmlessness. The key is writing evaluation rubrics that are specific and unambiguous — "rate on a scale of 1-5" without criteria produces noisy scores. Include **golden datasets**: a curated set of 50–200 (prompt, expected behavior) pairs, ideally covering failure cases you've seen in production. Run evals on every model or prompt change. **RAGAS** is a framework specifically for RAG evals, providing metrics like answer relevancy, faithfulness (does the answer stay within the context?), and context precision/recall.
+
+**A/B testing** in production compares system versions on real traffic with statistical rigor. The challenge is collecting implicit or explicit feedback: thumbs up/down, edit distance between LLM output and user's final version, task completion rate, or downstream metric impact. For analytical LLM systems, a pragmatic eval pipeline is: golden dataset offline → LLM-as-judge scoring → A/B test winners → monitor online metrics. **Regression detection**: if eval scores drop more than X% from baseline on a prompt change, block the deployment automatically.
+
+</Answer>
+<Answer lang="ru">
+
+**Evaluation (eval)** LLM-систем фундаментально отличается от оценки традиционного ПО. Единственно правильного вывода нет — "хорошо" расплывчато и зависит от задачи. Надёжная стратегия различает **offline evals** (запуск до деплоя, на фиксированном датасете) и **online evals** (в production на реальном трафике). Оба необходимы: offline evals ловят регрессии до пользователей; online evals ловят distribution shift и edge cases, не покрытые offline датасетами.
+
+**LLM-as-judge** — наиболее масштабируемая техника offline eval: используй более мощную модель (или ту же в режиме оценщика) для оценки выводов по критериям точности, верности контексту, полноты, безвредности. Ключ — написать evaluation rubrics, конкретные и однозначные — "оцени по шкале 1-5" без критериев даёт шумные оценки. Включай **golden datasets**: кураторский набор из 50–200 пар (промпт, ожидаемое поведение), в идеале покрывающий реальные случаи отказов. Запускай evals при каждом изменении модели или промпта. **RAGAS** — фреймворк для RAG evals с метриками: answer relevancy, faithfulness (выход остаётся в рамках контекста?), context precision/recall.
+
+**A/B тестирование** в production сравнивает версии системы на реальном трафике со статистической строгостью. Сложность — сбор явной или неявной обратной связи: лайки/дизлайки, edit distance между выводом LLM и финальной версией пользователя, rate выполнения задач, влияние на downstream метрики. Прагматичный eval pipeline: golden dataset offline → LLM-as-judge → A/B тест победителей → мониторинг online метрик. **Детекция регрессий**: если eval score падает более чем на X% от baseline при изменении промпта — автоматически блокировать деплой.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# LLM evaluation: LLM-as-judge + golden dataset + metrics
+
+import anthropic
+import json
+from dataclasses import dataclass
+from statistics import mean
+
+client = anthropic.Anthropic()
+
+@dataclass
+class EvalCase:
+    id: str
+    input_prompt: str
+    context: str | None          # для RAG: retrieved документы
+    expected_behavior: str       # описание что должен содержать хороший ответ
+    expected_topics: list[str]   # темы, которые должны быть раскрыты
+
+@dataclass
+class EvalResult:
+    case_id: str
+    system_output: str
+    accuracy_score: float        # 1-5
+    faithfulness_score: float    # 1-5 (только для RAG)
+    reasoning: str
+
+JUDGE_PROMPT = """You are an expert evaluator for AI systems.
+
+Evaluate the AI response on these criteria (score 1-5, where 5 is excellent):
+
+ACCURACY: Is the response factually correct and aligned with the expected behavior?
+Expected behavior: {expected_behavior}
+Expected topics covered: {expected_topics}
+
+FAITHFULNESS (if context provided): Does the response stay within the provided context without hallucinating?
+Context: {context}
+
+AI Response to evaluate:
+{system_output}
+
+Respond with JSON only:
+{{"accuracy_score": <1-5>, "faithfulness_score": <1-5 or null>, "reasoning": "<brief explanation>"}}"""
+
+def evaluate_single(case: EvalCase, system_output: str) -> EvalResult:
+    """Оценить один вывод системы с помощью LLM-судьи."""
+    judge_input = JUDGE_PROMPT.format(
+        expected_behavior=case.expected_behavior,
+        expected_topics=", ".join(case.expected_topics),
+        context=case.context or "N/A",
+        system_output=system_output[:3000],  # обрезаем для экономии токенов
+    )
+
+    response = client.messages.create(
+        model="claude-3-5-sonnet-20241022",
+        max_tokens=256,
+        temperature=0,  # детерминированный судья
+        messages=[{"role": "user", "content": judge_input}],
+    )
+
+    scores = json.loads(response.content[0].text)
+    return EvalResult(
+        case_id=case.id,
+        system_output=system_output,
+        accuracy_score=scores["accuracy_score"],
+        faithfulness_score=scores["faithfulness_score"] or 5.0,
+        reasoning=scores["reasoning"],
+    )
+
+def run_system_under_test(prompt: str, context: str | None) -> str:
+    """Вызов тестируемой системы (заглушка — замени реальным pipeline)."""
+    messages = [{"role": "user", "content": f"Context:\n{context}\n\nQuestion: {prompt}" if context else prompt}]
+    res = client.messages.create(
+        model="claude-3-5-haiku-20241022",
+        max_tokens=512,
+        messages=messages,
+    )
+    return res.content[0].text
+
+def run_eval_suite(cases: list[EvalCase], baseline_scores: dict[str, float] | None = None) -> dict:
+    """Запустить полный eval suite и сравнить с baseline."""
+    results = []
+    for case in cases:
+        output = run_system_under_test(case.input_prompt, case.context)
+        result = evaluate_single(case, output)
+        results.append(result)
+        print(f"  Case {case.id}: accuracy={result.accuracy_score:.1f}, faithful={result.faithfulness_score:.1f}")
+
+    avg_accuracy = mean(r.accuracy_score for r in results)
+    avg_faithfulness = mean(r.faithfulness_score for r in results)
+
+    report = {
+        "total_cases": len(results),
+        "avg_accuracy": round(avg_accuracy, 2),
+        "avg_faithfulness": round(avg_faithfulness, 2),
+        "pass_rate": sum(1 for r in results if r.accuracy_score >= 4.0) / len(results),
+    }
+
+    # Детекция регрессий
+    if baseline_scores:
+        accuracy_delta = avg_accuracy - baseline_scores["avg_accuracy"]
+        report["accuracy_delta"] = round(accuracy_delta, 2)
+        report["regression_detected"] = accuracy_delta < -0.3  # порог: -0.3 балла
+
+    return report
+```

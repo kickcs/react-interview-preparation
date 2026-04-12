@@ -1,0 +1,94 @@
+---
+title: "AWS Lambda: cold start, memory, layers и когда НЕ использовать Lambda"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**AWS Lambda** runs your function code in isolated, ephemeral containers managed by AWS. You pay per invocation and per 100ms of execution time, with 1 million free invocations per month. Lambda scales to thousands of concurrent executions automatically. The execution environment includes memory (128 MB – 10 GB), CPU proportional to memory, ephemeral `/tmp` storage (up to 10 GB), and a maximum execution timeout of 15 minutes.
+
+**Cold starts** occur when Lambda needs to initialize a new execution environment: download the container image, start the runtime, import your code, and run the initialization code outside the handler. For Python, cold starts are 200–800 ms; for Java/JVM runtimes, 1–5 seconds. **Provisioned Concurrency** pre-warms a fixed number of execution environments, eliminating cold starts at a predictable cost — use it for latency-sensitive workloads. To minimize cold start duration: keep your deployment package small (use Lambda Layers for heavy dependencies), load heavy imports at module level (not inside the handler), and use Python 3.12+ with ARM/Graviton2 architecture (20–30% cheaper, similar or faster than x86 for Python).
+
+**When NOT to use Lambda**: workloads requiring persistent connections (Lambda cannot hold a database connection between invocations — use RDS Proxy or a persistent service), long-running processes over 15 minutes, applications requiring more than 10 GB memory, or workloads with steady high traffic (ECS Fargate or EC2 is cheaper at >50% utilization). Lambda's ephemeral filesystem means you cannot rely on local state between invocations — any data must be stored in S3, DynamoDB, ElastiCache, or your RDS.
+
+</Answer>
+<Answer lang="ru">
+
+**AWS Lambda** запускает код функций в изолированных, эфемерных контейнерах под управлением AWS. Оплата за вызов и за каждые 100 мс времени выполнения, с 1 млн бесплатных вызовов в месяц. Lambda автоматически масштабируется до тысяч параллельных выполнений. Среда выполнения включает память (128 МБ – 10 ГБ), CPU пропорционально памяти, эфемерное хранилище `/tmp` (до 10 ГБ) и максимальный timeout 15 минут.
+
+**Cold start** происходит при инициализации нового окружения: загрузка образа контейнера, запуск runtime, импорт кода, выполнение инициализационного кода вне хендлера. Для Python cold start занимает 200–800 мс; для Java/JVM-рантаймов — 1–5 секунд. **Provisioned Concurrency** предварительно прогревает фиксированное число окружений, устраняя cold start ценой предсказуемых расходов — используйте для latency-чувствительных нагрузок. Для минимизации cold start: держите пакет деплоя маленьким (используйте Lambda Layers для тяжёлых зависимостей), загружайте тяжёлые импорты на уровне модуля (не внутри хендлера), используйте Python 3.12+ с архитектурой ARM/Graviton2 (на 20–30% дешевле, сопоставима по скорости).
+
+**Когда НЕ использовать Lambda**: нагрузки, требующие постоянных соединений (Lambda не держит соединение с БД между вызовами — используйте RDS Proxy), процессы дольше 15 минут, приложения, требующие более 10 ГБ памяти, или нагрузки со стабильным высоким трафиком (ECS Fargate или EC2 дешевле при >50% утилизации). Эфемерная файловая система Lambda означает, что нельзя полагаться на локальное состояние между вызовами — данные должны храниться в S3, DynamoDB, ElastiCache или RDS.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import json
+import os
+import boto3
+from typing import Any
+
+# --- Module-level initialization (runs once per cold start) ---
+# Heavy imports and client creation outside the handler
+import anthropic
+
+# Clients initialized at module level — reused across warm invocations
+bedrock_client = boto3.client("bedrock-runtime", region_name="us-east-1")
+s3_client = boto3.client("s3")
+
+# Load config from env (set in Lambda console or SAM/CDK)
+BUCKET_NAME = os.environ["RESULTS_BUCKET"]
+MODEL_ID = os.environ.get("MODEL_ID", "anthropic.claude-3-5-sonnet-20241022-v2:0")
+
+
+def handler(event: dict, context: Any) -> dict:
+    """Lambda handler — called per invocation, NOT per cold start."""
+    try:
+        body = json.loads(event.get("body", "{}"))
+        prompt = body.get("prompt", "")
+
+        if not prompt:
+            return {"statusCode": 400, "body": json.dumps({"error": "prompt required"})}
+
+        # Call Bedrock (reuses warm bedrock_client)
+        response = bedrock_client.invoke_model(
+            modelId=MODEL_ID,
+            body=json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": prompt}],
+            }),
+        )
+        result = json.loads(response["body"].read())
+        reply = result["content"][0]["text"]
+
+        # Store result in S3 (ephemeral /tmp is not reliable between invocations)
+        request_id = context.aws_request_id
+        s3_client.put_object(
+            Bucket=BUCKET_NAME,
+            Key=f"results/{request_id}.json",
+            Body=json.dumps({"prompt": prompt, "reply": reply}),
+            ContentType="application/json",
+        )
+
+        return {
+            "statusCode": 200,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"reply": reply, "request_id": request_id}),
+        }
+
+    except Exception as e:
+        # Lambda retries on error (SQS/SNS triggers) — make handler idempotent!
+        print(f"Error: {e}")
+        return {"statusCode": 500, "body": json.dumps({"error": str(e)})}
+
+
+# --- Lambda Layer: package heavy deps separately ---
+# requirements-layer.txt: boto3, anthropic, numpy, pillow
+# aws lambda publish-layer-version \
+#   --layer-name ai-deps \
+#   --zip-file fileb://layer.zip \
+#   --compatible-runtimes python3.12
+```

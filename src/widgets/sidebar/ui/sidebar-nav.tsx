@@ -18,6 +18,9 @@ import {
   Wrench,
   Blocks,
   Code,
+  Cloud,
+  Shield,
+  Sparkles,
   Search,
   X,
 } from "lucide-react";
@@ -41,6 +44,9 @@ const lucideIcons: Record<string, ComponentType<{ className?: string }>> = {
   wrench: Wrench,
   blocks: Blocks,
   code: Code,
+  cloud: Cloud,
+  shield: Shield,
+  sparkles: Sparkles,
 };
 
 function CategoryIcon({

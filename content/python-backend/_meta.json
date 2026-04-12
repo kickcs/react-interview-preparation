@@ -1,0 +1,6 @@
+{
+  "title": "Python Backend",
+  "order": 14,
+  "description": "FastAPI, async/await, Pydantic, DI, структура проекта, тестирование",
+  "icon": "python"
+}

@@ -1,0 +1,107 @@
+---
+title: "VPC: подсети, NAT, security groups vs NACL и VPC endpoints"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+A **VPC (Virtual Private Cloud)** is your isolated network within AWS. Every VPC has a CIDR block (e.g., `10.0.0.0/16`) that you subdivide into **subnets** across multiple Availability Zones. **Public subnets** have a route to an Internet Gateway — resources here can send and receive traffic from the internet if they have a public IP. **Private subnets** have no route to the internet; resources can only communicate within the VPC or through a **NAT Gateway** (for outbound-only internet access, e.g., downloading packages or calling external APIs without being reachable from outside).
+
+The fundamental access control tools are **Security Groups** and **Network ACLs (NACLs)**. Security Groups are stateful — if you allow inbound port 443, the response traffic is automatically allowed outbound. They act at the instance/ENI level and support only Allow rules. NACLs are stateless — you must explicitly allow both inbound and outbound for a connection, and rules are evaluated in order by rule number. NACLs act at the subnet level. In practice: Security Groups handle 99% of network access control. Use NACLs for coarse subnet-level blocking (e.g., blocking a known malicious IP range) or compliance requirements for subnet-level controls.
+
+**VPC Endpoints** let you connect to AWS services (S3, DynamoDB, Bedrock, Secrets Manager) without traffic leaving AWS's network — no NAT Gateway, no public internet. **Gateway endpoints** (S3, DynamoDB) are free and add a route to your route table. **Interface endpoints** (all other services) create an ENI in your subnet with a private IP — they have a per-hour and per-GB cost but are essential for security-sensitive workloads where you cannot allow outbound internet. For a FastAPI service in a private subnet calling Bedrock, Secrets Manager, and S3: create interface endpoints for each — traffic never touches the internet, and you can remove NAT Gateway for compute savings.
+
+</Answer>
+<Answer lang="ru">
+
+**VPC (Virtual Private Cloud)** — ваша изолированная сеть в AWS. Каждый VPC имеет CIDR-блок (например, `10.0.0.0/16`), который разбивается на **подсети** по нескольким зонам доступности. **Публичные подсети** имеют маршрут к Internet Gateway — ресурсы с публичным IP могут получать и отправлять трафик из интернета. **Приватные подсети** не имеют маршрута в интернет; ресурсы могут общаться только внутри VPC или через **NAT Gateway** (только исходящий интернет-доступ, например для загрузки пакетов или вызова внешних API без доступности извне).
+
+Основные инструменты контроля доступа: **Security Groups** и **Network ACLs (NACL)**. Security Groups — stateful: если вы разрешили входящий порт 443, ответный трафик автоматически разрешён исходящий. Действуют на уровне инстанса/ENI, поддерживают только правила Allow. NACL — stateless: нужно явно разрешать и входящий, и исходящий трафик; правила применяются по порядку номеров. NACL действуют на уровне подсети. На практике: Security Groups покрывают 99% контроля сетевого доступа. NACL используйте для грубой блокировки на уровне подсети или требований соответствия.
+
+**VPC Endpoints** позволяют подключаться к AWS-сервисам (S3, DynamoDB, Bedrock, Secrets Manager) без выхода трафика за пределы сети AWS — не нужен NAT Gateway или публичный интернет. **Gateway endpoints** (S3, DynamoDB) бесплатны, добавляют маршрут в таблицу маршрутизации. **Interface endpoints** (все остальные сервисы) создают ENI в подсети с приватным IP — платные, но необходимы для security-чувствительных нагрузок. Для FastAPI-сервиса в приватной подсети, вызывающего Bedrock, Secrets Manager и S3: создайте interface endpoints — трафик никогда не касается интернета.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# AWS CDK: VPC with public/private subnets, NAT Gateway, and VPC Endpoints
+from aws_cdk import (
+    aws_ec2 as ec2,
+    Stack,
+)
+from constructs import Construct
+
+
+class NetworkStack(Stack):
+    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # VPC with public + private subnets across 2 AZs
+        # NAT Gateway in public subnet for outbound internet from private subnets
+        self.vpc = ec2.Vpc(
+            self, "AppVpc",
+            ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
+            max_azs=2,
+            nat_gateways=1,  # One NAT GW per production (2 for HA)
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="Public",
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24,
+                ),
+                ec2.SubnetConfiguration(
+                    name="Private",
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    cidr_mask=24,
+                ),
+                ec2.SubnetConfiguration(
+                    name="Isolated",  # No internet at all: database subnets
+                    subnet_type=ec2.SubnetType.PRIVATE_ISOLATED,
+                    cidr_mask=24,
+                ),
+            ],
+        )
+
+        # Gateway endpoint: S3 (free, no per-request cost)
+        self.vpc.add_gateway_endpoint(
+            "S3Endpoint",
+            service=ec2.GatewayVpcEndpointAwsService.S3,
+        )
+
+        # Interface endpoints: Bedrock, Secrets Manager (traffic stays in AWS)
+        for service_name, service in [
+            ("BedrockEndpoint", ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME),
+            ("SecretsManagerEndpoint", ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER),
+            ("EcrEndpoint", ec2.InterfaceVpcEndpointAwsService.ECR),
+            ("EcrDockerEndpoint", ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER),
+            ("CloudWatchEndpoint", ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS),
+        ]:
+            self.vpc.add_interface_endpoint(
+                service_name,
+                service=service,
+                subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+                private_dns_enabled=True,  # Resolve service DNS to private IP
+            )
+
+        # Security group: ECS tasks (allow inbound from ALB only)
+        self.ecs_sg = ec2.SecurityGroup(
+            self, "EcsSg",
+            vpc=self.vpc,
+            description="FastAPI ECS tasks",
+            allow_all_outbound=True,  # Required for VPC endpoints
+        )
+
+        # Security group: RDS (allow inbound from ECS only)
+        self.rds_sg = ec2.SecurityGroup(
+            self, "RdsSg",
+            vpc=self.vpc,
+            description="RDS PostgreSQL",
+            allow_all_outbound=False,
+        )
+        self.rds_sg.add_ingress_rule(
+            peer=self.ecs_sg,
+            connection=ec2.Port.tcp(5432),
+            description="Allow ECS tasks to connect to Postgres",
+        )
+```

@@ -1,0 +1,104 @@
+---
+title: "SQLAlchemy 2.0 async: ORM, Core, N+1 и стратегии загрузки"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**SQLAlchemy 2.0** unified the ORM and Core APIs under a consistent 2.0-style interface. The async version uses `create_async_engine` with an async driver (asyncpg for PostgreSQL) and `AsyncSession` for all ORM operations. The key change from 1.x: all queries must be explicit — `session.execute(select(User))` instead of `session.query(User)`. Lazy loading is **disabled by default** in async mode because it would implicitly run blocking I/O.
+
+The **N+1 problem** is the most common ORM performance issue. It happens when you load a list of objects and then access a relationship on each — producing one SELECT for the parent plus one SELECT per child. The fix: **eager loading** with `selectinload()` (runs a separate optimized IN query) or `joinedload()` (adds a JOIN to the original query). Use `selectinload` for to-many relationships and `joinedload` for to-one. For large datasets, use `selectinload` to avoid Cartesian product blowup from JOINs.
+
+Choose **ORM vs Core** based on complexity: ORM is great for CRUD, relationships, and anything where the Python object model matches the database model. Core (raw `text()` or `Table` constructs) is better for complex analytical queries, bulk operations, or when you need full control over the SQL. `session.execute(text("..."))` with `bindparams` is safe from SQL injection. For bulk inserts, `session.execute(insert(User), list_of_dicts)` is 10–100x faster than inserting ORM objects one by one.
+
+</Answer>
+<Answer lang="ru">
+
+**SQLAlchemy 2.0** унифицировал ORM и Core API под единый 2.0-style интерфейс. Async-версия использует `create_async_engine` с async-драйвером (asyncpg для PostgreSQL) и `AsyncSession` для всех ORM-операций. Ключевое изменение по сравнению с 1.x: все запросы должны быть явными — `session.execute(select(User))` вместо `session.query(User)`. Ленивая загрузка **отключена по умолчанию** в async-режиме, потому что она неявно выполняла бы блокирующий I/O.
+
+**Проблема N+1** — самая распространённая проблема производительности ORM. Возникает, когда вы загружаете список объектов, а затем обращаетесь к связи на каждом — производя один SELECT для родителя плюс один SELECT на каждого дочернего. Решение: **жадная загрузка** через `selectinload()` (выполняет отдельный оптимизированный IN-запрос) или `joinedload()` (добавляет JOIN к исходному запросу). Используйте `selectinload` для отношений to-many и `joinedload` для to-one. Для больших датасетов `selectinload` предпочтительнее, чтобы избежать декартова произведения от JOIN.
+
+Выбор **ORM vs Core** зависит от сложности: ORM хорош для CRUD, связей и всего, где Python-объектная модель соответствует модели БД. Core (сырой `text()` или конструкции `Table`) лучше для сложных аналитических запросов, массовых операций или когда нужен полный контроль над SQL. `session.execute(text("..."))` с `bindparams` защищён от SQL-инъекций. Для массовых вставок `session.execute(insert(User), list_of_dicts)` в 10–100 раз быстрее, чем вставка ORM-объектов по одному.
+
+</Answer>
+</AnswerGroup>
+
+```python
+from sqlalchemy import ForeignKey, String, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, selectinload
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Author(Base):
+    __tablename__ = "authors"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    books: Mapped[list["Book"]] = relationship(back_populates="author")
+
+
+class Book(Base):
+    __tablename__ = "books"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"))
+    author: Mapped["Author"] = relationship(back_populates="books")
+
+
+engine = create_async_engine("postgresql+asyncpg://user:pass@localhost/db", pool_size=10)
+Session = async_sessionmaker(engine, expire_on_commit=False)
+
+
+# --- N+1 problem: BAD ---
+async def get_authors_bad(db: AsyncSession) -> None:
+    result = await db.execute(select(Author))
+    authors = result.scalars().all()
+    for author in authors:
+        # ERROR in async: lazy load not allowed
+        # Even in sync: this triggers 1 SELECT per author = N+1 queries
+        print(author.books)
+
+
+# --- Correct: eager load with selectinload ---
+async def get_authors_with_books(db: AsyncSession) -> list[Author]:
+    result = await db.execute(
+        select(Author).options(selectinload(Author.books))
+        # Executes 2 queries total:
+        # 1: SELECT * FROM authors
+        # 2: SELECT * FROM books WHERE author_id IN (1, 2, 3, ...)
+    )
+    return result.scalars().all()
+
+
+# --- Bulk insert: ORM Core style (fast) ---
+async def bulk_insert_books(db: AsyncSession, books_data: list[dict]) -> None:
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    stmt = pg_insert(Book).values(books_data)
+    upsert = stmt.on_conflict_do_update(
+        index_elements=["id"],
+        set_={"title": stmt.excluded.title},
+    )
+    await db.execute(upsert)
+    await db.commit()
+
+
+# --- Raw SQL for complex analytics ---
+async def get_top_authors(db: AsyncSession, limit: int = 10) -> list[dict]:
+    result = await db.execute(
+        text("""
+            SELECT a.name, COUNT(b.id) AS book_count
+            FROM authors a
+            LEFT JOIN books b ON b.author_id = a.id
+            GROUP BY a.id, a.name
+            ORDER BY book_count DESC
+            LIMIT :limit
+        """),
+        {"limit": limit},
+    )
+    return [dict(row._mapping) for row in result]
+```

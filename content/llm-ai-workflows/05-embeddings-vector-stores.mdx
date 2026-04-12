@@ -1,0 +1,130 @@
+---
+title: "Как работают embeddings и vector stores и как выбрать правильное решение?"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Embeddings** are dense numerical representations of text (or images, code, etc.) in a high-dimensional vector space, where semantically similar content is geometrically close. A text embedding model maps arbitrary text to a fixed-length vector (e.g., 1536 dimensions for `text-embedding-3-small`). The key property is that `"canine"` and `"dog"` map to nearby vectors even though they share no characters, while `"dog"` and `"SQL query"` are far apart.
+
+**Similarity metrics**: **Cosine similarity** measures the angle between vectors, normalized by magnitude — it is scale-invariant and the standard choice for semantic search. **Dot product** is faster (no normalization) but sensitive to vector magnitude; normalized embeddings make dot product and cosine equivalent. **Euclidean distance** is rarely used for text. For approximate nearest neighbor (ANN) search at scale, exact exhaustive search is too slow — vector stores use indexes like **HNSW (Hierarchical Navigable Small World)** or **IVF (Inverted File Index)** to trade a small amount of recall for orders-of-magnitude speedup.
+
+**Vector store options**: **pgvector** is a PostgreSQL extension — the best choice when you already have Postgres, as it keeps all data in one system with full SQL joins, transactions, and row-level security. It handles millions of vectors adequately with HNSW index. **Pinecone** is a managed vector database with a serverless tier — good for rapid prototyping, but vendor lock-in and egress costs add up. **Qdrant** is open-source, Rust-based, with excellent filtering capabilities and Kubernetes-friendly deployment. **Weaviate** adds a built-in BM25/hybrid search layer. The choice is usually: **pgvector** for simplicity and data co-location, **Qdrant** for dedicated vector-workload scale, **Pinecone** for teams wanting zero ops.
+
+</Answer>
+<Answer lang="ru">
+
+**Embeddings** — плотные числовые представления текста (или изображений, кода) в многомерном векторном пространстве, где семантически схожий контент геометрически близок. Модель embeddings отображает произвольный текст в вектор фиксированной длины (например, 1536 измерений для `text-embedding-3-small`). Ключевое свойство: `"пёс"` и `"собака"` дают близкие векторы даже без общих символов, тогда как `"собака"` и `"SQL-запрос"` далеки.
+
+**Метрики сходства**: **Cosine similarity** измеряет угол между векторами, нормализованный по длине — не зависит от масштаба и является стандартным выбором для семантического поиска. **Dot product** быстрее (без нормализации), но зависит от длины вектора; нормализованные embeddings делают dot product и cosine эквивалентными. **Euclidean distance** редко используется для текста. При масштабировании точный полный перебор слишком медленен — vector stores используют индексы **HNSW** или **IVF** для обмена небольшим recall на ускорение на порядки.
+
+**Варианты vector stores**: **pgvector** — расширение PostgreSQL, лучший выбор если уже есть Postgres: все данные в одной системе с SQL-джойнами, транзакциями и row-level security. Справляется с миллионами векторов при HNSW-индексе. **Pinecone** — managed vector database с serverless-тарифом: хорош для быстрого старта, но vendor lock-in и egress costs накапливаются. **Qdrant** — open-source, на Rust, с отличной фильтрацией и Kubernetes-friendly деплоем. **Weaviate** добавляет встроенный BM25/hybrid search. Выбор: **pgvector** для простоты, **Qdrant** для выделенного vector-workload, **Pinecone** для команд, не желающих ops.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# Embeddings + pgvector: индексирование и поиск документов
+
+import psycopg2
+from openai import OpenAI
+import numpy as np
+from typing import Any
+
+client = OpenAI()
+
+# Миграция: создание таблицы с pgvector (run once)
+CREATE_TABLE_SQL = """
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS document_chunks (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_id      TEXT NOT NULL,
+  content     TEXT NOT NULL,
+  embedding   vector(1536) NOT NULL,
+  metadata    JSONB DEFAULT '{}',
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- HNSW index: быстрый ANN search, высокий recall (m=16, ef_construction=64 — хороший баланс)
+CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
+  ON document_chunks USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- Full-text index для hybrid search
+CREATE INDEX IF NOT EXISTS chunks_fts_idx
+  ON document_chunks USING gin (to_tsvector('english', content));
+"""
+
+def embed_texts(texts: list[str], batch_size: int = 100) -> list[list[float]]:
+    """Batch embedding — один API вызов на batch."""
+    all_embeddings = []
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=batch,
+        )
+        all_embeddings.extend([item.embedding for item in response.data])
+    return all_embeddings
+
+def chunk_text(text: str, chunk_size: int = 512, overlap: int = 50) -> list[str]:
+    """Recursive character splitting с перекрытием."""
+    words = text.split()
+    chunks = []
+    start = 0
+    while start < len(words):
+        end = min(start + chunk_size, len(words))
+        chunks.append(" ".join(words[start:end]))
+        start += chunk_size - overlap
+    return chunks
+
+def index_document(conn: Any, doc_id: str, text: str, metadata: dict) -> int:
+    """Индексировать документ: chunk → embed → upsert в pgvector."""
+    chunks = chunk_text(text)
+    embeddings = embed_texts(chunks)
+
+    with conn.cursor() as cur:
+        # Удаляем старые chunks если переиндексируем
+        cur.execute("DELETE FROM document_chunks WHERE doc_id = %s", (doc_id,))
+
+        cur.executemany(
+            """INSERT INTO document_chunks (doc_id, content, embedding, metadata)
+               VALUES (%s, %s, %s::vector, %s)""",
+            [(doc_id, chunk, str(emb), psycopg2.extras.Json(metadata))
+             for chunk, emb in zip(chunks, embeddings)]
+        )
+        conn.commit()
+
+    return len(chunks)
+
+def semantic_search(
+    conn: Any, query: str, top_k: int = 5, filter_metadata: dict | None = None
+) -> list[dict]:
+    """Vector similarity search с опциональной metadata-фильтрацией."""
+    query_embedding = embed_texts([query])[0]
+    embedding_str = str(query_embedding)
+
+    metadata_filter = ""
+    params: list[Any] = [embedding_str, top_k]
+
+    if filter_metadata:
+        conditions = []
+        for key, val in filter_metadata.items():
+            conditions.append(f"metadata->>%s = %s")
+            params.extend([key, str(val)])
+        metadata_filter = "WHERE " + " AND ".join(conditions)
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            f"""SELECT id, doc_id, content, metadata,
+                       1 - (embedding <=> %s::vector) AS similarity
+                FROM document_chunks
+                {metadata_filter}
+                ORDER BY embedding <=> %s::vector
+                LIMIT %s""",
+            params + [embedding_str, top_k]
+        )
+        return [dict(row) for row in cur.fetchall()]
+```

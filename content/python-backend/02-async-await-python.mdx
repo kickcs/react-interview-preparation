@@ -1,0 +1,93 @@
+---
+title: "Как работает async/await в Python и когда его НЕ использовать?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Python's **async/await** is built on top of the **event loop** from the `asyncio` module. When you write `await some_coroutine()`, you are yielding control back to the event loop, which can then run other coroutines while waiting. This is called **cooperative multitasking** — only one coroutine runs at a time on a single thread, but it voluntarily suspends during I/O operations. This makes async Python efficient for **I/O-bound** work: network calls, database queries, file reads.
+
+The event loop is the scheduler. A **coroutine** is a function defined with `async def` — it returns a coroutine object but doesn't execute until awaited. `asyncio.gather()` runs multiple coroutines concurrently. `asyncio.TaskGroup` (Python 3.11+) is the modern, safer alternative that cancels sibling tasks on error. In FastAPI, Starlette creates and manages the event loop for you.
+
+**When NOT to use async**: CPU-bound work (image processing, ML inference, cryptography) blocks the event loop regardless of `async def`. The solution is `asyncio.run_in_executor()` with a `ProcessPoolExecutor`, or offload to a task queue like Celery. Also avoid async if your entire dependency stack is synchronous — mixing sync SQLAlchemy ORM calls into an async endpoint forces you to use `run_in_executor` or switch to asyncio-native drivers, adding complexity. Always measure before assuming async helps.
+
+</Answer>
+<Answer lang="ru">
+
+Python **async/await** построен на **event loop** из модуля `asyncio`. Когда вы пишете `await some_coroutine()`, вы возвращаете управление event loop, который может выполнять другие корутины во время ожидания. Это называется **кооперативной многозадачностью** — в один момент времени выполняется только одна корутина в одном потоке, но она добровольно приостанавливается во время I/O-операций. Это делает async Python эффективным для **I/O-bound** задач: сетевые вызовы, запросы к БД, чтение файлов.
+
+Event loop — это планировщик. **Корутина** — функция, объявленная через `async def` — возвращает объект корутины, но не выполняется до вызова `await`. `asyncio.gather()` запускает несколько корутин параллельно. `asyncio.TaskGroup` (Python 3.11+) — современная, более безопасная альтернатива, которая отменяет дочерние задачи при ошибке. В FastAPI Starlette создаёт и управляет event loop за вас.
+
+**Когда НЕ использовать async**: CPU-bound работа (обработка изображений, ML-инференс, криптография) блокирует event loop независимо от `async def`. Решение — `asyncio.run_in_executor()` с `ProcessPoolExecutor` или вынос в очередь задач (Celery). Также избегайте async, если весь стек зависимостей синхронный — смешивание синхронных вызовов SQLAlchemy ORM в async-endpoint заставляет использовать `run_in_executor` или переходить на async-драйверы, усложняя код. Всегда измеряйте перед тем, как предполагать, что async помогает.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import asyncio
+import time
+from concurrent.futures import ProcessPoolExecutor
+
+import httpx
+
+
+# --- I/O-bound: perfect for async ---
+async def fetch_url(client: httpx.AsyncClient, url: str) -> str:
+    response = await client.get(url)
+    return response.text
+
+
+async def fetch_all_concurrently(urls: list[str]) -> list[str]:
+    async with httpx.AsyncClient() as client:
+        # All requests run concurrently — total time ≈ slowest single request
+        tasks = [fetch_url(client, url) for url in urls]
+        return await asyncio.gather(*tasks)
+
+
+# --- CPU-bound: async def does NOT help here ---
+def heavy_cpu_work(data: bytes) -> bytes:
+    """Runs in a subprocess to avoid blocking the event loop."""
+    import hashlib
+    result = data
+    for _ in range(100_000):
+        result = hashlib.sha256(result).digest()
+    return result
+
+
+async def process_heavy_in_background(data: bytes) -> bytes:
+    loop = asyncio.get_running_loop()
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        # Offload CPU work to a separate process; event loop stays free
+        result = await loop.run_in_executor(executor, heavy_cpu_work, data)
+    return result
+
+
+# --- TaskGroup: structured concurrency (Python 3.11+) ---
+async def fetch_with_taskgroup(urls: list[str]) -> list[str]:
+    results: list[str] = []
+    async with httpx.AsyncClient() as client:
+        async with asyncio.TaskGroup() as tg:
+            # If ANY task raises, all others are cancelled automatically
+            task_list = [tg.create_task(fetch_url(client, url)) for url in urls]
+    return [t.result() for t in task_list]
+
+
+# --- Demo: sync vs async timing comparison ---
+async def main() -> None:
+    urls = [
+        "https://httpbin.org/delay/1",
+        "https://httpbin.org/delay/1",
+        "https://httpbin.org/delay/1",
+    ]
+    start = time.perf_counter()
+    await fetch_all_concurrently(urls)
+    elapsed = time.perf_counter() - start
+    # Async: ~1 second total (concurrent)
+    # Sync sequential: ~3 seconds total
+    print(f"Async elapsed: {elapsed:.2f}s")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```

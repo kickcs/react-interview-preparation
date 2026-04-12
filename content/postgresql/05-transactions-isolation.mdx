@@ -1,0 +1,97 @@
+---
+title: "Транзакции и уровни изоляции: READ COMMITTED, SERIALIZABLE и дедлоки"
+order: 5
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+PostgreSQL supports four transaction **isolation levels** defined by the SQL standard. **READ UNCOMMITTED** is treated as READ COMMITTED in Postgres (dirty reads are never allowed). **READ COMMITTED** (the default) means each statement in a transaction sees the latest committed data at the time the statement starts — not when the transaction started. This can cause **non-repeatable reads**: running the same SELECT twice in one transaction may return different results if another transaction commits between them.
+
+**REPEATABLE READ** in Postgres provides a consistent snapshot from the start of the transaction — reads are stable, but **phantom reads** (new rows inserted by other transactions) are also prevented thanks to MVCC snapshot semantics. This is stronger than the SQL standard requires. **SERIALIZABLE** is the strongest level: transactions execute as if they ran one at a time. Postgres uses **Serializable Snapshot Isolation (SSI)** — a non-locking implementation that detects conflict cycles and aborts one of the conflicting transactions with `ERROR: could not serialize access`. Your application must retry these transactions.
+
+**Deadlocks** occur when two transactions each hold a lock the other needs. Postgres detects deadlocks automatically and aborts one transaction. To prevent them: always acquire locks in a consistent order; use `SELECT ... FOR UPDATE` to eagerly lock rows you will modify; use `NOWAIT` or `SKIP LOCKED` for non-blocking queue patterns. `SKIP LOCKED` is particularly useful for implementing job queues — workers skip rows locked by other workers rather than blocking.
+
+</Answer>
+<Answer lang="ru">
+
+PostgreSQL поддерживает четыре **уровня изоляции** транзакций, определённых стандартом SQL. **READ UNCOMMITTED** трактуется как READ COMMITTED в Postgres (грязные чтения никогда не допускаются). **READ COMMITTED** (по умолчанию) означает, что каждый оператор в транзакции видит последние зафиксированные данные на момент начала этого оператора, а не когда началась транзакция. Это может вызвать **неповторяемое чтение**: выполнение одного и того же SELECT дважды в транзакции может дать разные результаты, если другая транзакция фиксирует данные между ними.
+
+**REPEATABLE READ** в Postgres обеспечивает консистентный снимок с начала транзакции — чтения стабильны, а **фантомные чтения** (новые строки, вставленные другими транзакциями) также предотвращаются благодаря MVCC-снимкам. Это сильнее, чем требует стандарт SQL. **SERIALIZABLE** — самый строгий уровень: транзакции выполняются как если бы шли последовательно. Postgres использует **Serializable Snapshot Isolation (SSI)** — безблокировочную реализацию, обнаруживающую конфликтные циклы и прерывающую одну из транзакций с `ERROR: could not serialize access`. Ваше приложение должно повторять такие транзакции.
+
+**Дедлоки** возникают, когда две транзакции удерживают блокировки, необходимые друг другу. Postgres автоматически обнаруживает дедлоки и прерывает одну транзакцию. Для предотвращения: всегда захватывайте блокировки в консистентном порядке; используйте `SELECT ... FOR UPDATE` для раннего захвата строк; используйте `NOWAIT` или `SKIP LOCKED` для неблокирующих паттернов очередей.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- ===== Isolation level demonstration =====
+
+-- Session A: READ COMMITTED (default)
+BEGIN;
+SELECT balance FROM accounts WHERE id = 1;  -- Returns 1000
+
+-- Session B (concurrent): commits a change
+UPDATE accounts SET balance = 900 WHERE id = 1;
+COMMIT;
+
+-- Session A: non-repeatable read — sees Session B's committed change
+SELECT balance FROM accounts WHERE id = 1;  -- Returns 900!
+COMMIT;
+
+
+-- REPEATABLE READ: stable snapshot
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+SELECT balance FROM accounts WHERE id = 1;  -- Returns 1000
+
+-- (Session B commits balance = 900)
+
+SELECT balance FROM accounts WHERE id = 1;  -- Still returns 1000 (snapshot)
+COMMIT;
+
+
+-- ===== SERIALIZABLE with retry logic =====
+-- Two concurrent transactions both read and update:
+-- T1: SELECT sum(amount) WHERE user_id=1 → INSERT INTO orders ...
+-- T2: SELECT sum(amount) WHERE user_id=1 → INSERT INTO orders ...
+-- SSI detects the read-write cycle and aborts one.
+
+-- Application-side retry (Python):
+-- for attempt in range(3):
+--     try:
+--         async with session.begin():
+--             await session.execute(text("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"))
+--             result = await do_work(session)
+--         break
+--     except OperationalError as e:
+--         if "could not serialize" in str(e) and attempt < 2:
+--             continue
+--         raise
+
+
+-- ===== SELECT FOR UPDATE: pessimistic locking =====
+BEGIN;
+-- Lock the row before updating — prevents lost updates
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+COMMIT;
+
+-- SKIP LOCKED: job queue pattern (workers don't block each other)
+BEGIN;
+SELECT id, payload
+FROM job_queue
+WHERE status = 'pending'
+ORDER BY created_at
+LIMIT 1
+FOR UPDATE SKIP LOCKED;  -- Skip rows locked by other workers
+-- (process the job)
+UPDATE job_queue SET status = 'done' WHERE id = :job_id;
+COMMIT;
+
+-- Deadlock prevention: always lock in the same order
+-- Bad (deadlock risk):
+--   T1: LOCK accounts WHERE id=1, then id=2
+--   T2: LOCK accounts WHERE id=2, then id=1
+-- Good: always order by id ascending:
+SELECT * FROM accounts WHERE id IN (1, 2) ORDER BY id FOR UPDATE;
+```

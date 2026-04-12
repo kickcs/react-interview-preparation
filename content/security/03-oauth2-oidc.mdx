@@ -1,0 +1,110 @@
+---
+title: "Как работают OAuth 2.0 и OpenID Connect и как выбрать правильный grant type?"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**OAuth 2.0** is an authorization framework — it allows a user to grant a third-party application limited access to their resources without sharing credentials. **OpenID Connect (OIDC)** is an identity layer on top of OAuth 2.0 that adds an ID Token (a JWT with user claims like `sub`, `email`, `name`), making it suitable for authentication.
+
+The **Authorization Code flow** is the correct choice for web apps with a backend: the browser receives a short-lived `code`, the server exchanges it for tokens via a back-channel call (keeping the access token off the browser). **PKCE (Proof Key for Code Exchange)** extends this for SPAs and mobile apps: the client generates a `code_verifier` and sends a `code_challenge` (SHA-256 hash) up front, then proves possession of the verifier at exchange time. This prevents authorization code interception attacks even without a client secret. **Client Credentials** flow is for machine-to-machine (M2M) calls: no user involved, the service authenticates with its own `client_id` + `client_secret` and gets an access token for API-to-API communication.
+
+Common pitfalls: storing `access_token` in `localStorage` (use `HttpOnly` cookies or in-memory), not validating `state` parameter (CSRF protection), skipping `nonce` validation on ID tokens (replay attacks), and using implicit flow (deprecated — PKCE replaced it). For refresh tokens, implement rotation and absolute expiry. In enterprise SSO setups, OIDC with `prompt=none` enables silent re-authentication inside iframes.
+
+</Answer>
+<Answer lang="ru">
+
+**OAuth 2.0** — это фреймворк авторизации: позволяет пользователю дать стороннему приложению ограниченный доступ к своим ресурсам без передачи учётных данных. **OpenID Connect (OIDC)** — слой идентификации поверх OAuth 2.0, добавляющий ID Token (JWT с user claims: `sub`, `email`, `name`), что делает его пригодным для аутентификации.
+
+**Authorization Code flow** — правильный выбор для веб-приложений с бэкендом: браузер получает короткоживущий `code`, а сервер меняет его на токены через back-channel вызов (access token не попадает в браузер). **PKCE** расширяет этот флоу для SPA и мобильных приложений: клиент генерирует `code_verifier`, отправляет `code_challenge` (SHA-256 хеш) в начале, а при обмене доказывает владение verifier. Это предотвращает перехват кода даже без client secret. **Client Credentials** — для межсервисных (M2M) вызовов: пользователь не участвует, сервис аутентифицируется с `client_id` + `client_secret` и получает access token для API-to-API коммуникации.
+
+Типичные ошибки: хранение `access_token` в `localStorage` (используй `HttpOnly` cookie или память), не проверять параметр `state` (защита от CSRF), пропускать валидацию `nonce` в ID Token (защита от replay-атак), использовать implicit flow (устарел — заменён PKCE). Для refresh токенов — ротация и абсолютный срок истечения. В корпоративных SSO `prompt=none` позволяет тихую переаутентификацию в iframe.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Authorization Code + PKCE flow (Next.js App Router — server-driven)
+// Verifier must travel from start to callback, so we store it in an HttpOnly
+// cookie the server writes and reads (sessionStorage is not readable server-side).
+
+import { randomBytes, createHash } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+
+function base64url(buf: Buffer): string {
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function generatePKCE() {
+  const verifier = base64url(randomBytes(32));            // 43+ chars, RFC 7636
+  const challenge = base64url(createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+
+// 1. Start login — server generates verifier, stores in HttpOnly cookie, redirects
+// app/api/auth/login/route.ts
+export async function GET() {
+  const { verifier, challenge } = generatePKCE();
+  const state = base64url(randomBytes(16));
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: process.env.OAUTH_CLIENT_ID!,
+    redirect_uri: `${process.env.APP_URL}/api/auth/callback`,
+    scope: "openid email profile",
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  });
+
+  const res = NextResponse.redirect(`https://auth.company.com/oauth/authorize?${params}`);
+  // HttpOnly cookies — inaccessible to JS, travel back with the callback request
+  const cookieOpts = { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/", maxAge: 600 };
+  res.cookies.set("pkce_verifier", verifier, cookieOpts);
+  res.cookies.set("oauth_state", state, cookieOpts);
+  return res;
+}
+
+// 2. Callback — exchange code + verifier for tokens
+// app/api/auth/callback/route.ts
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const storedState = req.cookies.get("oauth_state")?.value;
+  const verifier = req.cookies.get("pkce_verifier")?.value;
+
+  if (!code || !state || !verifier || state !== storedState) {
+    return NextResponse.redirect(`${process.env.APP_URL}/login?error=state_mismatch`);
+  }
+
+  const tokenRes = await fetch("https://auth.company.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: process.env.OAUTH_CLIENT_ID!,
+      client_secret: process.env.OAUTH_CLIENT_SECRET!,   // omit for public clients
+      redirect_uri: `${process.env.APP_URL}/api/auth/callback`,
+      code,
+      code_verifier: verifier,                           // REQUIRED — proves PKCE possession
+    }),
+  });
+
+  const tokens = await tokenRes.json();
+  if (tokens.error) {
+    return NextResponse.redirect(`${process.env.APP_URL}/login?error=token_exchange`);
+  }
+
+  // TODO: validate id_token signature + claims (iss, aud, exp, nonce) before trusting
+  const res = NextResponse.redirect(`${process.env.APP_URL}/dashboard`);
+  res.cookies.set("session", await createSession(tokens), {
+    httpOnly: true, secure: true, sameSite: "lax", maxAge: 3600,
+  });
+  // One-time cookies — clear after use
+  res.cookies.delete("pkce_verifier");
+  res.cookies.delete("oauth_state");
+  return res;
+}
+```

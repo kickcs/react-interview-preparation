@@ -1,0 +1,6 @@
+{
+  "title": "LLM & AI Workflows",
+  "order": 18,
+  "description": "LangChain/LangGraph, RAG, prompt engineering, streaming, structured output, agents, embeddings, evaluation",
+  "icon": "sparkles"
+}

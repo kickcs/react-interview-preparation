@@ -1,0 +1,117 @@
+---
+title: "Что нужно знать о HIPAA для разработки healthcare-приложений?"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**HIPAA (Health Insurance Portability and Accountability Act)** regulates the handling of **PHI (Protected Health Information)** — any information that can identify a patient and relates to their health condition, treatment, or payment. As an engineer, HIPAA compliance is primarily about the **Security Rule** (technical safeguards) and the **Privacy Rule** (who can access PHI and for what purpose). If your organization shares PHI with vendors (cloud providers, analytics tools), you need a **BAA (Business Associate Agreement)** with each vendor — AWS, Google Cloud, and Azure all offer HIPAA-eligible services under a BAA, but not all services are covered.
+
+**Technical safeguards** required by the Security Rule: access controls (unique user IDs, automatic logoff, encryption/decryption), audit controls (recording access to PHI — see audit logging), integrity controls (ensuring PHI is not altered or destroyed improperly), and transmission security (encrypting PHI in transit). The rule mandates **encryption** as an addressable implementation specification — in practice, any serious healthcare app encrypts PHI at rest (AES-256) and in transit (TLS 1.3). Failure to encrypt makes a lost laptop or storage device a **reportable breach**.
+
+**Common engineering mistakes**: logging PHI in application logs (never log patient names, diagnoses, SSNs, DOBs verbatim), storing PHI in client-accessible local storage, using non-HIPAA-eligible services (standard Gmail, Slack free tier, non-BAA'd analytics), and failing to implement proper access controls (any authenticated user can see any patient). The HIPAA **Minimum Necessary** principle requires that access to PHI be limited to only what is needed for the immediate task — implement this as ABAC or row-level security.
+
+</Answer>
+<Answer lang="ru">
+
+**HIPAA** регулирует обращение с **PHI (Protected Health Information)** — любой информацией, идентифицирующей пациента в связи с состоянием здоровья, лечением или оплатой. Для инженера HIPAA — это прежде всего **Security Rule** (технические меры защиты) и **Privacy Rule** (кто и для чего может получить доступ к PHI). Если организация передаёт PHI вендорам (облачные провайдеры, аналитические инструменты), нужен **BAA (Business Associate Agreement)** с каждым вендором. AWS, Google Cloud и Azure предлагают HIPAA-eligible сервисы под BAA, но не все их сервисы покрыты.
+
+**Технические меры** Security Rule: контроль доступа (уникальные ID пользователей, автоматический выход, шифрование), контроль аудита (запись доступа к PHI), контроль целостности (PHI не должна быть изменена или уничтожена ненадлежащим образом) и безопасность передачи (шифрование PHI in transit). Правило требует шифрования как addressable implementation — на практике любое серьёзное healthcare-приложение шифрует PHI at rest (AES-256) и in transit (TLS 1.3). Отсутствие шифрования делает потерю ноутбука или диска **reportable breach**.
+
+**Типичные инженерные ошибки**: логирование PHI в application logs (никогда не пиши имена пациентов, диагнозы, SSN, DOB дословно), хранение PHI в client-accessible local storage, использование non-HIPAA-eligible сервисов (стандартный Gmail, Slack free tier, аналитика без BAA), отсутствие надлежащих access controls (любой аутентифицированный пользователь видит любого пациента). Принцип **Minimum Necessary** требует ограничить доступ к PHI до минимально необходимого — реализуется через ABAC или row-level security.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// HIPAA compliance: защита PHI в Node.js/TypeScript приложении
+
+import { createHash } from "crypto";
+
+// PHI идентификаторы (по HIPAA Safe Harbor method — 18 категорий)
+const PHI_FIELDS = new Set([
+  "name", "address", "city", "zip", "phone", "fax", "email",
+  "ssn", "mrn", "dob", "dateOfBirth", "accountNumber",
+  "diagnosis", "treatmentNotes", "labResults",
+]);
+
+// Функция для безопасного логирования — удаляет PHI
+function sanitizeForLog(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (PHI_FIELDS.has(key)) {
+      result[key] = "[REDACTED]";
+    } else if (typeof val === "object" && val !== null) {
+      result[key] = sanitizeForLog(val as Record<string, unknown>);
+    } else {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+// Pseudo-anonymization для аналитики (не de-identification)
+function pseudonymize(patientId: string): string {
+  // Детерминированный хеш — можно связать с оригиналом при необходимости
+  return createHash("sha256")
+    .update(patientId + process.env.PSEUDONYM_SALT!)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+// Minimum Necessary — API возвращает только нужные поля
+interface PatientSummary {
+  id: string;
+  initials: string;       // не полное имя
+  mrn: string;
+  lastVisit: string;
+  // НЕТ: полного имени, SSN, DOB, адреса
+}
+
+async function getPatientList(
+  clinicianId: string,
+  clinicId: string
+): Promise<PatientSummary[]> {
+  // Row-level security: clinician видит только своих пациентов в своей клинике
+  const rows = await db.query(
+    `SELECT
+       p.id,
+       LEFT(p.first_name, 1) || '. ' || LEFT(p.last_name, 1) || '.' AS initials,
+       p.mrn,
+       MAX(v.visit_date)::text AS last_visit
+     FROM patients p
+     JOIN visits v ON v.patient_id = p.id
+     WHERE p.clinic_id = $1
+       AND v.clinician_id = $2
+       AND p.deleted_at IS NULL
+     GROUP BY p.id, p.first_name, p.last_name, p.mrn
+     ORDER BY last_visit DESC`,
+    [clinicId, clinicianId]
+  );
+  return rows;
+}
+
+// Automatic session timeout (HIPAA requires automatic logoff)
+const SESSION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes — HIPAA common practice
+
+export function setupSessionTimeout(onTimeout: () => void): () => void {
+  let timer = setTimeout(onTimeout, SESSION_TIMEOUT_MS);
+
+  const reset = () => {
+    clearTimeout(timer);
+    timer = setTimeout(onTimeout, SESSION_TIMEOUT_MS);
+  };
+
+  window.addEventListener("mousemove", reset);
+  window.addEventListener("keydown", reset);
+  window.addEventListener("click", reset);
+
+  return () => {
+    clearTimeout(timer);
+    window.removeEventListener("mousemove", reset);
+    window.removeEventListener("keydown", reset);
+    window.removeEventListener("click", reset);
+  };
+}
+```

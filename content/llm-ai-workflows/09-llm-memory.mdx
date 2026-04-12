@@ -1,0 +1,150 @@
+---
+title: "Как управлять памятью и контекстом в LLM-приложениях?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Memory in LLM applications refers to how information from past interactions persists and is made available to future requests. LLMs are **stateless by design** — each API call is independent. Any appearance of "memory" must be explicitly constructed by the application. There are three fundamentally different approaches with different trade-offs on latency, fidelity, and cost.
+
+**Conversation buffer memory** is the simplest: keep the full conversation history in the `messages` array and send it with every request. This gives the model perfect recall of the entire conversation but burns tokens linearly with conversation length. For many use cases (chatbots with typical session lengths), this works fine. The critical constraint is the **context window** limit (Claude: 200k tokens, GPT-4o: 128k) — you must truncate or summarize when approaching the limit. A safe strategy: keep the last N messages verbatim, and summarize everything older with a separate LLM call, replacing the old messages with a single summary message.
+
+**Summary memory** generates a rolling summary of the conversation as it progresses — each new exchange is incorporated into an evolving summary. This scales to arbitrarily long conversations at the cost of information loss (the model cannot recall exact phrasing or specific details from early in the conversation). **Vector-based (semantic) memory** stores each turn as an embedding in a vector store and retrieves the most relevant past turns based on semantic similarity to the current query. This enables very long-term memory (across sessions) and is useful for personal assistants, but retrieval is imperfect — it retrieves by similarity, not chronology, and can miss relevant context that isn't semantically obvious from the current query.
+
+</Answer>
+<Answer lang="ru">
+
+Память в LLM-приложениях — это то, как информация из прошлых взаимодействий сохраняется и становится доступной в будущих запросах. LLM **stateless по природе** — каждый API-вызов независим. Любое подобие "памяти" должно явно конструироваться приложением. Три фундаментально разных подхода с разными компромиссами по задержке, точности и стоимости.
+
+**Conversation buffer memory** — самый простой: сохраняй полную историю диалога в массиве `messages` и отправляй с каждым запросом. Даёт модели полный recall всего разговора, но сжигает токены линейно с длиной беседы. Для многих use cases (чатботы с типичными сессиями) работает нормально. Критическое ограничение — **context window** (Claude: 200k токенов, GPT-4o: 128k) — нужно обрезать или суммаризировать при приближении к лимиту. Безопасная стратегия: дословно сохранять последние N сообщений, суммаризировать всё старое отдельным LLM-вызовом, заменяя старые сообщения одним summary.
+
+**Summary memory** генерирует скользящее резюме разговора по ходу — каждый новый обмен включается в эволюционирующий summary. Масштабируется на произвольно длинные беседы ценой потери информации (модель не вспомнит точные формулировки или специфические детали начала). **Vector-based (semantic) memory** хранит каждый ход как embedding в vector store и извлекает наиболее релевантные прошлые ходы по семантическому сходству с текущим запросом. Обеспечивает долгосрочную память (между сессиями), но retrieval несовершенен — извлекает по сходству, не хронологии, и может пропустить релевантный контекст, не очевидный семантически из текущего запроса.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Управление памятью: sliding window + summary + vector memory
+
+import Anthropic from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+type Message = { role: "user" | "assistant"; content: string };
+
+interface ConversationState {
+  messages: Message[];          // recent messages (buffer)
+  summary: string | null;       // summary of older messages
+  totalTokensEstimate: number;
+}
+
+const MAX_BUFFER_MESSAGES = 20;
+const MAX_TOKENS_BEFORE_SUMMARY = 60_000;
+
+// Оценка токенов (грубая — ~4 chars per token)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+// Суммаризация старых сообщений
+async function summarizeMessages(
+  messages: Message[],
+  existingSummary: string | null
+): Promise<string> {
+  const historyText = messages
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n");
+
+  const prompt = existingSummary
+    ? `Existing summary:\n${existingSummary}\n\nNew messages to incorporate:\n${historyText}\n\nUpdate the summary to include the new information. Be concise but preserve key facts, decisions, and user preferences.`
+    : `Summarize this conversation, preserving key facts, decisions, and user preferences:\n${historyText}`;
+
+  const res = await client.messages.create({
+    model: "claude-3-5-haiku-20241022", // дешёвая модель для суммаризации
+    max_tokens: 512,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  return (res.content[0] as { text: string }).text;
+}
+
+// Сжатие контекста при достижении лимита
+async function compressContext(state: ConversationState): Promise<ConversationState> {
+  if (state.messages.length <= 4) return state; // минимум для сжатия
+
+  const toSummarize = state.messages.slice(0, -4); // сохраняем последние 4
+  const toKeep = state.messages.slice(-4);
+
+  const newSummary = await summarizeMessages(toSummarize, state.summary);
+
+  return {
+    messages: toKeep,
+    summary: newSummary,
+    totalTokensEstimate: estimateTokens(newSummary) + estimateTokens(JSON.stringify(toKeep)),
+  };
+}
+
+// Построение messages массива для API с учётом summary
+function buildApiMessages(state: ConversationState, newUserMessage: string): Message[] {
+  const messages: Message[] = [];
+
+  // Инжектируем summary как первое сообщение если оно есть
+  if (state.summary) {
+    messages.push({
+      role: "user",
+      content: `[Previous conversation summary: ${state.summary}]`,
+    });
+    messages.push({
+      role: "assistant",
+      content: "I understand the context from our previous conversation.",
+    });
+  }
+
+  // Добавляем буфер + новое сообщение
+  messages.push(...state.messages);
+  messages.push({ role: "user", content: newUserMessage });
+
+  return messages;
+}
+
+// Основной chat loop с автоматическим управлением памятью
+async function chat(
+  state: ConversationState,
+  userMessage: string
+): Promise<{ response: string; newState: ConversationState }> {
+  // Сжимаем если нужно
+  let currentState = state;
+  if (currentState.totalTokensEstimate > MAX_TOKENS_BEFORE_SUMMARY) {
+    currentState = await compressContext(currentState);
+  }
+
+  const apiMessages = buildApiMessages(currentState, userMessage);
+
+  const response = await client.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    messages: apiMessages as Anthropic.MessageParam[],
+  });
+
+  const assistantText = (response.content[0] as { text: string }).text;
+
+  const newMessages: Message[] = [
+    ...currentState.messages,
+    { role: "user", content: userMessage },
+    { role: "assistant", content: assistantText },
+  ];
+
+  // Обрезаем буфер до MAX_BUFFER_MESSAGES
+  const trimmedMessages = newMessages.slice(-MAX_BUFFER_MESSAGES);
+
+  return {
+    response: assistantText,
+    newState: {
+      messages: trimmedMessages,
+      summary: currentState.summary,
+      totalTokensEstimate: estimateTokens(JSON.stringify(trimmedMessages)),
+    },
+  };
+}
+```

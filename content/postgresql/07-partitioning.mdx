@@ -1,0 +1,85 @@
+---
+title: "Партиционирование PostgreSQL: RANGE, LIST, HASH и partition pruning"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Table partitioning** splits a large table into smaller physical sub-tables called partitions, while presenting a single logical table to queries. PostgreSQL supports **declarative partitioning** since version 10, with three strategies: `RANGE` for continuous ranges (dates, IDs), `LIST` for discrete values (country codes, status enums), and `HASH` for even distribution across N buckets when there is no natural range key. The partitioning key should be a column you frequently filter on — the planner uses **partition pruning** to skip irrelevant partitions entirely, dramatically reducing scan cost.
+
+When to partition: the table is very large (tens of millions to billions of rows), queries almost always filter by the partition key, you need to bulk-delete old data efficiently, or you want to archive cold partitions to slower storage. Partitioning is not beneficial for small tables — the overhead of the partition routing logic and the inability to create a cross-partition unique constraint (without including the partition key) are real costs. Foreign key references to a partitioned table also have limitations.
+
+**Partition pruning** works at plan time for literal values (`WHERE created_at > '2024-01-01'`) and at execution time for bind parameters. Enable `enable_partition_pruning = on` (default). Local indexes on each partition are supported — they behave like a global index for partition-pruned queries. For range-based deletes, `DROP TABLE` a partition is instantaneous and doesn't affect the rest of the table — far faster than `DELETE FROM events WHERE created_at < '2020-01-01'` on a 5-billion-row table.
+
+</Answer>
+<Answer lang="ru">
+
+**Партиционирование таблиц** разбивает большую таблицу на меньшие физические подтаблицы — партиции, представляя единую логическую таблицу для запросов. PostgreSQL поддерживает **декларативное партиционирование** с версии 10: три стратегии — `RANGE` для непрерывных диапазонов (даты, ID), `LIST` для дискретных значений (коды стран, перечисления статусов) и `HASH` для равномерного распределения по N секциям при отсутствии естественного ключа диапазона. Ключ партиционирования должен быть колонкой, по которой часто фильтруют — планировщик использует **partition pruning** для полного пропуска нерелевантных партиций, резко сокращая стоимость сканирования.
+
+Когда партиционировать: таблица очень большая (десятки миллионов — миллиарды строк), запросы почти всегда фильтруют по ключу партиционирования, нужно эффективно массово удалять старые данные или архивировать холодные партиции на медленное хранилище. Партиционирование не выгодно для маленьких таблиц — издержки маршрутизации и невозможность создать межпартиционное уникальное ограничение (без ключа партиционирования) — реальные затраты. Ссылки внешних ключей на партиционированную таблицу также имеют ограничения.
+
+**Partition pruning** работает во время планирования для литеральных значений (`WHERE created_at > '2024-01-01'`) и во время выполнения для bind-параметров. Включите `enable_partition_pruning = on` (по умолчанию). Локальные индексы на каждой партиции поддерживаются. Для удаления данных за диапазон `DROP TABLE` на партиции выполняется мгновенно — несравнимо быстрее, чем `DELETE` из таблицы с 5 миллиардами строк.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- ===== RANGE partitioning: time-series events =====
+CREATE TABLE events (
+    id         BIGSERIAL,
+    type       TEXT NOT NULL,
+    payload    JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+) PARTITION BY RANGE (created_at);
+
+-- Create monthly partitions
+CREATE TABLE events_2024_01 PARTITION OF events
+    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+CREATE TABLE events_2024_02 PARTITION OF events
+    FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
+
+-- Local indexes on each partition (auto-applied on INSERT)
+CREATE INDEX ON events_2024_01 (type, created_at);
+CREATE INDEX ON events_2024_02 (type, created_at);
+
+-- Verify partition pruning with EXPLAIN
+EXPLAIN SELECT * FROM events
+WHERE created_at >= '2024-01-01' AND created_at < '2024-02-01';
+-- -> Seq Scan on events_2024_01 (only ONE partition scanned!)
+
+-- Zero-cost bulk delete: drop old partition
+DROP TABLE events_2023_01;  -- instant, no VACUUM needed
+
+
+-- ===== LIST partitioning: multi-tenant sharding by region =====
+CREATE TABLE user_data (
+    id     BIGSERIAL,
+    region TEXT NOT NULL,
+    data   JSONB
+) PARTITION BY LIST (region);
+
+CREATE TABLE user_data_eu PARTITION OF user_data FOR VALUES IN ('de', 'fr', 'nl', 'uk');
+CREATE TABLE user_data_us PARTITION OF user_data FOR VALUES IN ('us', 'ca', 'mx');
+CREATE TABLE user_data_ap PARTITION OF user_data FOR VALUES IN ('jp', 'au', 'sg');
+
+
+-- ===== HASH partitioning: even distribution =====
+CREATE TABLE sessions (
+    id      UUID NOT NULL,
+    user_id BIGINT NOT NULL,
+    data    JSONB
+) PARTITION BY HASH (user_id);
+
+-- 4 equal-sized buckets
+CREATE TABLE sessions_0 PARTITION OF sessions FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+CREATE TABLE sessions_1 PARTITION OF sessions FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+CREATE TABLE sessions_2 PARTITION OF sessions FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+CREATE TABLE sessions_3 PARTITION OF sessions FOR VALUES WITH (MODULUS 4, REMAINDER 3);
+
+
+-- ===== Automation: pg_partman extension =====
+-- CREATE EXTENSION pg_partman;
+-- SELECT partman.create_parent('public.events', 'created_at', 'native', 'monthly');
+-- -- Auto-creates new partitions and drops old ones based on retention policy
+```

@@ -1,0 +1,113 @@
+---
+title: "Как получить структурированный вывод от LLM и как его валидировать?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Structured output** is the practice of constraining LLM responses to a specific schema (JSON, XML, specific fields) rather than free-form text. This is essential for using LLM output in downstream code without fragile string parsing. There are three mechanisms: **JSON mode** (the model is instructed to produce valid JSON, but the schema is not enforced — you can get valid JSON that doesn't match your expected fields), **tool/function calling** (the model decides when to call a function and produces arguments matching the schema), and **structured output with schema** (OpenAI `response_format` with JSON Schema, or Anthropic's `tool_use` with `input_schema` — the model is constrained at the token level to only produce output matching the schema).
+
+**Anthropic's approach** uses the `tool_use` feature: define a tool with a JSON Schema `input_schema`, then call the model with `tool_choice: { type: "tool", name: "..." }` to force invocation. The model must produce arguments matching the schema before generating any other output. **OpenAI's Structured Outputs** (GPT-4o) directly accept a JSON Schema in `response_format: { type: "json_schema" }` with `strict: true`, which provides grammar-constrained decoding — the strongest guarantee.
+
+**Validation and retry** are necessary even with constrained output: schema validation catches type mismatches and required-field violations that the model could still introduce. The pattern is: call the LLM → parse JSON → validate with Zod/Pydantic → on validation error, retry with the error message injected into the prompt (asking the model to fix the specific field that failed). Cap retries at 2–3 to avoid infinite loops. For complex schemas, break them into smaller, independently-validated tool calls rather than one monolithic schema.
+
+</Answer>
+<Answer lang="ru">
+
+**Structured output** — практика ограничения ответов LLM конкретной схемой (JSON, XML, заданные поля) вместо свободного текста. Это необходимо для использования вывода LLM в downstream-коде без хрупкого парсинга строк. Три механизма: **JSON mode** (модель инструктируется генерировать валидный JSON, но схема не применяется — можно получить валидный JSON не с теми полями), **tool/function calling** (модель решает когда вызвать функцию и производит аргументы под схему), **structured output со схемой** (OpenAI `response_format` с JSON Schema, или Anthropic `tool_use` с `input_schema` — токен-уровневое ограничение).
+
+**Подход Anthropic** использует `tool_use`: определяй инструмент с JSON Schema `input_schema`, затем вызывай модель с `tool_choice: { type: "tool", name: "..." }` для принудительного вызова. Модель обязана произвести аргументы под схему до генерации любого другого вывода. **OpenAI Structured Outputs** (GPT-4o) напрямую принимают JSON Schema в `response_format: { type: "json_schema" }` с `strict: true` — грамматически ограниченное декодирование с наисильнейшей гарантией.
+
+**Валидация и retry** необходимы даже при ограниченном выводе: валидация схемы ловит несоответствия типов и нарушения required-полей. Паттерн: вызов LLM → парсинг JSON → валидация Zod/Pydantic → при ошибке retry с инжекцией сообщения об ошибке в промпт (с просьбой исправить конкретное поле). Ограничивай retries 2–3 для предотвращения бесконечного цикла. Для сложных схем разбивай на меньшие, независимо валидируемые tool calls вместо одной монолитной схемы.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Structured output: Anthropic tool_use + Zod validation с retry
+
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+
+const client = new Anthropic();
+
+// Zod-схема — source of truth
+const MedicalSummarySchema = z.object({
+  patientAge: z.number().int().min(0).max(150),
+  chiefComplaint: z.string().min(5),
+  diagnoses: z.array(z.object({
+    icdCode: z.string().regex(/^[A-Z]\d{2}(\.\d+)?$/),
+    description: z.string(),
+    isPrimary: z.boolean(),
+  })).min(1),
+  recommendedActions: z.array(z.string()),
+  urgencyLevel: z.enum(["routine", "urgent", "emergent"]),
+  followUpDays: z.number().int().min(0).max(365).nullable(),
+});
+
+type MedicalSummary = z.infer<typeof MedicalSummarySchema>;
+
+// JSON Schema для Anthropic tool_use (конвертировать из Zod через zod-to-json-schema)
+const MEDICAL_SUMMARY_SCHEMA = {
+  type: "object",
+  required: ["patientAge", "chiefComplaint", "diagnoses", "recommendedActions", "urgencyLevel", "followUpDays"],
+  properties: {
+    patientAge: { type: "integer", minimum: 0, maximum: 150 },
+    chiefComplaint: { type: "string" },
+    diagnoses: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["icdCode", "description", "isPrimary"],
+        properties: {
+          icdCode: { type: "string" },
+          description: { type: "string" },
+          isPrimary: { type: "boolean" },
+        },
+      },
+    },
+    recommendedActions: { type: "array", items: { type: "string" } },
+    urgencyLevel: { type: "string", enum: ["routine", "urgent", "emergent"] },
+    followUpDays: { type: ["integer", "null"] },
+  },
+};
+
+async function extractMedicalSummary(
+  clinicalNote: string,
+  retryCount = 0
+): Promise<MedicalSummary> {
+  const MAX_RETRIES = 2;
+
+  const response = await client.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    tools: [{
+      name: "record_medical_summary",
+      description: "Record structured medical summary extracted from clinical note",
+      input_schema: MEDICAL_SUMMARY_SCHEMA as Anthropic.Tool["input_schema"],
+    }],
+    tool_choice: { type: "tool", name: "record_medical_summary" },
+    messages: [{ role: "user", content: `Extract medical summary from:\n\n${clinicalNote}` }],
+  });
+
+  const toolUse = response.content.find((b) => b.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Model did not return tool_use block");
+  }
+
+  const validation = MedicalSummarySchema.safeParse(toolUse.input);
+  if (validation.success) return validation.data;
+
+  if (retryCount >= MAX_RETRIES) {
+    throw new Error(`Validation failed after ${MAX_RETRIES} retries: ${validation.error.message}`);
+  }
+
+  // Retry: инжектируем ошибку валидации обратно в промпт
+  console.warn(`Validation error (attempt ${retryCount + 1}), retrying...`, validation.error.flatten());
+  return extractMedicalSummary(
+    `${clinicalNote}\n\nPrevious attempt had validation errors:\n${JSON.stringify(validation.error.flatten())}. Fix the issues and try again.`,
+    retryCount + 1
+  );
+}
+```

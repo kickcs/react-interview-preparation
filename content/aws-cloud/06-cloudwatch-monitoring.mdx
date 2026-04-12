@@ -1,0 +1,119 @@
+---
+title: "CloudWatch: логи, метрики, алармы и X-Ray трейсинг"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Amazon CloudWatch** is the observability platform for AWS workloads. It covers three pillars: logs, metrics, and traces (via X-Ray). **CloudWatch Logs** collects stdout/stderr from Lambda, ECS, and EC2. Every log stream belongs to a log group; configure retention policies to avoid unbounded storage costs (default: never expire). **Structured logging** in JSON format is essential — CloudWatch Logs Insights queries can parse JSON fields directly, making it easy to filter by `request_id`, `user_id`, `status_code`, or custom fields without regex parsing.
+
+**CloudWatch Metrics** are time-series data points. AWS services automatically publish metrics (ECS CPU/memory, RDS connections, Lambda duration/errors). You can publish **custom metrics** from your application via the `put_metric_data` API — for example, embedding latency, LLM token usage, or cache hit rate. Custom metrics cost $0.30/metric/month. **CloudWatch Alarms** monitor a metric and trigger actions (SNS notification, Auto Scaling, Systems Manager) when a threshold is breached. Composite alarms combine multiple alarms with AND/OR logic — useful for alerting only when both error rate is high AND latency is high.
+
+**AWS X-Ray** provides distributed tracing — end-to-end request visualization across Lambda, ECS, API Gateway, and other services. Annotate traces with custom **segments** and **subsegments** to trace database queries, LLM API calls, or any external HTTP call. The X-Ray SDK instruments boto3, httpx, and SQLAlchemy automatically. For production: use **sampling rules** to trace only a percentage of requests (100% tracing is expensive); enable `aws_xray_sdk.core.patch_all()` in Lambda init code to auto-instrument all AWS SDK calls. CloudWatch Logs Insights is preferred for querying log data; X-Ray is for tracing request flow across services.
+
+</Answer>
+<Answer lang="ru">
+
+**Amazon CloudWatch** — платформа наблюдаемости для AWS-нагрузок. Охватывает три компонента: логи, метрики и трейсинг (через X-Ray). **CloudWatch Logs** собирает stdout/stderr из Lambda, ECS и EC2. Каждый лог-стрим принадлежит лог-группе; настраивайте политики хранения во избежание неограниченных расходов на хранение (по умолчанию: никогда не истекает). **Структурированное логирование** в JSON-формате критично — CloudWatch Logs Insights может напрямую парсить JSON-поля, позволяя фильтровать по `request_id`, `user_id`, `status_code` или кастомным полям без regex-разбора.
+
+**CloudWatch Metrics** — временные ряды. AWS-сервисы автоматически публикуют метрики (CPU/память ECS, соединения RDS, длительность/ошибки Lambda). Из приложения можно публиковать **кастомные метрики** через API `put_metric_data` — например, задержку эмбеддинга, использование токенов LLM, коэффициент попаданий в кэш. Кастомные метрики стоят $0,30/метрика/месяц. **CloudWatch Alarms** мониторят метрику и запускают действия (SNS-уведомление, Auto Scaling) при превышении порога. Составные алармы объединяют несколько через AND/OR — полезны для оповещения только при одновременно высоком уровне ошибок и задержке.
+
+**AWS X-Ray** предоставляет распределённый трейсинг — сквозную визуализацию запросов через Lambda, ECS, API Gateway. Аннотируйте трейсы кастомными **сегментами** и **подсегментами** для трейсинга запросов к БД, вызовов LLM API или внешних HTTP-запросов. X-Ray SDK автоматически инструментирует boto3, httpx и SQLAlchemy. Для production: используйте **правила сэмплирования** для трейсинга лишь части запросов (100% трейсинг дорог); включите `patch_all()` в init-коде Lambda для авто-инструментирования всех AWS SDK-вызовов.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import json
+import logging
+import time
+from typing import Any
+
+import boto3
+from aws_xray_sdk.core import patch_all, xray_recorder
+
+# Auto-instrument all AWS SDK calls and popular libraries
+patch_all()
+
+# Structured logging: JSON format for CloudWatch Logs Insights
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_data = {
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+            "timestamp": self.formatTime(record),
+        }
+        if hasattr(record, "extra"):
+            log_data.update(record.extra)
+        return json.dumps(log_data)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger = logging.getLogger("app")
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+cloudwatch = boto3.client("cloudwatch", region_name="us-east-1")
+NAMESPACE = "MyApp/LLM"
+
+
+# --- Publish custom metrics ---
+def record_embedding_metrics(latency_ms: float, token_count: int, model: str) -> None:
+    cloudwatch.put_metric_data(
+        Namespace=NAMESPACE,
+        MetricData=[
+            {
+                "MetricName": "EmbeddingLatency",
+                "Value": latency_ms,
+                "Unit": "Milliseconds",
+                "Dimensions": [{"Name": "Model", "Value": model}],
+            },
+            {
+                "MetricName": "TokensUsed",
+                "Value": token_count,
+                "Unit": "Count",
+                "Dimensions": [{"Name": "Model", "Value": model}],
+            },
+        ],
+    )
+
+
+# --- X-Ray: custom subsegments for tracing ---
+def lambda_handler(event: dict, context: Any) -> dict:
+    doc_id = event["doc_id"]
+
+    # Annotate trace for filtering in X-Ray console
+    xray_recorder.current_segment().put_annotation("doc_id", doc_id)
+    xray_recorder.current_segment().put_metadata("event", event)
+
+    start = time.perf_counter()
+
+    with xray_recorder.in_subsegment("fetch-document"):
+        doc = fetch_from_db(doc_id)
+
+    with xray_recorder.in_subsegment("call-openai-embeddings"):
+        embedding = call_openai(doc.content)
+        token_count = len(doc.content.split())
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    logger.info("Embedding complete", extra={
+        "doc_id": doc_id,
+        "latency_ms": elapsed_ms,
+        "tokens": token_count,
+        "request_id": context.aws_request_id,
+    })
+
+    record_embedding_metrics(elapsed_ms, token_count, "text-embedding-3-small")
+    return {"status": "ok"}
+```
+
+```txt
+# CloudWatch Logs Insights query: find slow embedding requests
+fields @timestamp, doc_id, latency_ms, tokens, request_id
+| filter latency_ms > 3000
+| sort latency_ms desc
+| limit 20
+```

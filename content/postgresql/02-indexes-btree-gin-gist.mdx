@@ -1,0 +1,77 @@
+---
+title: "Типы индексов PostgreSQL: B-tree, Hash, GIN, GiST, BRIN"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+PostgreSQL supports multiple index types, each optimized for different data patterns and query types. **B-tree** is the default and covers the vast majority of use cases: equality (`=`), range queries (`<`, `>`, `BETWEEN`), sorting (`ORDER BY`), and `NULL` checks. A B-tree index on a column with high cardinality (many distinct values) dramatically reduces scan time from O(N) to O(log N). Always index foreign keys — Postgres does not do this automatically, unlike some other databases, and unindexed FK lookups cause full table scans on `JOIN`.
+
+**GIN (Generalized Inverted Index)** excels at indexing composite values: arrays, JSONB, and full-text search vectors (`tsvector`). It builds an inverted map of element → row IDs, making `@>` (contains), `&&` (overlap), and `@@` (text match) operations fast. GIN indexes are larger and slower to update than B-tree, so use them on columns that are read-heavy and write-light. **GiST (Generalized Search Tree)** is a flexible framework for custom index types — PostGIS uses it for spatial queries, and it also supports range types and nearest-neighbor search for some types.
+
+**BRIN (Block Range INdex)** is a tiny index (a few KB regardless of table size) for naturally ordered data — time-series, monotonically increasing IDs, sequential inserts. It stores min/max values per block range rather than per row. For a table with `created_at` filled in insertion order, BRIN can skip entire blocks of pages. Use BRIN when your table is huge, data is sorted by the indexed column, and approximate selectivity is acceptable. **Partial indexes** (`WHERE active = true`) index only a subset of rows — dramatically reducing index size and improving write performance when your queries always filter on a condition.
+
+</Answer>
+<Answer lang="ru">
+
+PostgreSQL поддерживает несколько типов индексов, каждый оптимизирован для разных паттернов данных и типов запросов. **B-tree** — тип по умолчанию, охватывающий большинство случаев использования: равенство (`=`), диапазонные запросы (`<`, `>`, `BETWEEN`), сортировка (`ORDER BY`) и проверки `NULL`. B-tree индекс на колонке с высокой кардинальностью сокращает время сканирования с O(N) до O(log N). Всегда индексируйте внешние ключи — Postgres не делает это автоматически, в отличие от некоторых других СУБД, а неиндексированные FK-запросы вызывают полное сканирование при `JOIN`.
+
+**GIN (Generalized Inverted Index)** отлично работает для индексирования составных значений: массивов, JSONB и векторов полнотекстового поиска (`tsvector`). Строит инвертированную карту элемент → ID строк, ускоряя операции `@>` (содержит), `&&` (пересечение) и `@@` (текстовое совпадение). GIN-индексы больше по размеру и медленнее обновляются, чем B-tree — используйте их на колонках с интенсивным чтением. **GiST (Generalized Search Tree)** — гибкий фреймворк для пользовательских типов индексов: PostGIS использует его для пространственных запросов, он также поддерживает диапазонные типы и поиск ближайших соседей.
+
+**BRIN (Block Range INdex)** — крошечный индекс (несколько КБ независимо от размера таблицы) для естественно упорядоченных данных: временные ряды, монотонно возрастающие ID. Хранит min/max значения для диапазона блоков, а не для каждой строки. Для таблицы с `created_at`, заполненным в порядке вставки, BRIN может пропускать целые блоки страниц. Используйте BRIN для огромных таблиц с отсортированными данными. **Частичные индексы** (`WHERE active = true`) индексируют лишь подмножество строк — значительно сокращают размер индекса и улучшают производительность записи.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- ===== B-tree: standard index (equality + range + sort) =====
+CREATE INDEX idx_users_email ON users (email);  -- unique lookups
+CREATE INDEX idx_orders_user_created ON orders (user_id, created_at DESC);  -- covering
+
+-- ALWAYS index FK columns (Postgres doesn't do it automatically!)
+CREATE INDEX idx_documents_author_id ON documents (author_id);
+
+
+-- ===== GIN: arrays, JSONB, full-text =====
+-- Array containment: find users with 'admin' in their roles array
+CREATE INDEX idx_users_roles ON users USING GIN (roles);
+SELECT * FROM users WHERE roles @> ARRAY['admin'];
+
+-- JSONB: find docs by nested field
+CREATE INDEX idx_events_payload ON events USING GIN (payload);
+SELECT * FROM events WHERE payload @> '{"status": "error"}';
+
+
+-- ===== GiST: geospatial (PostGIS) and ranges =====
+CREATE EXTENSION postgis;
+CREATE INDEX idx_locations_geom ON locations USING GIST (geom);
+
+-- Find stores within 5km of a point
+SELECT name FROM stores
+WHERE ST_DWithin(geom, ST_MakePoint(37.6, 55.7)::geography, 5000);
+
+-- Range type index
+CREATE INDEX idx_bookings_period ON bookings USING GIST (during);
+SELECT * FROM bookings WHERE during && '[2024-01-01, 2024-01-31]'::daterange;
+
+
+-- ===== BRIN: huge append-only time-series tables =====
+-- Table is 100GB but index is ~200KB
+CREATE INDEX idx_metrics_time ON metrics USING BRIN (recorded_at)
+    WITH (pages_per_range = 128);
+
+
+-- ===== Partial index: only active records =====
+CREATE INDEX idx_users_email_active ON users (email)
+    WHERE deleted_at IS NULL;
+-- This index is used only for queries that include WHERE deleted_at IS NULL
+SELECT * FROM users WHERE email = 'x@y.com' AND deleted_at IS NULL;
+
+
+-- ===== Covering index: include columns to avoid heap fetch =====
+CREATE INDEX idx_orders_covering ON orders (user_id)
+    INCLUDE (total, status, created_at);
+-- Query satisfied entirely from the index (no table lookup):
+SELECT total, status, created_at FROM orders WHERE user_id = 42;
+```

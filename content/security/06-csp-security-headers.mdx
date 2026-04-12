@@ -1,0 +1,98 @@
+---
+title: "Как настроить Content Security Policy и другие security headers?"
+order: 6
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Security headers** are HTTP response headers that instruct the browser to enforce security policies, significantly reducing the attack surface of XSS, clickjacking, and information leakage. **Content-Security-Policy (CSP)** is the most powerful: it controls which origins can load scripts, styles, images, frames, and more. A strict CSP can make XSS exploitation nearly impossible even when an injection vulnerability exists — the injected script simply cannot execute.
+
+The hardest part of CSP is inline scripts and styles. `unsafe-inline` defeats most of CSP's value. The recommended approach is **nonces** (cryptographically random tokens per-response) or **hashes** (SHA-256 of the exact inline script). In Next.js App Router, nonces require middleware to generate per-request and inject into both the header and the `<script>` tag. **`strict-dynamic`** combined with a nonce is the modern best practice — it allows trusted scripts to load additional scripts without listing every CDN.
+
+Other critical headers: **HSTS** (`Strict-Transport-Security`) forces HTTPS even if a user types `http://` — include `includeSubDomains` and `preload` after validating all subdomains are HTTPS-ready. **X-Frame-Options** (or CSP `frame-ancestors`) prevents clickjacking. **Referrer-Policy: strict-origin-when-cross-origin** prevents leaking URL paths to third parties. **Permissions-Policy** restricts access to sensitive browser APIs like camera, microphone, and geolocation. Use `securityheaders.com` to audit your headers in production.
+
+</Answer>
+<Answer lang="ru">
+
+**Security headers** — HTTP-заголовки ответа, инструктирующие браузер применять политики безопасности. Они значительно сужают поверхность атаки для XSS, clickjacking и утечек информации. **Content-Security-Policy (CSP)** — самый мощный: контролирует, с каких источников можно загружать скрипты, стили, изображения, фреймы. Строгий CSP делает эксплуатацию XSS практически невозможной даже при наличии инъекционной уязвимости — инжектированный скрипт просто не выполнится.
+
+Самое сложное в CSP — инлайн-скрипты и стили. `unsafe-inline` обесценивает большую часть защиты CSP. Рекомендуемый подход — **nonces** (криптографически случайные токены на каждый ответ) или **хеши** (SHA-256 точного содержимого инлайн-скрипта). В Next.js App Router nonces генерируются в middleware на каждый запрос и инжектируются в заголовок и тег `<script>`. **`strict-dynamic`** в сочетании с nonce — современная лучшая практика: доверенные скрипты могут загружать дополнительные скрипты без перечисления всех CDN.
+
+Другие критичные заголовки: **HSTS** принуждает к HTTPS даже если пользователь набрал `http://` — включай `includeSubDomains` и `preload` только после проверки всех поддоменов. **X-Frame-Options** (или `frame-ancestors` в CSP) защищает от clickjacking. **Referrer-Policy: strict-origin-when-cross-origin** не даёт утекать путям URL на сторонние сайты. **Permissions-Policy** ограничивает доступ к камере, микрофону, геолокации. Используй `securityheaders.com` для аудита заголовков в production.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Next.js middleware с CSP nonce и security headers
+
+import { NextRequest, NextResponse } from "next/server";
+
+function generateNonce(): string {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Buffer.from(array).toString("base64");
+}
+
+export function middleware(req: NextRequest) {
+  const nonce = generateNonce();
+
+  const csp = [
+    `default-src 'self'`,
+    // strict-dynamic + nonce: загруженные скрипты могут подгружать другие
+    `script-src 'nonce-${nonce}' 'strict-dynamic'`,
+    `style-src 'self' 'nonce-${nonce}'`,
+    `img-src 'self' data: blob: https://cdn.company.com`,
+    `font-src 'self'`,
+    `connect-src 'self' https://api.company.com https://analytics.umami.is`,
+    `frame-ancestors 'none'`,    // clickjacking protection
+    `base-uri 'self'`,           // prevent base tag injection
+    `form-action 'self'`,
+    `upgrade-insecure-requests`,
+    // Report-Only mode during rollout: replace Content-Security-Policy with:
+    // Content-Security-Policy-Report-Only + add report-uri /api/csp-report
+  ].join("; ");
+
+  const res = NextResponse.next({
+    request: { headers: new Headers({ ...Object.fromEntries(req.headers), "x-nonce": nonce }) },
+  });
+
+  res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=()"
+  );
+  res.headers.set("X-Nonce", nonce); // read by layout.tsx
+
+  return res;
+}
+
+export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"] };
+
+// app/layout.tsx — читаем nonce из headers
+import { headers } from "next/headers";
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") ?? "";
+
+  return (
+    <html lang="en">
+      <head>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `window.__NONCE__ = "${nonce}";`,
+          }}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```

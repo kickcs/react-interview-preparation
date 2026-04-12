@@ -1,0 +1,105 @@
+---
+title: "Как работают SQL Injection и XSS и как от них защититься?"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**SQL Injection** occurs when user-controlled input is concatenated into a SQL query, allowing an attacker to modify the query's logic. Classic payloads like `' OR '1'='1` can bypass authentication; `'; DROP TABLE users; --` can destroy data. The complete defense is **parameterized queries** (also called prepared statements): the query structure is compiled separately from the data, so no amount of special characters in the input can change the query structure. ORMs like Prisma and TypeORM use parameterized queries internally, but raw query escape hatches (`$queryRaw`, `createQueryBuilder().where(\`col = '${val}'\`)`) re-introduce the vulnerability.
+
+**Cross-Site Scripting (XSS)** injects malicious scripts into a page viewed by other users. **Stored XSS** persists in the database (comment with `<script>stealCookies()</script>`). **Reflected XSS** is in URL parameters. **DOM-based XSS** comes from unsafe DOM manipulation (`innerHTML`, `document.write`). React automatically escapes all string values in JSX — `{userInput}` renders as text, not HTML. The dangerous escape hatch is `dangerouslySetInnerHTML={{ __html: userContent }}`: only use it with a well-tested sanitizer like **DOMPurify** with a strict allowlist config. Server-side rendering must also sanitize before storing.
+
+**Output encoding** is the principle underlying both defenses: encode output for the context it appears in (HTML, JS, URL, CSS). A CSP with `script-src 'nonce-...'` provides defense-in-depth — even if XSS gets through, the injected script cannot execute without a valid nonce.
+
+</Answer>
+<Answer lang="ru">
+
+**SQL Injection** возникает, когда пользовательский ввод конкатенируется в SQL-запрос, позволяя атакующему изменить его логику. Классические payload вроде `' OR '1'='1` обходят аутентификацию; `'; DROP TABLE users; --` уничтожают данные. Полная защита — **параметризованные запросы** (prepared statements): структура запроса компилируется отдельно от данных, поэтому никакие спецсимволы во вводе не изменят структуру запроса. ORM вроде Prisma и TypeORM используют параметризованные запросы внутренне, но escape hatch для raw запросов (`$queryRaw`, `createQueryBuilder().where(\`col = '${val}'\`)`) заново вводят уязвимость.
+
+**Cross-Site Scripting (XSS)** внедряет вредоносные скрипты на страницу. **Stored XSS** сохраняется в БД (комментарий с `<script>stealCookies()</script>`). **Reflected XSS** — в параметрах URL. **DOM-based XSS** возникает при небезопасных DOM-операциях (`innerHTML`, `document.write`). React автоматически экранирует строки в JSX — `{userInput}` рендерится как текст, не HTML. Опасный escape hatch — `dangerouslySetInnerHTML={{ __html: userContent }}`: используй только с проверенным санитайзером **DOMPurify** со строгим allowlist. Серверный рендеринг тоже должен санировать данные перед сохранением.
+
+**Output encoding** — принцип, лежащий в основе обеих защит: кодируй вывод для контекста, в котором он появляется (HTML, JS, URL, CSS). CSP с `script-src 'nonce-...'` обеспечивает защиту в глубину — даже если XSS прорвался, инжектированный скрипт не выполнится без валидного nonce.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// SQL Injection и XSS: примеры атак и защиты
+
+import { Pool } from "pg";
+import DOMPurify from "dompurify";
+import { JSDOM } from "jsdom";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// --- SQL Injection ---
+
+// УЯЗВИМО: никогда так не делай
+async function vulnerableSearch(query: string) {
+  // Атака: query = "'; DELETE FROM users; --"
+  const sql = `SELECT * FROM products WHERE name LIKE '%${query}%'`;
+  return pool.query(sql);
+}
+
+// БЕЗОПАСНО: параметризованный запрос
+async function safeSearch(query: string) {
+  return pool.query(
+    "SELECT id, name, price FROM products WHERE name ILIKE $1 LIMIT 50",
+    [`%${query}%`]
+  );
+}
+
+// БЕЗОПАСНО: Prisma raw query с placeholder
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+async function safeRawPrisma(userId: string) {
+  // $queryRaw с тегированными шаблонами — безопасно
+  return prisma.$queryRaw`SELECT id, name FROM users WHERE id = ${userId}`;
+  // ОПАСНО: prisma.$queryRawUnsafe(`...${userId}...`)
+}
+
+// --- XSS ---
+
+// Server-side HTML sanitization (Node.js)
+function sanitizeHTML(dirty: string): string {
+  const window = new JSDOM("").window;
+  const purify = DOMPurify(window);
+
+  return purify.sanitize(dirty, {
+    ALLOWED_TAGS: ["p", "b", "i", "ul", "ol", "li", "a", "br", "strong", "em"],
+    ALLOWED_ATTR: ["href", "title"],
+    ALLOWED_URI_REGEXP: /^https?:\/\//i, // no javascript: links
+    FORCE_BODY: true,
+  });
+}
+
+// React: безопасное использование HTML-контента
+import React from "react";
+
+interface RichTextProps {
+  content: string; // raw HTML from database
+}
+
+export function RichText({ content }: RichTextProps) {
+  const sanitized = sanitizeHTML(content);
+
+  // dangerouslySetInnerHTML только с санированным контентом
+  return (
+    <div
+      className="prose"
+      dangerouslySetInnerHTML={{ __html: sanitized }}
+    />
+  );
+}
+
+// React: автоэкранирование работает по умолчанию
+export function SafeByDefault({ userInput }: { userInput: string }) {
+  // Это БЕЗОПАСНО — React экранирует строку как текст
+  return <p>{userInput}</p>;
+
+  // Это УЯЗВИМО:
+  // return <p dangerouslySetInnerHTML={{ __html: userInput }} />;
+}
+```

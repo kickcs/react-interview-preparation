@@ -1,0 +1,97 @@
+---
+title: "ECS Fargate vs EKS vs EC2: выбор compute-платформы на AWS"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+AWS offers several compute platforms for running containerized workloads, each with different tradeoffs in operational complexity, flexibility, and cost. **EC2** gives you full control over the underlying virtual machines — you choose instance type, OS, and manage patching and scaling. It is the most flexible but requires the most operational overhead. Use EC2 when you need custom kernel parameters, GPU instances for ML training, or when you have steady predictable workloads where Reserved Instances give you significant savings (up to 72% vs on-demand).
+
+**ECS (Elastic Container Service)** is AWS's proprietary container orchestrator. With the **Fargate** launch type, you don't manage EC2 instances — AWS provisions and manages the underlying compute. You define tasks (containers + resource limits) and services (desired replica count, load balancer integration, auto-scaling). ECS Fargate has a simpler mental model than Kubernetes: no nodes to manage, no control plane to upgrade. It is ideal for teams moving from VM deployments to containers, running a FastAPI/backend service with predictable traffic, or when Kubernetes expertise is not available. Fargate is 20–30% more expensive per compute unit than equivalent EC2, but you save on EC2 management overhead.
+
+**EKS (Elastic Kubernetes Service)** runs a managed Kubernetes control plane. Choose EKS when you need Kubernetes-native features: Helm charts, complex networking policies, custom CRDs, multi-cluster federation, or when your team already has Kubernetes expertise and tooling. EKS with EC2 node groups gives better cost efficiency for large clusters via node packing. EKS with Fargate profiles combines managed Kubernetes with serverless nodes. The operational complexity of EKS is significantly higher than ECS — certificate rotations, add-on upgrades (CoreDNS, kube-proxy, VPC CNI), and node lifecycle management all require attention.
+
+</Answer>
+<Answer lang="ru">
+
+AWS предлагает несколько compute-платформ для запуска контейнеризованных нагрузок, каждая с разными компромиссами в операционной сложности, гибкости и стоимости. **EC2** даёт полный контроль над виртуальными машинами — вы выбираете тип инстанса, ОС, управляете патчингом и масштабированием. Наибольшая гибкость, но максимальные операционные накладные расходы. Используйте EC2 при необходимости кастомных параметров ядра, GPU-инстансов для обучения ML или при стабильных предсказуемых нагрузках, где Reserved Instances дают значительную экономию (до 72% vs on-demand).
+
+**ECS (Elastic Container Service)** — проприетарный оркестратор контейнеров AWS. С типом запуска **Fargate** EC2-инстансами не нужно управлять — AWS провизионирует и управляет нижележащими вычислениями. Вы определяете задачи (контейнеры + лимиты ресурсов) и сервисы (желаемое число реплик, интеграция с балансировщиком, автомасштабирование). ECS Fargate проще в понимании, чем Kubernetes: нет нод для управления, нет control plane для обновления. Идеален для перехода с VM на контейнеры, запуска FastAPI/бэкенд-сервиса с предсказуемым трафиком. Fargate на 20–30% дороже аналогичных EC2 на единицу compute, но экономит на управлении инстансами.
+
+**EKS (Elastic Kubernetes Service)** запускает управляемый control plane Kubernetes. Выбирайте EKS при необходимости Kubernetes-native функций: Helm charts, политики сетей, custom CRD, многокластерная федерация или когда команда уже владеет Kubernetes-инструментарием. EKS с группами нод EC2 даёт лучшую эффективность затрат для крупных кластеров. Операционная сложность EKS значительно выше, чем ECS — ротация сертификатов, обновление аддонов (CoreDNS, kube-proxy, VPC CNI) и жизненный цикл нод требуют внимания.
+
+</Answer>
+</AnswerGroup>
+
+```yaml
+# ECS Fargate: task definition (CDK/CloudFormation equivalent shown as JSON-like YAML)
+# This is a FastAPI service definition
+
+# task_definition.json equivalent
+TaskDefinition:
+  Family: fastapi-backend
+  NetworkMode: awsvpc        # Required for Fargate
+  RequiresCompatibilities: [FARGATE]
+  Cpu: "512"                 # 0.5 vCPU
+  Memory: "1024"             # 1 GB
+  ExecutionRoleArn: !GetAtt EcsExecutionRole.Arn
+  TaskRoleArn: !GetAtt EcsTaskRole.Arn
+  ContainerDefinitions:
+    - Name: fastapi
+      Image: 123456789.dkr.ecr.us-east-1.amazonaws.com/fastapi-app:latest
+      PortMappings:
+        - ContainerPort: 8000
+          Protocol: tcp
+      Environment:
+        - Name: ENV
+          Value: production
+      Secrets:
+        - Name: DATABASE_URL
+          ValueFrom: arn:aws:secretsmanager:us-east-1:123:secret:db-url
+      LogConfiguration:
+        LogDriver: awslogs
+        Options:
+          awslogs-group: /ecs/fastapi-backend
+          awslogs-region: us-east-1
+          awslogs-stream-prefix: ecs
+      HealthCheck:
+        Command: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+        Interval: 30
+        Timeout: 5
+        Retries: 3
+```
+
+```python
+# AWS CDK: ECS Fargate service with ALB and autoscaling (Python)
+from aws_cdk import (
+    aws_ecs as ecs,
+    aws_ecs_patterns as ecs_patterns,
+    aws_ec2 as ec2,
+    Duration,
+)
+
+# ApplicationLoadBalancedFargateService: ALB + ECS + autoscaling in one construct
+service = ecs_patterns.ApplicationLoadBalancedFargateService(
+    self, "FastApiService",
+    cluster=cluster,
+    cpu=512,
+    memory_limit_mib=1024,
+    desired_count=2,
+    task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
+        image=ecs.ContainerImage.from_ecr_repository(repo, tag="latest"),
+        container_port=8000,
+        environment={"ENV": "production"},
+        secrets={"DATABASE_URL": ecs.Secret.from_secrets_manager(db_secret)},
+    ),
+    public_load_balancer=True,
+)
+
+# Target tracking autoscaling: scale on CPU utilization
+scaling = service.service.auto_scale_task_count(max_capacity=10, min_capacity=2)
+scaling.scale_on_cpu_utilization(
+    "CpuScaling", target_utilization_percent=70,
+    scale_in_cooldown=Duration.seconds(60),
+    scale_out_cooldown=Duration.seconds(30),
+)
+```

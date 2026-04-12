@@ -1,0 +1,101 @@
+---
+title: "Тестирование в Python: pytest, async tests, моки и FastAPI AsyncClient"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**pytest** is the de-facto standard for Python testing. Its **fixture** system is the key feature: fixtures are functions that set up shared state and are injected by name into test functions. Fixtures have scopes — `function` (default, run per test), `module`, `session` (run once for the whole test run). This lets you create the database schema once per session, start a transaction per test, and roll it back at the end — keeping tests isolated without recreating the database every time.
+
+**Async testing** requires `pytest-anyio` or `pytest-asyncio`. Mark async test functions with `@pytest.mark.asyncio` (or configure `asyncio_mode = "auto"` in `pyproject.toml`) and they run inside an event loop. For FastAPI, use `httpx.AsyncClient` with `ASGITransport` to call your API without starting a real HTTP server — this gives you full integration tests at the transport layer. Override dependencies via `app.dependency_overrides` to inject test databases or mock services.
+
+**Mocking** with `unittest.mock.patch` or `pytest-mock`'s `mocker` fixture replaces real implementations during a test. For async code, use `AsyncMock` instead of `MagicMock` — otherwise `await mock()` raises a `TypeError`. A common pitfall: patching at the wrong import path. Always patch where the name is used, not where it is defined: `patch("app.services.chat_service.openai_client.complete")` not `patch("app.integrations.openai_client.OpenAIClient.complete")`.
+
+</Answer>
+<Answer lang="ru">
+
+**pytest** — де-факто стандарт тестирования Python. Ключевая возможность — система **фикстур**: фикстуры — это функции, настраивающие общее состояние и внедряемые по имени в тестовые функции. У фикстур есть области видимости — `function` (по умолчанию, запускается для каждого теста), `module`, `session` (один раз для всего запуска). Это позволяет создать схему БД один раз за сессию, начинать транзакцию на каждый тест и откатывать её в конце — сохраняя изоляцию без пересоздания БД.
+
+**Async-тестирование** требует `pytest-anyio` или `pytest-asyncio`. Пометьте async-функции тестов декоратором `@pytest.mark.asyncio` (или настройте `asyncio_mode = "auto"` в `pyproject.toml`) — они выполнятся внутри event loop. Для FastAPI используйте `httpx.AsyncClient` с `ASGITransport` для вызова API без запуска настоящего HTTP-сервера — это даёт полноценные интеграционные тесты на транспортном уровне. Переопределяйте зависимости через `app.dependency_overrides` для внедрения тестовых БД или моков сервисов.
+
+**Мокирование** через `unittest.mock.patch` или фикстуру `mocker` из `pytest-mock` заменяет реальные реализации во время теста. Для async-кода используйте `AsyncMock` вместо `MagicMock` — иначе `await mock()` вызовет `TypeError`. Типичная ловушка: патчинг по неверному пути импорта. Всегда патчите там, где имя используется, а не там, где оно определено: `patch("app.services.chat_service.openai_client.complete")`, не `patch("app.integrations.openai_client.OpenAIClient.complete")`.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# pyproject.toml
+# [tool.pytest.ini_options]
+# asyncio_mode = "auto"
+# [tool.coverage.run]
+# source = ["app"]
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from unittest.mock import AsyncMock, patch
+
+from app.main import app
+from app.db.session import get_db
+from app.db.models import Base
+
+
+# --- Session-scoped engine (schema created once) ---
+@pytest.fixture(scope="session")
+async def engine():
+    engine = create_async_engine("postgresql+asyncpg://test:test@localhost/test_db")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+
+
+# --- Function-scoped session with rollback isolation ---
+@pytest.fixture
+async def db_session(engine) -> AsyncSession:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+        await session.rollback()  # Clean state for next test
+
+
+# --- Override FastAPI dependency ---
+@pytest.fixture
+async def client(db_session: AsyncSession) -> AsyncClient:
+    app.dependency_overrides[get_db] = lambda: db_session
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+# --- Integration test ---
+async def test_create_user(client: AsyncClient) -> None:
+    response = await client.post(
+        "/users", json={"email": "test@example.com", "username": "testuser", "age": 25}
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == "test@example.com"
+
+
+# --- Unit test with AsyncMock ---
+async def test_chat_service_calls_llm() -> None:
+    from app.schemas.chat import ChatRequest
+    from app.services.chat_service import ChatService
+
+    mock_llm = AsyncMock(return_value="Hello, I am an AI assistant.")
+    mock_repo = AsyncMock()
+    mock_repo.search_similar.return_value = []
+
+    service = ChatService(document_repo=mock_repo, llm_client=mock_llm)
+    result = await service.answer(ChatRequest(query="What is RAG?"))
+
+    mock_llm.assert_awaited_once()
+    assert "AI" in result.reply
+```

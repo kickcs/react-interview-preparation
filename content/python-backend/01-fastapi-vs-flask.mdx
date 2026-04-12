@@ -1,0 +1,87 @@
+---
+title: "FastAPI vs Flask: почему FastAPI для современных API?"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**FastAPI** and **Flask** are both popular Python web frameworks, but they solve different problems and target different use cases. Flask is a minimalist WSGI framework that has been around since 2010 — it gives you a simple routing model and leaves the rest to extensions. FastAPI, released in 2018, was designed from the start for modern async Python and automatic OpenAPI documentation.
+
+The key advantages of FastAPI over Flask: **native async/await support** via Starlette under the hood means you can handle thousands of concurrent connections without threads, which is critical for AI workloads with long-running LLM calls. **Pydantic v2 integration** gives you automatic request validation and response serialization with full type safety — no more writing manual `request.json.get(...)` calls. The **automatic OpenAPI/Swagger UI** generated from your type annotations means your API is always self-documenting at `/docs`.
+
+Performance benchmarks consistently show FastAPI handles 2–5x more requests per second than Flask for I/O-bound workloads. For CPU-bound work both are similar since they still run on CPython's GIL. The main pitfall: **async does not automatically make everything faster** — if you call a synchronous database driver inside an `async def` endpoint, you block the event loop and hurt performance worse than synchronous Flask. Use `run_in_executor` or async drivers (asyncpg, aiomysql) for database access.
+
+</Answer>
+<Answer lang="ru">
+
+**FastAPI** и **Flask** — оба популярных Python-фреймворка, но решают разные задачи. Flask — минималистичный WSGI-фреймворк с 2010 года: простая маршрутизация и всё остальное через расширения. FastAPI, выпущенный в 2018 году, создавался с нуля для современного async Python и автоматической OpenAPI-документации.
+
+Ключевые преимущества FastAPI: **нативная поддержка async/await** через Starlette позволяет обрабатывать тысячи одновременных соединений без потоков — критично для AI-задач с длинными вызовами LLM. **Интеграция с Pydantic v2** даёт автоматическую валидацию запросов и сериализацию ответов с полной типобезопасностью — не нужно писать `request.json.get(...)` вручную. **Автоматический OpenAPI/Swagger UI**, генерируемый из аннотаций типов, означает, что API всегда самодокументируется по адресу `/docs`.
+
+Бенчмарки показывают, что FastAPI обрабатывает в 2–5 раз больше запросов в секунду, чем Flask, для I/O-нагрузок. Для CPU-bound задач оба примерно одинаковы — всё равно работает GIL CPython. Главная ловушка: **async не делает всё автоматически быстрее** — если вызвать синхронный драйвер БД внутри `async def`, вы блокируете event loop и делаете хуже, чем синхронный Flask. Используйте `run_in_executor` или асинхронные драйверы (asyncpg, aiomysql).
+
+</Answer>
+</AnswerGroup>
+
+```python
+# FastAPI: полный пример с типизацией, валидацией и зависимостями
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel, Field
+from typing import Annotated
+import httpx
+
+app = FastAPI(title="AI Backend API", version="1.0.0")
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4096)
+    model: str = Field(default="gpt-4o", pattern=r"^[a-z0-9\-]+$")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    tokens_used: int
+
+
+async def get_http_client() -> httpx.AsyncClient:
+    """Dependency: shared async HTTP client."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        yield client
+
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(
+    body: ChatRequest,
+    client: Annotated[httpx.AsyncClient, Depends(get_http_client)],
+) -> ChatResponse:
+    # Non-blocking async call — event loop is free during the await
+    response = await client.post(
+        "https://api.openai.com/v1/chat/completions",
+        json={
+            "model": body.model,
+            "messages": [{"role": "user", "content": body.message}],
+            "temperature": body.temperature,
+        },
+    )
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="LLM upstream error")
+
+    data = response.json()
+    return ChatResponse(
+        reply=data["choices"][0]["message"]["content"],
+        tokens_used=data["usage"]["total_tokens"],
+    )
+
+
+# Equivalent Flask code for comparison — synchronous, no type safety:
+# from flask import Flask, request, jsonify
+# app = Flask(__name__)
+# @app.route("/chat", methods=["POST"])
+# def chat():
+#     body = request.get_json()          # no validation
+#     message = body.get("message", "")  # no type check
+#     ...
+#     return jsonify({"reply": reply})   # no schema enforcement
+```

@@ -1,0 +1,127 @@
+---
+title: "Что такое audit logging и как его правильно реализовать?"
+order: 9
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Audit logging** is the practice of recording who did what, to which resource, and when. It differs from application logging in its purpose: audit logs support security investigations, compliance audits (SOC 2, HIPAA, PCI-DSS), and forensic analysis. They must be **tamper-evident**: an attacker who compromises the application should not be able to erase evidence of their actions.
+
+What to log for compliance: authentication events (login, logout, failed attempts, MFA events), authorization failures (403s with the requesting user and resource), data access events for sensitive resources (PII reads, PHI exports, bulk downloads), administrative actions (role changes, permission grants, configuration changes), and data mutations (create/update/delete on sensitive records). What NOT to log verbatim: passwords, session tokens, full credit card numbers, and other sensitive values — use **PII/PHI masking** (log the last 4 of a SSN, hash the email, redact the card number).
+
+**Immutability** is critical: write logs to an append-only store. Options include a separate audit database with no `UPDATE`/`DELETE` privileges for the application user, **AWS CloudTrail**, **Splunk**, or a dedicated SIEM. Structured JSON logs (with `user_id`, `action`, `resource_type`, `resource_id`, `ip_address`, `timestamp`, `outcome`) are far more queryable than unstructured text. **Log integrity**: consider WORM (Write Once Read Many) storage or cryptographic chaining (each log entry contains a hash of the previous entry) for the highest assurance.
+
+</Answer>
+<Answer lang="ru">
+
+**Audit logging** — практика записи того, кто, что, с каким ресурсом и когда сделал. Он отличается от application logging целью: audit logs нужны для расследований инцидентов безопасности, аудита соответствия требованиям (SOC 2, HIPAA, PCI-DSS) и форензики. Они должны быть **tamper-evident**: атакующий, скомпрометировавший приложение, не должен иметь возможности стереть следы своих действий.
+
+Что логировать для compliance: события аутентификации (вход, выход, неудачные попытки, MFA события), ошибки авторизации (403 с указанием пользователя и ресурса), доступ к чувствительным ресурсам (чтение PII, экспорт PHI, массовые загрузки), административные действия (изменение ролей, выдача прав, изменение конфигурации), мутации данных (create/update/delete чувствительных записей). Что НЕ логировать дословно: пароли, токены сессий, полные номера карт — используй **PII/PHI masking** (логируй последние 4 цифры SSN, хешируй email, маскируй номер карты).
+
+**Неизменяемость** критична: пиши логи в append-only хранилище. Варианты: отдельная audit-база без `UPDATE`/`DELETE` привилегий для пользователя приложения, **AWS CloudTrail**, **Splunk** или выделенная SIEM-система. Структурированные JSON-логи (с полями `user_id`, `action`, `resource_type`, `resource_id`, `ip_address`, `timestamp`, `outcome`) гораздо удобнее для запросов, чем неструктурированный текст. **Целостность логов**: WORM-хранилище или криптографическая цепочка (каждая запись содержит хеш предыдущей) обеспечивают максимальную гарантию.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Audit logging: структурированный лог с PII masking
+
+type AuditAction =
+  | "auth.login"
+  | "auth.logout"
+  | "auth.login_failed"
+  | "data.read"
+  | "data.export"
+  | "data.update"
+  | "data.delete"
+  | "admin.role_change"
+  | "admin.permission_grant";
+
+interface AuditEntry {
+  timestamp: string;          // ISO 8601 UTC
+  eventId: string;            // UUID, correlates with trace
+  userId: string | null;      // null for unauthenticated attempts
+  sessionId: string | null;
+  action: AuditAction;
+  resourceType: string;
+  resourceId: string;
+  outcome: "success" | "failure" | "error";
+  ipAddress: string;
+  userAgent: string;
+  metadata: Record<string, unknown>; // context-specific, already masked
+}
+
+// PII masking utilities
+const mask = {
+  email: (email: string) => {
+    const [user, domain] = email.split("@");
+    return `${user[0]}***@${domain}`;
+  },
+  ssn: (ssn: string) => `***-**-${ssn.slice(-4)}`,
+  phone: (phone: string) => `***-***-${phone.slice(-4)}`,
+  // Never log full token — log only jti or first 8 chars
+  token: (token: string) => `${token.slice(0, 8)}...`,
+};
+
+class AuditLogger {
+  private async write(entry: AuditEntry): Promise<void> {
+    // Write to append-only audit store (separate DB connection with INSERT only)
+    await auditDb.query(
+      `INSERT INTO audit_log
+       (event_id, timestamp, user_id, session_id, action, resource_type,
+        resource_id, outcome, ip_address, user_agent, metadata)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [
+        entry.eventId, entry.timestamp, entry.userId, entry.sessionId,
+        entry.action, entry.resourceType, entry.resourceId, entry.outcome,
+        entry.ipAddress, entry.userAgent, JSON.stringify(entry.metadata),
+      ]
+    );
+
+    // Also stream to SIEM (async, non-blocking)
+    this.streamToSIEM(entry).catch((err) =>
+      console.error("SIEM stream failed", err)
+    );
+  }
+
+  async log(params: Omit<AuditEntry, "timestamp" | "eventId">): Promise<void> {
+    const entry: AuditEntry = {
+      ...params,
+      timestamp: new Date().toISOString(),
+      eventId: crypto.randomUUID(),
+    };
+    await this.write(entry);
+  }
+
+  private async streamToSIEM(entry: AuditEntry): Promise<void> {
+    await fetch(process.env.SIEM_WEBHOOK_URL!, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.SIEM_TOKEN}` },
+      body: JSON.stringify(entry),
+    });
+  }
+}
+
+export const audit = new AuditLogger();
+
+// Usage in a route handler
+export async function exportPatientData(req: Request, patientId: string, auth: AuthContext) {
+  await audit.log({
+    userId: auth.userId,
+    sessionId: auth.sessionId,
+    action: "data.export",
+    resourceType: "patient_record",
+    resourceId: patientId,
+    outcome: "success",
+    ipAddress: req.headers.get("x-forwarded-for") ?? "unknown",
+    userAgent: req.headers.get("user-agent") ?? "unknown",
+    metadata: {
+      exportFormat: "csv",
+      recordCount: 1,
+      // email masked before logging
+      requestedBy: mask.email(auth.userEmail),
+    },
+  });
+}
+```

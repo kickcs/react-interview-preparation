@@ -1,0 +1,99 @@
+---
+title: "Background tasks: FastAPI BackgroundTasks vs Celery vs arq"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+Choosing the right background task solution depends on the complexity, reliability requirements, and scale of your workload. **FastAPI BackgroundTasks** is the simplest option — you add a function to be called after the response is sent. It runs in the same process, shares the event loop, and requires no infrastructure. Use it for lightweight fire-and-forget tasks: sending a welcome email, logging an analytics event, invalidating a cache key. The critical limitation: if the process restarts, the task is lost. No retry logic, no visibility, no queue.
+
+**Celery** is the industry standard for Python task queues. It runs tasks in separate worker processes, persists tasks in a broker (Redis or RabbitMQ), supports retries with exponential backoff, task prioritization, rate limiting, and scheduled (periodic) tasks via Celery Beat. The tradeoff: Celery is synchronous by default — workers run blocking code in threads or processes. It adds operational complexity (broker + worker + result backend). Use Celery when tasks are CPU-bound, need guaranteed delivery, or run longer than a few seconds.
+
+**arq** (Async Redis Queue) is a modern lightweight alternative to Celery built for async Python. It uses Redis as the broker, supports async task functions natively, has job deduplication, and is far simpler to operate than Celery. It does not have Celery's ecosystem (no Flower monitoring out of the box, no beat scheduler without extra code). For FastAPI projects doing async I/O tasks (embedding documents, calling LLMs, sending webhooks), arq is often the best balance of simplicity and reliability.
+
+</Answer>
+<Answer lang="ru">
+
+Выбор решения для фоновых задач зависит от сложности, требований к надёжности и масштаба нагрузки. **FastAPI BackgroundTasks** — самый простой вариант: добавляете функцию для вызова после отправки ответа. Выполняется в том же процессе, делит event loop и не требует инфраструктуры. Используйте для лёгких fire-and-forget задач: отправка приветственного письма, запись аналитического события, инвалидация кэша. Критическое ограничение: при перезапуске процесса задача теряется. Нет логики повторных попыток, видимости, очереди.
+
+**Celery** — отраслевой стандарт для очередей задач Python. Выполняет задачи в отдельных рабочих процессах, сохраняет задачи в брокере (Redis или RabbitMQ), поддерживает повторные попытки с экспоненциальной задержкой, приоритизацию, ограничение скорости и периодические задачи через Celery Beat. Компромисс: Celery синхронный по умолчанию — воркеры выполняют блокирующий код в потоках или процессах. Добавляет операционную сложность (брокер + воркер + бэкенд результатов). Используйте Celery для CPU-bound задач, гарантированной доставки или задач дольше нескольких секунд.
+
+**arq** (Async Redis Queue) — современная легковесная альтернатива Celery для async Python. Использует Redis как брокер, нативно поддерживает async-функции задач, имеет дедупликацию заданий и значительно проще в эксплуатации. Не имеет экосистемы Celery (нет мониторинга Flower из коробки, нет beat-планировщика без дополнительного кода). Для FastAPI-проектов с async I/O задачами (индексация документов, вызовы LLM, отправка вебхуков) arq часто является лучшим балансом простоты и надёжности.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# ====== Option 1: FastAPI BackgroundTasks (fire-and-forget, no persistence) ======
+from fastapi import BackgroundTasks, FastAPI
+
+app = FastAPI()
+
+
+async def send_welcome_email(email: str) -> None:
+    # Runs after response is sent; if process dies, task is lost
+    await email_client.send(to=email, subject="Welcome!")
+
+
+@app.post("/users")
+async def create_user(data: UserCreate, bg: BackgroundTasks):
+    user = await user_service.create(data)
+    bg.add_task(send_welcome_email, user.email)  # Non-blocking, best-effort
+    return user
+
+
+# ====== Option 2: arq (async, Redis-backed, production-grade) ======
+import arq
+from arq import create_pool
+from arq.connections import RedisSettings
+
+REDIS_SETTINGS = RedisSettings(host="localhost", port=6379)
+
+
+# Task function: async, retryable
+async def embed_document(ctx: dict, doc_id: int) -> None:
+    db: AsyncSession = ctx["db"]
+    doc = await document_repo.get(db, doc_id)
+    embedding = await openai_client.embed(doc.content)
+    await document_repo.save_embedding(db, doc_id, embedding)
+
+
+# Worker definition
+class WorkerSettings:
+    functions = [embed_document]
+    redis_settings = REDIS_SETTINGS
+    max_jobs = 10
+    job_timeout = 60  # seconds
+    retry_jobs = True
+    max_tries = 3
+
+
+# Enqueue from FastAPI endpoint
+@app.post("/documents/{doc_id}/embed")
+async def trigger_embed(doc_id: int):
+    redis = await create_pool(REDIS_SETTINGS)
+    job = await redis.enqueue_job(
+        "embed_document",
+        doc_id,
+        _job_id=f"embed:{doc_id}",  # Deduplication: same ID = skip if already queued
+        _defer_by=0,
+    )
+    return {"job_id": job.job_id}
+
+
+# ====== Option 3: Celery (CPU-bound, complex workflows) ======
+from celery import Celery
+
+celery_app = Celery("tasks", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
+
+
+@celery_app.task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_report(self, report_id: int) -> dict:
+    try:
+        # CPU-intensive: runs in a worker process, not blocking async event loop
+        result = heavy_report_generator.run(report_id)
+        return result
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+```

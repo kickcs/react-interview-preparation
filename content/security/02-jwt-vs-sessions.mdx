@@ -1,0 +1,98 @@
+---
+title: "JWT против сессий: в чём разница и где хранить токены?"
+order: 2
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Session-based authentication** stores session state on the server (in memory, Redis, or a database) and gives the client an opaque session ID — typically in an `HttpOnly` cookie. Every request requires a server-side lookup. Sessions are trivially revocable: delete the record and the session dies immediately. The downside is horizontal scaling requires a shared session store, adding infrastructure complexity.
+
+**JWT (JSON Web Token)** is stateless: all claims are self-contained in the token, signed with HMAC-SHA256 or RS256. The server validates the signature without any storage lookup, which makes JWTs attractive for microservices and edge deployments. The critical trade-off is that JWTs cannot be revoked before expiry unless you maintain a blocklist — which partially defeats the statelessness benefit. Short-lived **access tokens** (5–15 min) paired with longer-lived **refresh tokens** (stored in `HttpOnly` cookies) are the standard mitigation.
+
+Storage choice matters enormously: storing JWTs in `localStorage` exposes them to any XSS on the page. **`HttpOnly` cookies** prevent JS access entirely; combined with `SameSite=Strict` or `SameSite=Lax` they also resist CSRF. **Refresh token rotation** — issuing a new refresh token on each use and invalidating the old one — detects token theft: if the old token is used again, revoke the entire family. For sensitive applications (healthcare, finance), server-side sessions are often preferred for auditability and instant revocation.
+
+</Answer>
+<Answer lang="ru">
+
+**Сессионная аутентификация** хранит состояние сессии на сервере (в памяти, Redis или БД) и выдаёт клиенту непрозрачный идентификатор сессии — обычно в `HttpOnly`-cookie. Каждый запрос требует серверной проверки. Сессии легко отзываются: удали запись — сессия немедленно умирает. Минус — горизонтальное масштабирование требует общего хранилища сессий, что усложняет инфраструктуру.
+
+**JWT (JSON Web Token)** — stateless: все claims содержатся в самом токене, подписанном HMAC-SHA256 или RS256. Сервер проверяет подпись без обращения к хранилищу, что делает JWT привлекательными для микросервисов и edge-деплоев. Критический компромисс: JWT нельзя отозвать до истечения срока действия без ведения blocklist — что частично нивелирует преимущество stateless. Стандартное решение — короткоживущие **access токены** (5–15 мин) в связке с долгоживущими **refresh токенами** (в `HttpOnly`-cookie).
+
+Место хранения критически важно: JWT в `localStorage` доступен любому XSS на странице. **`HttpOnly`-cookie** полностью закрывает JS-доступ; в сочетании с `SameSite=Strict` или `SameSite=Lax` защищает и от CSRF. **Ротация refresh токенов** — выдача нового токена при каждом использовании и инвалидация старого — позволяет обнаружить кражу: если старый токен используется повторно, вся «семья» токенов отзывается. Для критичных приложений (здравоохранение, финансы) серверные сессии предпочтительны из-за возможности мгновенного отзыва и аудита.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Паттерн: access token + refresh token rotation с HttpOnly cookies
+
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+
+const ACCESS_SECRET = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET!);
+const REFRESH_SECRET = new TextEncoder().encode(process.env.JWT_REFRESH_SECRET!);
+
+const ACCESS_TTL = 15 * 60;        // 15 minutes
+const REFRESH_TTL = 7 * 24 * 3600; // 7 days
+
+export async function issueTokens(userId: string, orgId: string) {
+  const now = Math.floor(Date.now() / 1000);
+
+  const accessToken = await new SignJWT({ sub: userId, orgId, type: "access" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(now)
+    .setExpirationTime(now + ACCESS_TTL)
+    .sign(ACCESS_SECRET);
+
+  // Refresh token gets a unique jti for rotation tracking
+  const jti = crypto.randomUUID();
+  const refreshToken = await new SignJWT({ sub: userId, jti, type: "refresh" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt(now)
+    .setExpirationTime(now + REFRESH_TTL)
+    .sign(REFRESH_SECRET);
+
+  // Store jti in DB so we can invalidate it
+  await db.refreshTokens.create({ userId, jti, expiresAt: new Date((now + REFRESH_TTL) * 1000) });
+
+  return { accessToken, refreshToken };
+}
+
+export async function refreshAccessToken(request: Request): Promise<NextResponse> {
+  const cookieStore = await cookies();
+  const rawRefresh = cookieStore.get("refresh_token")?.value;
+  if (!rawRefresh) return NextResponse.json({ error: "No refresh token" }, { status: 401 });
+
+  let payload: { sub: string; jti: string };
+  try {
+    const { payload: p } = await jwtVerify(rawRefresh, REFRESH_SECRET);
+    payload = p as typeof payload;
+  } catch {
+    return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
+  }
+
+  // Rotation: check if jti is still valid
+  const stored = await db.refreshTokens.findUnique({ where: { jti: payload.jti } });
+  if (!stored || stored.revokedAt) {
+    // Token reuse detected — revoke entire family
+    await db.refreshTokens.revokeAllForUser(payload.sub);
+    return NextResponse.json({ error: "Token reuse detected" }, { status: 401 });
+  }
+
+  // Revoke old token, issue new pair
+  await db.refreshTokens.revoke(payload.jti);
+  const { accessToken, refreshToken } = await issueTokens(payload.sub, stored.orgId);
+
+  const res = NextResponse.json({ accessToken });
+  res.cookies.set("refresh_token", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/api/auth",
+    maxAge: REFRESH_TTL,
+  });
+  return res;
+}
+```

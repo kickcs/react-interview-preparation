@@ -1,0 +1,144 @@
+---
+title: "Как реализовать streaming LLM ответов в production?"
+order: 7
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Streaming** is essential for LLM applications because users experience 5–30 second wait times for complete responses — rendering tokens as they arrive dramatically improves perceived performance. LLMs produce tokens sequentially, so streaming is natural: the model outputs one token at a time, and you forward each token to the client as soon as it is available.
+
+**SSE (Server-Sent Events)** is the standard transport for LLM streaming on the web. It uses a simple HTTP connection with `Content-Type: text/event-stream`, where the server pushes `data: ...\n\n` frames and the client receives them via the `EventSource` API or `fetch` with a `ReadableStream`. SSE is unidirectional (server → client), reconnects automatically on disconnect, and works through most proxies and load balancers without special configuration. It is simpler than WebSockets for this use case because LLM chat is inherently half-duplex — the user sends a message, the server streams a response. **WebSockets** are appropriate when you need true bidirectional communication (e.g., collaborative editing on top of LLM output, or real-time audio).
+
+**Backpressure and cancellation** are critical production concerns. If the client reads slower than the server writes (e.g., mobile client on a slow network), you need buffering or you drop data. In Next.js App Router with `ReadableStream`, the browser's `fetch` handles backpressure automatically. **Cancellation**: when the user clicks "stop", the client should abort the fetch, and the server-side code should detect the disconnection and stop the LLM call to avoid burning tokens. Anthropic and OpenAI SDK streaming iterators respect `AbortController` — pass the signal and the SDK will close the stream.
+
+</Answer>
+<Answer lang="ru">
+
+**Streaming** необходим для LLM-приложений: пользователи испытывают 5–30 секундные ожидания полного ответа — рендеринг токенов по мере их появления кардинально улучшает воспринимаемую производительность. LLM генерирует токены последовательно, поэтому streaming естественен: модель выдаёт по одному токену, и ты пересылаешь каждый клиенту немедленно.
+
+**SSE (Server-Sent Events)** — стандартный транспорт для LLM-streaming в вебе. Использует HTTP-соединение с `Content-Type: text/event-stream`, сервер отправляет фреймы `data: ...\n\n`, клиент получает их через `EventSource` API или `fetch` с `ReadableStream`. SSE однонаправлен (сервер → клиент), автоматически переподключается при обрыве, работает через большинство прокси и балансировщиков без специальной настройки. Проще WebSockets для этого use case, поскольку LLM-чат полудуплексен — пользователь отправляет, сервер стримит ответ. **WebSockets** нужны при настоящей двусторонней коммуникации (совместное редактирование поверх LLM, реальное аудио).
+
+**Backpressure и отмена** — критичные production-проблемы. Если клиент читает медленнее, чем сервер пишет (мобильное устройство на медленной сети), нужна буферизация или данные теряются. В Next.js App Router с `ReadableStream` браузерный `fetch` обрабатывает backpressure автоматически. **Cancellation**: когда пользователь нажимает "стоп", клиент должен прервать fetch, а серверный код — обнаружить разрыв и остановить LLM-вызов, чтобы не сжигать токены. Streaming-итераторы Anthropic и OpenAI SDK уважают `AbortController` — передай сигнал, и SDK закроет поток.
+
+</Answer>
+</AnswerGroup>
+
+```typescript
+// Streaming LLM: Next.js App Router route + React клиент
+
+// app/api/chat/route.ts
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest } from "next/server";
+
+const client = new Anthropic();
+
+export async function POST(req: NextRequest) {
+  const { messages } = await req.json();
+
+  // AbortController для отмены LLM вызова при разрыве клиента
+  const controller = new AbortController();
+  req.signal.addEventListener("abort", () => controller.abort());
+
+  const stream = new ReadableStream({
+    async start(streamController) {
+      try {
+        const anthropicStream = await client.messages.stream(
+          {
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 2048,
+            messages,
+          },
+          { signal: controller.signal }
+        );
+
+        for await (const chunk of anthropicStream) {
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            // Формат SSE: data: <json>\n\n
+            const data = JSON.stringify({ token: chunk.delta.text });
+            streamController.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
+          }
+        }
+
+        // Сигнал конца потока
+        streamController.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+        streamController.close();
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === "AbortError") {
+          streamController.close(); // нормальная отмена
+        } else {
+          const errData = JSON.stringify({ error: "Stream failed" });
+          streamController.enqueue(new TextEncoder().encode(`data: ${errData}\n\n`));
+          streamController.close();
+        }
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no", // отключить nginx-буферизацию
+    },
+  });
+}
+
+// hooks/useLLMStream.ts — React хук для потребления SSE
+import { useState, useCallback, useRef } from "react";
+
+export function useLLMStream() {
+  const [text, setText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const stream = useCallback(async (messages: object[]) => {
+    // Отмена предыдущего запроса
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setText("");
+    setIsStreaming(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+        signal: controller.signal,
+      });
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const lines = decoder.decode(value).split("\n\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") break;
+          try {
+            const { token } = JSON.parse(data);
+            if (token) setText((prev) => prev + token);
+          } catch { /* skip malformed */ }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        console.error("Stream error:", err);
+      }
+    } finally {
+      setIsStreaming(false);
+    }
+  }, []);
+
+  const cancel = useCallback(() => abortRef.current?.abort(), []);
+
+  return { text, isStreaming, stream, cancel };
+}
+```

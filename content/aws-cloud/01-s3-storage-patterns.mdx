@@ -1,0 +1,114 @@
+---
+title: "Amazon S3: политики бакетов, presigned URLs, multipart upload и классы хранения"
+order: 1
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Amazon S3** is an object store, not a file system — objects are immutable, identified by bucket + key, and there are no real directories (prefixes simulate them). S3 is designed for 11 nines of durability by replicating data across multiple AZs. Understanding the access control model is critical: **bucket policies** are JSON resource-based policies attached to the bucket, controlling who can access which objects. They are evaluated before IAM user policies. A common pattern: make objects publicly readable via a bucket policy while keeping the bucket itself not publicly listable (`s3:GetObject` allowed, `s3:ListBucket` denied for public).
+
+**Presigned URLs** allow temporary, scoped access to private objects without exposing credentials. When a user needs to upload a profile photo, the backend generates a presigned PUT URL valid for 15 minutes and returns it to the client — the client uploads directly to S3, bypassing your server entirely. This avoids streaming large files through your application and reduces egress costs. For uploads over 100 MB, use **multipart upload** — split the file into parts, upload in parallel, then call `CompleteMultipartUpload`. AWS SDK handles this automatically when you use the high-level `upload()` API with `multipart_threshold`.
+
+**Lifecycle policies** automate storage class transitions: move objects to S3 Standard-IA after 30 days, Glacier Instant Retrieval after 90 days, Glacier Deep Archive after 365 days. Storage class progression can reduce costs by 60–90% for infrequently accessed data. S3 versus other storage: **EBS** is block storage attached to a single EC2 instance (like a hard drive); **EFS** is a shared network file system mountable by multiple instances. Use S3 for object storage (files, ML training data, backups), EBS for databases and OS volumes, EFS for shared file system access between instances.
+
+</Answer>
+<Answer lang="ru">
+
+**Amazon S3** — объектное хранилище, а не файловая система: объекты неизменяемы, идентифицируются по bucket + ключу, настоящих директорий нет (префиксы их имитируют). S3 обеспечивает 11 девяток надёжности за счёт репликации данных между несколькими AZ. Понимание модели управления доступом критично: **политики бакетов** — JSON-политики на основе ресурсов, прикреплённые к бакету, контролирующие доступ к объектам. Они вычисляются до IAM-политик пользователей. Распространённый паттерн: сделать объекты публично читаемыми через политику бакета, не позволяя при этом публично перечислять его содержимое.
+
+**Presigned URLs** обеспечивают временный доступ к приватным объектам без раскрытия учётных данных. Когда пользователь загружает фото профиля, бэкенд генерирует presigned PUT URL со сроком 15 минут и возвращает его клиенту — клиент загружает напрямую в S3, минуя ваш сервер. Это исключает передачу больших файлов через приложение и снижает расходы на egress. Для файлов более 100 МБ используйте **multipart upload** — разбейте файл на части, загрузите параллельно, затем вызовите `CompleteMultipartUpload`. AWS SDK обрабатывает это автоматически через высокоуровневый API `upload()`.
+
+**Lifecycle-политики** автоматизируют переходы между классами хранения: перемещение в S3 Standard-IA через 30 дней, Glacier Instant Retrieval через 90 дней, Glacier Deep Archive через 365 дней. Прогрессия классов хранения снижает расходы на 60–90% для редко используемых данных. S3 vs другие хранилища: **EBS** — блочное хранилище, прикреплённое к одному EC2; **EFS** — общая сетевая файловая система, монтируемая несколькими инстансами. Используйте S3 для объектов (файлы, ML-данные, бэкапы), EBS — для БД и OS-томов, EFS — для общего доступа между инстансами.
+
+</Answer>
+</AnswerGroup>
+
+```python
+import boto3
+from botocore.config import Config
+
+s3 = boto3.client(
+    "s3",
+    region_name="us-east-1",
+    config=Config(signature_version="s3v4"),
+)
+
+BUCKET = "my-app-uploads"
+
+
+# --- Presigned PUT URL: client uploads directly to S3 ---
+def generate_upload_url(object_key: str, content_type: str, expires_in: int = 900) -> str:
+    """Returns a URL the client uses to PUT the file directly to S3."""
+    url = s3.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": BUCKET,
+            "Key": object_key,
+            "ContentType": content_type,
+            "ServerSideEncryption": "AES256",
+        },
+        ExpiresIn=expires_in,  # 15 minutes
+    )
+    return url
+
+
+# --- Presigned GET URL: temporary download access ---
+def generate_download_url(object_key: str, expires_in: int = 3600) -> str:
+    return s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": BUCKET, "Key": object_key},
+        ExpiresIn=expires_in,
+    )
+
+
+# --- Multipart upload: large files (boto3 handles parts automatically) ---
+def upload_large_file(local_path: str, s3_key: str) -> None:
+    from boto3.s3.transfer import TransferConfig
+
+    config = TransferConfig(
+        multipart_threshold=100 * 1024 * 1024,  # 100 MB
+        multipart_chunksize=20 * 1024 * 1024,   # 20 MB chunks
+        max_concurrency=4,                        # Parallel part uploads
+    )
+    s3.upload_file(local_path, BUCKET, s3_key, Config=config)
+
+
+# --- Bucket policy: allow public GET, deny public LIST ---
+import json
+
+BUCKET_POLICY = {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadObjects",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": f"arn:aws:s3:::{BUCKET}/public/*",
+        }
+    ],
+}
+
+s3.put_bucket_policy(Bucket=BUCKET, Policy=json.dumps(BUCKET_POLICY))
+
+
+# --- Lifecycle rule: auto-transition and expire ---
+s3.put_bucket_lifecycle_configuration(
+    Bucket=BUCKET,
+    LifecycleConfiguration={
+        "Rules": [
+            {
+                "ID": "archive-old-uploads",
+                "Status": "Enabled",
+                "Filter": {"Prefix": "uploads/"},
+                "Transitions": [
+                    {"Days": 30, "StorageClass": "STANDARD_IA"},
+                    {"Days": 90, "StorageClass": "GLACIER_IR"},
+                ],
+                "Expiration": {"Days": 365},
+            }
+        ]
+    },
+)
+```

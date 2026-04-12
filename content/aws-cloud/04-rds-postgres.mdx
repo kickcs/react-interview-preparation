@@ -1,0 +1,101 @@
+---
+title: "RDS PostgreSQL: Multi-AZ, read replicas, RDS Proxy и Aurora vs RDS"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+**Amazon RDS for PostgreSQL** is a managed database service that handles hardware provisioning, OS patching, backups, and minor version upgrades. The two critical high-availability features are **Multi-AZ** and **Read Replicas**. Multi-AZ maintains a synchronous standby in a different Availability Zone — writes are committed only after both primary and standby confirm. On failure, RDS automatically promotes the standby in ~60–120 seconds (DNS failover). This protects against AZ failures but the standby is not readable — it is purely a HA mechanism.
+
+**Read Replicas** use asynchronous replication to maintain one or more readable copies. They offload read traffic from the primary, enabling horizontal read scaling. Replication lag is typically under 100ms on the same region, higher cross-region. The caveat: you may read stale data. For AI workloads, offload embedding search queries to a read replica — pgvector HNSW index scans are read-only and can saturate the primary. Read replicas can be promoted to standalone instances (recovery from accidental data loss), but promotion breaks replication and requires a manual process.
+
+**RDS Proxy** is a fully managed connection pooler between your application and RDS. It maintains a pool of connections to the database and multiplexes application connections, solving the connection exhaustion problem for Lambda and serverless workloads. RDS Proxy also provides failover handling — it detects Multi-AZ failover and routes connections to the new primary without your app needing to reconnect. **Aurora PostgreSQL** is AWS's reengineered PostgreSQL with a distributed storage layer (6-way replication across 3 AZs), up to 15 read replicas with under 10ms replication lag, and Aurora Serverless v2 for auto-scaling compute. Aurora is 2–3x the cost of RDS per storage unit but offers higher availability (99.99% SLA) and better read scaling.
+
+</Answer>
+<Answer lang="ru">
+
+**Amazon RDS for PostgreSQL** — управляемый сервис БД, берущий на себя провизионирование оборудования, патчинг ОС, резервные копии и обновления минорных версий. Два критических механизма высокой доступности: **Multi-AZ** и **Read Replicas**. Multi-AZ поддерживает синхронный резервный инстанс в другой зоне доступности — записи фиксируются только после подтверждения обоими. При сбое RDS автоматически переключает на резервный за ~60–120 секунд (DNS-фейловер). Это защищает от сбоев AZ, но резервный инстанс недоступен для чтения — это исключительно механизм HA.
+
+**Read Replicas** используют асинхронную репликацию для поддержания одной или нескольких читаемых копий. Они снимают нагрузку чтения с первичного инстанса, обеспечивая горизонтальное масштабирование чтений. Задержка репликации обычно менее 100 мс в том же регионе. Предостережение: возможно чтение устаревших данных. Для AI-нагрузок выгружайте запросы поиска по эмбеддингам на read replica — сканирования HNSW-индекса pgvector доступны только для чтения и могут насытить первичный инстанс.
+
+**RDS Proxy** — полностью управляемый пулер соединений между приложением и RDS. Поддерживает пул соединений с БД и мультиплексирует соединения приложений, решая проблему истощения соединений для Lambda и serverless. RDS Proxy также обрабатывает failover — обнаруживает переключение Multi-AZ и перенаправляет соединения на новый первичный. **Aurora PostgreSQL** — переработанный PostgreSQL AWS с распределённым хранилищем (6-кратная репликация по 3 AZ), до 15 read replica с задержкой менее 10 мс и Aurora Serverless v2 для автомасштабирования compute. Aurora стоит в 2–3 раза дороже RDS, но обеспечивает более высокую доступность (99,99% SLA) и лучшее масштабирование чтений.
+
+</Answer>
+</AnswerGroup>
+
+```python
+# AWS CDK: RDS PostgreSQL with Multi-AZ + RDS Proxy
+from aws_cdk import (
+    aws_rds as rds,
+    aws_ec2 as ec2,
+    aws_secretsmanager as secretsmanager,
+    Duration, RemovalPolicy,
+)
+import aws_cdk as cdk
+
+
+# Primary RDS instance with Multi-AZ
+db_instance = rds.DatabaseInstance(
+    self, "PostgresDB",
+    engine=rds.DatabaseInstanceEngine.postgres(
+        version=rds.PostgresEngineVersion.VER_16_3
+    ),
+    instance_type=ec2.InstanceType.of(
+        ec2.InstanceClass.T4G,   # ARM Graviton2: cheaper, similar performance
+        ec2.InstanceSize.MEDIUM,
+    ),
+    vpc=vpc,
+    vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+    multi_az=True,               # Synchronous standby in another AZ
+    allocated_storage=100,
+    storage_encrypted=True,
+    backup_retention=Duration.days(7),
+    deletion_protection=True,
+    removal_policy=RemovalPolicy.RETAIN,
+    parameters={
+        "shared_buffers": "256MB",
+        "work_mem": "16MB",
+        "max_connections": "100",  # Keep low: RDS Proxy handles client connections
+        "log_min_duration_statement": "1000",  # Log slow queries >1s
+    },
+)
+
+# Read replica for analytics / embedding search
+read_replica = rds.DatabaseInstanceReadReplica(
+    self, "PostgresReadReplica",
+    source_database_instance=db_instance,
+    instance_type=ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.LARGE),
+    vpc=vpc,
+    vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+)
+
+# RDS Proxy: connection pooling for Lambda/ECS workloads
+proxy = rds.DatabaseProxy(
+    self, "DbProxy",
+    proxy_target=rds.ProxyTarget.from_instance(db_instance),
+    secrets=[db_instance.secret],
+    vpc=vpc,
+    vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
+    db_proxy_name="fastapi-db-proxy",
+    idle_client_timeout=Duration.minutes(30),
+    # Transaction pooling mode (default for Postgres)
+    # Prepared statements not supported in transaction mode
+    require_tls=True,
+)
+```
+
+```python
+# Application connection: connect through proxy endpoint
+import asyncpg
+
+# Write operations → primary via proxy
+PRIMARY_DSN = f"postgresql://user:pass@{proxy.endpoint}:5432/mydb"
+# Read operations → replica (direct connection or via replica proxy)
+REPLICA_DSN = f"postgresql://user:pass@{read_replica.instance_endpoint.hostname}:5432/mydb"
+
+write_pool = await asyncpg.create_pool(PRIMARY_DSN, min_size=1, max_size=5,
+                                        statement_cache_size=0)
+read_pool  = await asyncpg.create_pool(REPLICA_DSN, min_size=1, max_size=10,
+                                        statement_cache_size=0)
+```

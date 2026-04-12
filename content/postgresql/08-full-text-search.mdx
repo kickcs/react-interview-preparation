@@ -1,0 +1,93 @@
+---
+title: "Full-text search в PostgreSQL: tsvector, tsquery, ранжирование и pg_trgm"
+order: 8
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+PostgreSQL has built-in **full-text search** that covers most use cases without requiring Elasticsearch. The foundation is two types: `tsvector` (a sorted list of normalized lexemes from a document) and `tsquery` (a boolean search query with operators like `&`, `|`, `!`, and `<->` for phrase search). `to_tsvector('english', text)` tokenizes and stems text using the specified language dictionary — "running", "runs", and "ran" all reduce to the lexeme "run". `to_tsquery('english', 'running & fast')` creates a query that matches documents containing both terms.
+
+The `@@` operator checks if a `tsvector` matches a `tsquery`. For performance, store the `tsvector` in a generated column and create a GIN index on it — this enables fast FTS queries without recomputing the vector on every search. `ts_rank()` and `ts_rank_cd()` score documents by relevance based on lexeme frequency and position. You can weight different parts of a document (title vs body) using `setweight()` — title matches scored as 'A' rank higher than body matches scored as 'C'.
+
+**`pg_trgm`** (trigram extension) handles fuzzy matching — searching for misspelled words, partial matches, or similarity scoring. It splits text into 3-character n-grams and uses GIN or GIST indexes for `%` (similarity), `<->` (distance), and `ILIKE` queries. Unlike FTS, trigrams work on arbitrary strings without language processing. A practical pattern: combine FTS for relevance-ranked full-word search with `pg_trgm` ILIKE for autocomplete/fuzzy — Postgres can serve both from the same database, replacing both Elasticsearch and a dedicated autocomplete service.
+
+</Answer>
+<Answer lang="ru">
+
+В PostgreSQL встроен **полнотекстовый поиск**, покрывающий большинство случаев без необходимости в Elasticsearch. Основа — два типа: `tsvector` (отсортированный список нормализованных лексем документа) и `tsquery` (булев поисковый запрос с операторами `&`, `|`, `!` и `<->` для поиска фраз). `to_tsvector('english', text)` токенизирует и стемминирует текст с помощью указанного словаря — "running", "runs" и "ran" все сводятся к лексеме "run". `to_tsquery('english', 'running & fast')` создаёт запрос, совпадающий с документами, содержащими оба термина.
+
+Оператор `@@` проверяет, соответствует ли `tsvector` запросу `tsquery`. Для производительности храните `tsvector` в генерируемой колонке и создавайте GIN-индекс — это позволяет быстро выполнять FTS-запросы без пересчёта вектора при каждом поиске. `ts_rank()` и `ts_rank_cd()` оценивают релевантность документов на основе частоты и позиции лексем. Разные части документа (заголовок и тело) можно взвешивать через `setweight()` — совпадения в заголовке с весом 'A' ранжируются выше совпадений в теле с весом 'C'.
+
+**`pg_trgm`** (расширение триграмм) обрабатывает нечёткий поиск — ошибки ввода, частичные совпадения, оценка сходства. Разбивает текст на 3-символьные n-граммы и использует GIN или GIST-индексы для `%` (сходство), `<->` (расстояние) и `ILIKE`-запросов. В отличие от FTS, триграммы работают с произвольными строками без языковой обработки. Практический паттерн: комбинируйте FTS для ранжированного поиска с `pg_trgm` ILIKE для автодополнения — Postgres обслуживает оба из одной БД.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- ===== Full-text search setup =====
+CREATE TABLE articles (
+    id          BIGSERIAL PRIMARY KEY,
+    title       TEXT NOT NULL,
+    body        TEXT NOT NULL,
+    -- Generated column: computed on INSERT/UPDATE, stored on disk
+    search_vec  TSVECTOR GENERATED ALWAYS AS (
+        setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(body, '')), 'C')
+    ) STORED
+);
+
+-- GIN index on the generated column
+CREATE INDEX idx_articles_search ON articles USING GIN (search_vec);
+
+
+-- ===== Basic FTS query =====
+SELECT id, title, ts_rank(search_vec, query) AS rank
+FROM articles, to_tsquery('english', 'machine & learning') query
+WHERE search_vec @@ query
+ORDER BY rank DESC
+LIMIT 10;
+
+
+-- ===== Phrase search with <-> operator =====
+-- Find "neural network" as a phrase (adjacent words)
+SELECT title FROM articles
+WHERE search_vec @@ to_tsquery('english', 'neural <-> network');
+
+-- websearch_to_tsquery: user-friendly query syntax (handles quotes, minus)
+SELECT title FROM articles
+WHERE search_vec @@ websearch_to_tsquery('english', '"neural network" -transformer');
+
+
+-- ===== ts_headline: highlight matched terms in results =====
+SELECT
+    title,
+    ts_headline(
+        'english',
+        body,
+        to_tsquery('english', 'machine & learning'),
+        'MaxWords=30, MinWords=10, ShortWord=3, StartSel=<b>, StopSel=</b>'
+    ) AS excerpt
+FROM articles
+WHERE search_vec @@ to_tsquery('english', 'machine & learning')
+LIMIT 5;
+
+
+-- ===== pg_trgm: fuzzy search and autocomplete =====
+CREATE INDEX idx_articles_title_trgm ON articles USING GIN (title gin_trgm_ops);
+
+-- Similarity search: handles typos (similarity > 0.3)
+SELECT title, similarity(title, 'mchine lerning') AS sim
+FROM articles
+WHERE title % 'mchine lerning'  -- % operator uses GIN trigram index
+ORDER BY sim DESC
+LIMIT 5;
+
+-- Fast ILIKE autocomplete (uses GIN trigram index)
+SELECT title FROM articles
+WHERE title ILIKE '%neural%'
+ORDER BY title
+LIMIT 10;
+```

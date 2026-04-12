@@ -1,0 +1,104 @@
+---
+title: "Connection pooling: PgBouncer, режимы и почему это критично для serverless"
+order: 10
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+PostgreSQL creates a **dedicated OS process per connection**, each consuming ~5–10 MB of memory. At 1,000 simultaneous connections you are spending 5–10 GB of RAM just on connection overhead, and Postgres degrades significantly above a few hundred connections due to lock contention and context switching. **Connection pooling** solves this by maintaining a small pool of real database connections shared among many application clients.
+
+**PgBouncer** is the standard lightweight pooler for PostgreSQL. It operates in three modes: **Session mode** — a client gets a server connection for the entire duration of the client session. Behavior is identical to direct connection; supports all PostgreSQL features. **Transaction mode** — a server connection is assigned only for the duration of a transaction, then returned to the pool. This allows many more clients to share fewer connections but disables features that require persistent session state (prepared statements, `SET` session variables, advisory locks). **Statement mode** — one server connection per SQL statement; most application-level pooling features are disabled. Transaction mode is the standard for most web applications.
+
+For **serverless and FastAPI** workloads, pooling is critical: Lambda functions can create hundreds of simultaneous connections per cold start wave; FastAPI with `asyncpg` creates a connection pool per worker process that multiplies with horizontal scaling. The recommended architecture: FastAPI → asyncpg pool (small, e.g., 5 connections per worker) → PgBouncer (transaction mode) → PostgreSQL. This means 10 workers × 5 connections = 50 PgBouncer connections total, even if you have 1,000 concurrent requests. **RDS Proxy** is the AWS-managed alternative to PgBouncer — handles connection multiplexing transparently but adds ~3ms latency per query.
+
+</Answer>
+<Answer lang="ru">
+
+PostgreSQL создаёт **отдельный OS-процесс на каждое соединение**, каждый потребляет ~5–10 МБ памяти. При 1 000 одновременных соединений расходуется 5–10 ГБ RAM только на накладные расходы, а Postgres деградирует выше нескольких сотен соединений из-за конкуренции за блокировки и переключения контекста. **Пулинг соединений** решает эту проблему, поддерживая небольшой пул реальных соединений с БД, разделяемых между многими клиентами приложения.
+
+**PgBouncer** — стандартный лёгковесный пулер для PostgreSQL с тремя режимами: **Session mode** — клиент получает серверное соединение на весь срок клиентской сессии. Поведение идентично прямому соединению, поддерживаются все функции PostgreSQL. **Transaction mode** — серверное соединение назначается только на время транзакции, затем возвращается в пул. Позволяет большему числу клиентов делить меньше соединений, но отключает функции, требующие постоянного состояния сессии (prepared statements, `SET`-переменные, advisory locks). **Statement mode** — одно серверное соединение на один SQL-оператор; большинство функций уровня приложения отключены. Transaction mode — стандарт для большинства веб-приложений.
+
+Для **serverless и FastAPI** нагрузок пулинг критичен: Lambda-функции могут создавать сотни одновременных соединений при каждой волне cold start; FastAPI с `asyncpg` создаёт пул соединений на каждый рабочий процесс, что умножается при горизонтальном масштабировании. Рекомендуемая архитектура: FastAPI → пул asyncpg (маленький, например 5 соединений на воркер) → PgBouncer (transaction mode) → PostgreSQL. 10 воркеров × 5 соединений = 50 соединений PgBouncer, даже при 1 000 параллельных запросов. **RDS Proxy** — управляемая AWS альтернатива PgBouncer, но добавляет ~3 мс задержки.
+
+</Answer>
+</AnswerGroup>
+
+```ini
+# pgbouncer.ini — production configuration example
+[databases]
+; Route "myapp" to actual database
+myapp = host=postgres-primary.internal port=5432 dbname=myapp
+
+[pgbouncer]
+listen_addr = 0.0.0.0
+listen_port = 5432
+auth_type = scram-sha-256
+auth_file = /etc/pgbouncer/userlist.txt
+
+; Transaction mode: server connection returned to pool after each transaction
+pool_mode = transaction
+
+; Max server connections to PostgreSQL (keep this low!)
+max_client_conn = 1000     ; Application clients can connect freely
+default_pool_size = 25     ; Only 25 real Postgres connections total
+reserve_pool_size = 5      ; Emergency reserve
+reserve_pool_timeout = 3   ; seconds
+
+; Prepared statements are NOT supported in transaction mode
+; Application must use parameterized queries or disable them:
+; In asyncpg: disable prepared statements
+; In psycopg3: use connection.prepared_threshold = None
+
+server_idle_timeout = 600  ; Close idle server connections after 10 min
+client_idle_timeout = 0    ; Keep client connections open
+```
+
+```python
+# FastAPI + asyncpg with PgBouncer (transaction mode)
+# Key: disable prepared statements — PgBouncer doesn't forward them correctly
+
+import asyncpg
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+
+POOL_CONFIG = dict(
+    dsn="postgresql://user:pass@pgbouncer:5432/myapp",
+    min_size=2,
+    max_size=5,          # Per worker process — multiply by worker count for total
+    command_timeout=30,
+    # Disable prepared statement caching for PgBouncer transaction mode:
+    statement_cache_size=0,
+    max_cached_statement_lifetime=0,
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.pool = await asyncpg.create_pool(**POOL_CONFIG)
+    yield
+    await app.state.pool.close()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/users/{user_id}")
+async def get_user(user_id: int, request: Request):
+    async with request.app.state.pool.acquire() as conn:
+        # Connection is borrowed from pool, returned after `async with` exits
+        row = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user_id)
+        return dict(row) if row else None
+
+
+# Monitor pool health
+@app.get("/health/db")
+async def db_health(request: Request):
+    pool: asyncpg.Pool = request.app.state.pool
+    return {
+        "size": pool.get_size(),
+        "idle": pool.get_idle_size(),
+        "min": pool.get_min_size(),
+        "max": pool.get_max_size(),
+    }
+```

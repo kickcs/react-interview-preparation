@@ -1,0 +1,96 @@
+---
+title: "Dependency Injection в FastAPI: Depends(), области видимости, переиспользование"
+order: 4
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+FastAPI's **Dependency Injection** system is one of its most powerful features. You declare dependencies as regular functions (or async functions) and inject them into route handlers via `Depends()`. FastAPI automatically resolves the dependency graph, calls each dependency in the right order, and caches results within the same request scope. This replaces global state, factory patterns, and manual wiring.
+
+Dependencies can be **nested**: a route depends on `get_current_user`, which depends on `get_db`, which depends on `get_settings`. FastAPI builds this tree and executes it efficiently. If two route handlers share the same dependency, it is called once per request (not once per usage), thanks to the **per-request caching**. You can opt out of caching with `Depends(func, use_cache=False)`.
+
+**Lifespan management**: use `yield` in a dependency to add teardown logic — the code before `yield` runs on enter, after `yield` runs on exit (after the response is sent). This is how you manage database sessions: open before, close/rollback after. For application-level resources (connection pools, ML models), use FastAPI's `lifespan` context manager instead — it runs once at startup/shutdown. A common senior-level mistake is creating a new database connection pool per request instead of reusing an application-level pool.
+
+</Answer>
+<Answer lang="ru">
+
+Система **Dependency Injection** FastAPI — одна из её самых мощных возможностей. Вы объявляете зависимости как обычные функции (или async-функции) и внедряете их в обработчики маршрутов через `Depends()`. FastAPI автоматически разрешает граф зависимостей, вызывает каждую в правильном порядке и кэширует результаты в рамках одного запроса. Это заменяет глобальное состояние, паттерны-фабрики и ручное связывание.
+
+Зависимости могут быть **вложенными**: маршрут зависит от `get_current_user`, который зависит от `get_db`, который зависит от `get_settings`. FastAPI строит это дерево и выполняет его эффективно. Если два обработчика используют одну зависимость, она вызывается один раз на запрос благодаря **кэшированию на уровне запроса**. Отключить кэш можно через `Depends(func, use_cache=False)`.
+
+**Управление жизненным циклом**: используйте `yield` в зависимости для добавления логики завершения — код до `yield` выполняется при входе, после `yield` — при выходе (после отправки ответа). Именно так управляются сессии БД: открываем до, закрываем/откатываем после. Для ресурсов уровня приложения (пулы соединений, ML-модели) используйте `lifespan` контекст-менеджер FastAPI — он запускается один раз при старте/остановке. Типичная ошибка Senior-разработчика — создание нового пула соединений на каждый запрос вместо переиспользования пула уровня приложения.
+
+</Answer>
+</AnswerGroup>
+
+```python
+from contextlib import asynccontextmanager
+from typing import Annotated, AsyncGenerator
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.config import Settings
+from app.models import User
+
+
+# --- Application lifespan: runs ONCE at startup/shutdown ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create connection pool
+    engine = create_async_engine(settings.database_url, pool_size=10)
+    app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    yield
+    # Shutdown: dispose pool
+    await engine.dispose()
+
+
+app = FastAPI(lifespan=lifespan)
+settings = Settings()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+
+# --- Per-request dependency with yield (teardown guaranteed) ---
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    session_factory: async_sessionmaker = request.app.state.session_factory
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+# --- Nested dependency chain ---
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    user = await db.get(User, decode_token(token))
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return user
+
+
+async def require_admin(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin required")
+    return current_user
+
+
+# --- Route: entire dependency chain resolved automatically ---
+@app.get("/admin/users")
+async def list_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    admin: Annotated[User, Depends(require_admin)],
+):
+    # db and admin.db share the SAME session (request-scoped cache)
+    result = await db.execute(select(User))
+    return result.scalars().all()
+```

@@ -1,0 +1,79 @@
+---
+title: "EXPLAIN ANALYZE: чтение плана запроса и диагностика производительности"
+order: 3
+---
+
+<AnswerGroup>
+<Answer lang="en">
+
+`EXPLAIN ANALYZE` is the most important tool for PostgreSQL performance debugging. `EXPLAIN` shows the query plan the planner chose — which scans, joins, and sort algorithms it will use, and the estimated cost. `EXPLAIN ANALYZE` actually executes the query and adds real timing and row counts, letting you compare the planner's estimates against reality. Always use `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` — the `BUFFERS` option shows shared buffer hits/reads, which tells you whether data was served from memory or disk.
+
+The output is a tree of **plan nodes**, read from inner to outer (bottom to top in the text output). Each node shows `cost=startup..total`, `rows=estimated`, `actual time=startup..total`, and `actual rows=actual`. A large discrepancy between estimated and actual rows (e.g., estimated 1 vs actual 50,000) means the planner's statistics are stale — run `ANALYZE table_name` or wait for autovacuum. **Seq Scan** on a large table with a low-selectivity filter is almost always a problem; it means either the index is missing or the planner decided a scan was cheaper (sometimes correct for low-selectivity queries).
+
+Key patterns to recognize: **Hash Join** vs **Nested Loop** — hash join is better for large tables, nested loop for small inner sets with an index; **Sort** nodes with large `Memory Usage` exceeding `work_mem` will spill to disk (look for `Sort Method: external merge` — increase `work_mem` per session for heavy queries); **Parallel Seq Scan** uses multiple workers and is usually a sign the query needs an index. Tools like `explain.dalibo.com` visualize the plan as a graph, making it easier to spot the expensive nodes.
+
+</Answer>
+<Answer lang="ru">
+
+`EXPLAIN ANALYZE` — важнейший инструмент для отладки производительности PostgreSQL. `EXPLAIN` показывает план запроса, выбранный планировщиком — какие сканирования, соединения и алгоритмы сортировки он использует, и оценочную стоимость. `EXPLAIN ANALYZE` фактически выполняет запрос и добавляет реальное время и количество строк, позволяя сравнить оценки планировщика с реальностью. Всегда используйте `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` — опция `BUFFERS` показывает попадания/промахи в shared buffer, что говорит о том, обслуживались ли данные из памяти или с диска.
+
+Вывод — дерево **узлов плана**, читается снаружи внутрь (снизу вверх в текстовом выводе). Каждый узел показывает `cost=startup..total`, `rows=estimated`, `actual time=startup..total` и `actual rows=actual`. Большое расхождение между оценочным и реальным числом строк (например, оценка 1 vs реальность 50 000) означает устаревшую статистику — выполните `ANALYZE table_name` или дождитесь autovacuum. **Seq Scan** на большой таблице с низкоселективным фильтром почти всегда проблема: либо отсутствует индекс, либо планировщик решил, что сканирование дешевле (иногда верно).
+
+Ключевые паттерны: **Hash Join** vs **Nested Loop** — hash join лучше для больших таблиц, nested loop — для маленьких внутренних наборов с индексом; **Sort** узлы с большим `Memory Usage`, превышающим `work_mem`, сбрасываются на диск (ищите `Sort Method: external merge` — увеличьте `work_mem` на сессию для тяжёлых запросов); **Parallel Seq Scan** использует несколько воркеров и обычно сигнализирует о необходимости индекса. Инструменты вроде `explain.dalibo.com` визуализируют план в виде графа.
+
+</Answer>
+</AnswerGroup>
+
+```sql
+-- Full EXPLAIN options — always use BUFFERS in production debugging
+EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT u.name, COUNT(o.id) AS order_count, SUM(o.total) AS revenue
+FROM users u
+JOIN orders o ON o.user_id = u.id
+WHERE u.created_at > '2024-01-01'
+  AND o.status = 'completed'
+GROUP BY u.id, u.name
+ORDER BY revenue DESC
+LIMIT 10;
+
+/*
+Example output to understand:
+
+Limit  (cost=12345.00..12345.03 rows=10 width=48)
+       (actual time=234.123..234.126 rows=10 loops=1)
+  ->  Sort  (cost=12345.00..12370.00 rows=10000 width=48)
+            (actual time=234.120..234.122 rows=10 loops=1)
+        Sort Key: (sum(o.total)) DESC
+        Sort Method: quicksort  Memory: 1234kB   <-- fits in work_mem: good
+        ->  HashAggregate  (cost=11000.00..11100.00 rows=10000 width=48)
+                           (actual time=220.000..230.000 rows=9876 loops=1)
+              ->  Hash Join  (cost=500.00..10500.00 rows=100000 width=20)
+                             (actual time=5.000..180.000 rows=98765 loops=1)
+                    Hash Cond: (o.user_id = u.id)
+                    Buffers: shared hit=4500 read=1200  <-- 1200 disk reads!
+                    ->  Seq Scan on orders o
+                          Filter: (status = 'completed')
+                          Rows Removed by Filter: 50000  <-- many rows filtered
+                    ->  Hash  (cost=400.00..400.00 rows=8000 width=16)
+                          ->  Index Scan using idx_users_created on users u
+                                Index Cond: (created_at > '2024-01-01')
+*/
+
+-- Diagnosis from above:
+-- 1. Seq Scan on orders with high removal -> add partial index:
+CREATE INDEX idx_orders_completed ON orders (user_id, total)
+    WHERE status = 'completed';
+
+-- 2. Many disk reads (read=1200) -> data not cached; consider increasing shared_buffers
+
+-- 3. Check for stale statistics (estimated rows vs actual mismatch):
+ANALYZE orders;  -- Refresh statistics manually
+SELECT relname, n_live_tup, n_dead_tup, last_analyze
+FROM pg_stat_user_tables
+WHERE relname = 'orders';
+
+-- Increase work_mem for a single heavy query session (not global):
+SET work_mem = '256MB';
+EXPLAIN ANALYZE SELECT ...;  -- Sort now uses in-memory quicksort
+RESET work_mem;
+```
