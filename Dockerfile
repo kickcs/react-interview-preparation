@@ -27,6 +27,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV WS_PORT=3001
+ENV NEXT_INTERNAL_PORT=3100
 ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs
@@ -46,6 +47,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
-EXPOSE 3000 3001
+EXPOSE 3000
 
 CMD ["node", "scripts/start-prod.js"]

@@ -9,13 +9,14 @@ let singleton: RoomSocket | null = null;
 
 export function getRoomSocket(): RoomSocket {
   if (singleton) return singleton;
-  singleton = io(WS_BASE_URL, {
+  const options = {
     transports: ["websocket"],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     reconnectionAttempts: Infinity,
-  }) as RoomSocket;
+  };
+  singleton = (WS_BASE_URL ? io(WS_BASE_URL, options) : io(options)) as RoomSocket;
   return singleton;
 }
 

@@ -48,7 +48,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
 
     start(async () => {
       try {
-        const res = await fetch(`${WS_BASE_URL}/rooms`, {
+        const res = await fetch(`${WS_BASE_URL}/api/rooms`, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ taskSource }),

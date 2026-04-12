@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { RoomClient } from "./room-client";
-import { WS_BASE_URL } from "@/shared/config/ws";
+import { WS_INTERNAL_URL } from "@/shared/config/ws-internal";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -8,7 +8,7 @@ interface PageProps {
 
 async function probeRoom(id: string) {
   try {
-    const res = await fetch(`${WS_BASE_URL}/rooms/${id}`, { cache: "no-store" });
+    const res = await fetch(`${WS_INTERNAL_URL}/api/rooms/${id}`, { cache: "no-store" });
     if (res.status === 404) return { exists: false as const };
     if (!res.ok) return null;
     return (await res.json()) as { exists: true; participantCount: number; maxParticipants: number };

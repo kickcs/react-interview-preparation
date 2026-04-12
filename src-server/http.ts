@@ -32,7 +32,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   });
 
   app.post<{ Body: { taskSource: unknown } }>(
-    "/rooms",
+    "/api/rooms",
     {
       config: {
         rateLimit: { max: opts.rateLimit.max, timeWindow: opts.rateLimit.timeWindow },
@@ -54,7 +54,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     }
   );
 
-  app.get<{ Params: { id: string } }>("/rooms/:id", async (req, reply) => {
+  app.get<{ Params: { id: string } }>("/api/rooms/:id", async (req, reply) => {
     const room = getRoom(opts.store, req.params.id);
     if (!room) {
       return reply.code(404).send({ exists: false });
