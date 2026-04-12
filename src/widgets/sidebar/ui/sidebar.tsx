@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   SidebarNav,
   SidebarSearch,
   CollapseAllButton,
   ToggleAllAnswersButton,
+  RoomsCta,
   buildAllCategorySlugs,
 } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
@@ -27,7 +28,10 @@ export function Sidebar({
   challengesByCategory,
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const slugs = buildAllCategorySlugs(categories, challengeCategories);
+  const slugs = useMemo(
+    () => buildAllCategorySlugs(categories, challengeCategories),
+    [categories, challengeCategories]
+  );
 
   return (
     <aside className="sticky top-0 h-screen hidden w-[320px] shrink-0 border-r border-border md:block">
@@ -44,7 +48,8 @@ export function Sidebar({
         </div>
       </div>
       <SidebarSearch value={searchQuery} onChange={setSearchQuery} />
-      <ScrollArea className="h-[calc(100vh-73px-52px)]">
+      <RoomsCta />
+      <ScrollArea className="h-[calc(100vh-73px-52px-57px)]">
         <SidebarNav
           categories={categories}
           questionsByCategory={questionsByCategory}

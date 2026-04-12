@@ -1,5 +1,5 @@
 "use client";
-import { useSyncExternalStore, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { RoomView } from "@/widgets/room-view";
 import { JoinRoomForm } from "@/features/room-join/ui/join-room-form";
 import type { TaskContent } from "@/shared/contracts";
@@ -10,26 +10,37 @@ interface Props {
   initialParticipantCount: number;
 }
 
-const noopSubscribe = () => () => {};
+const subscribe = () => () => {};
 
 export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
-  const stored = useSyncExternalStore(
-    noopSubscribe,
+  const [localNickname, setLocalNickname] = useState<string | null>(null);
+  const stored = useSyncExternalStore<string | null | undefined>(
+    subscribe,
     () => sessionStorage.getItem(`rooms.nickname.${roomId}`),
-    () => null
+    () => undefined,
   );
-  const [override, setOverride] = useState<string | null>(null);
-  const nickname = override ?? stored;
+
+  if (stored === undefined) {
+    return (
+      <main className="mx-auto flex max-w-md justify-center px-4 py-10 md:py-16">
+        <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Загрузка комнаты…</p>
+        </div>
+      </main>
+    );
+  }
+
+  const nickname = localNickname ?? stored;
 
   if (!nickname) {
     return (
-      <main style={{ padding: "48px 24px", position: "relative", zIndex: 2, display: "flex", justifyContent: "center" }}>
+      <main className="mx-auto flex max-w-md justify-center px-4 py-10 md:py-16">
         <JoinRoomForm
           roomId={roomId}
           participantCount={initialParticipantCount}
           onSubmit={(nick) => {
             sessionStorage.setItem(`rooms.nickname.${roomId}`, nick);
-            setOverride(nick);
+            setLocalNickname(nick);
           }}
         />
       </main>

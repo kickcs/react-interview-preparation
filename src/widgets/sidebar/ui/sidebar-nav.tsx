@@ -22,6 +22,7 @@ import {
   Shield,
   Sparkles,
   Search,
+  Users,
   X,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -144,6 +145,24 @@ export function ToggleAllAnswersButton() {
         <Eye className="h-4 w-4" />
       )}
     </Button>
+  );
+}
+
+export function RoomsCta({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
+  const isActive = pathname?.startsWith("/rooms") ?? false;
+  return (
+    <div className="border-b border-border px-4 py-3">
+      <Button
+        size="sm"
+        variant={isActive ? "default" : "outline"}
+        className="w-full justify-center"
+        render={<Link href="/rooms" onClick={onNavigate} />}
+      >
+        <Users />
+        Live-coding rooms
+      </Button>
+    </div>
   );
 }
 

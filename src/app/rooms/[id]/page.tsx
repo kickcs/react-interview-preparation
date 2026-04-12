@@ -22,8 +22,8 @@ export default async function RoomIdPage({ params }: PageProps) {
   const probe = await probeRoom(id);
   if (!probe) {
     return (
-      <main style={{ padding: 48, color: "var(--room-crimson)", position: "relative", zIndex: 2 }}>
-        × server unreachable
+      <main className="mx-auto max-w-xl px-6 py-16 text-sm text-destructive">
+        Сервер недоступен
       </main>
     );
   }

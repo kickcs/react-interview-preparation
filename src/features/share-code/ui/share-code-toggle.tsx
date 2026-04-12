@@ -1,4 +1,7 @@
 "use client";
+import { Share2 } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+
 interface Props {
   isSharing: boolean;
   onToggle: () => void;
@@ -6,12 +9,14 @@ interface Props {
 
 export function ShareCodeToggle({ isSharing, onToggle }: Props) {
   return (
-    <button
-      className="room-btn"
-      data-variant={isSharing ? "primary" : undefined}
+    <Button
+      type="button"
+      size="sm"
+      variant={isSharing ? "default" : "outline"}
       onClick={onToggle}
     >
-      [ S {isSharing ? "UNSHARE" : "SHARE"} ]
-    </button>
+      <Share2 />
+      {isSharing ? "Скрыть" : "Поделиться"}
+    </Button>
   );
 }

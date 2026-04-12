@@ -1,8 +1,11 @@
 "use client";
+import { Check, CircleDashed, Share2 } from "lucide-react";
 import { CodeEditor } from "@/features/code-editor/ui/code-editor";
 import { ShareCodeToggle } from "@/features/share-code/ui/share-code-toggle";
 import { ReadyToggle } from "@/features/ready-toggle/ui/ready-toggle";
 import type { Language, ParticipantStatus } from "@/shared/contracts";
+import { Badge } from "@/shared/ui/badge";
+import { cn } from "@/shared/lib/utils";
 
 interface Props {
   nickname: string;
@@ -26,22 +29,29 @@ export function MyEditorCell({
   onStatusChange,
 }: Props) {
   const ready = status === "ready";
+  const StatusIcon = ready ? Check : isSharing ? Share2 : CircleDashed;
   return (
     <div
-      className={`room-box room-box--active${isSharing ? " room-box--shared" : ""}${ready ? " room-box--ready" : ""}`}
-      data-boot
-      style={{ display: "flex", flexDirection: "column", height: "100%" }}
+      className={cn(
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card",
+        isSharing && "border-primary/60",
+        ready && "border-amber-500/60"
+      )}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span className="room-label">
-          {nickname} {ready ? "✓" : isSharing ? "»" : "◇"}
-        </span>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge variant="secondary" className="gap-1">
+            <StatusIcon />
+            Вы
+          </Badge>
+          <span className="truncate text-sm font-medium">{nickname}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <ShareCodeToggle isSharing={isSharing} onToggle={onShareToggle} />
           <ReadyToggle status={status} onChange={onStatusChange} />
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div className="min-h-0 flex-1">
         <CodeEditor value={code} language={language} onChange={onCodeChange} />
       </div>
     </div>

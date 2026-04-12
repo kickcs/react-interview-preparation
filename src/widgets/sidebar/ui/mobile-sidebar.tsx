@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
   SidebarSearch,
   CollapseAllButton,
   ToggleAllAnswersButton,
+  RoomsCta,
   buildAllCategorySlugs,
 } from "./sidebar-nav";
 import type { CategoryMeta } from "@/entities/category";
@@ -36,7 +37,10 @@ export function MobileSidebar({
 }: MobileSidebarProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const slugs = buildAllCategorySlugs(categories, challengeCategories);
+  const slugs = useMemo(
+    () => buildAllCategorySlugs(categories, challengeCategories),
+    [categories, challengeCategories]
+  );
 
   return (
     <div className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
@@ -58,7 +62,8 @@ export function MobileSidebar({
             </div>
           </SheetTitle>
           <SidebarSearch value={searchQuery} onChange={setSearchQuery} />
-          <ScrollArea className="h-[calc(100dvh-73px-52px)]">
+          <RoomsCta onNavigate={() => setOpen(false)} />
+          <ScrollArea className="h-[calc(100dvh-73px-52px-57px)]">
             <SidebarNav
               categories={categories}
               questionsByCategory={questionsByCategory}

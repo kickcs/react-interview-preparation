@@ -23,45 +23,24 @@ export function RoomView({ roomId, nickname, task }: Props) {
   const { status, error, emitCodeUpdate, emitShare, emitUnshare, emitStatus } =
     useRoomSocket(roomId, nickname);
 
-  const participantsList = useMemo<ParticipantPublic[]>(
-    () => Array.from(state.participants.values()),
-    [state.participants]
-  );
-
-  const me = state.selfId ? state.participants.get(state.selfId) : undefined;
-
-  const slots: Array<ParticipantPublic | null> = [];
-  if (me) slots.push(me);
-  participantsList.forEach((p) => {
-    if (p.id !== state.selfId) slots.push(p);
-  });
-  while (slots.length < MAX_PARTICIPANTS) slots.push(null);
+  const { participantsList, slots } = useMemo(() => {
+    const list = Array.from(state.participants.values());
+    const me = state.selfId ? state.participants.get(state.selfId) : undefined;
+    const ordered: Array<ParticipantPublic | null> = [];
+    if (me) ordered.push(me);
+    list.forEach((p) => {
+      if (p.id !== state.selfId) ordered.push(p);
+    });
+    while (ordered.length < MAX_PARTICIPANTS) ordered.push(null);
+    return { participantsList: list, slots: ordered };
+  }, [state.participants, state.selfId]);
 
   const allReady = state.allReady();
 
   return (
-    <main
-      data-all-ready={allReady ? "true" : undefined}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        gap: 8,
-        padding: 8,
-        position: "relative",
-        zIndex: 2,
-      }}
-    >
+    <main className="flex h-screen flex-col gap-3 p-3 md:p-4">
       <TopBar roomId={roomId} participants={participantsList} allReady={allReady} />
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(320px, 38%) 1fr",
-          gap: 12,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
+      <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(320px,38%)_1fr]">
         <TaskPanel
           title={state.task?.title ?? task.title}
           markdown={state.task?.markdown ?? task.markdown}

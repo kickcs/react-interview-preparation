@@ -1,4 +1,5 @@
 "use client";
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 
@@ -7,7 +8,7 @@ interface Props {
   markdown: string;
 }
 
-export function TaskPanel({ title, markdown }: Props) {
+function TaskPanelComponent({ title, markdown }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="border-b border-border px-4 py-3">
@@ -24,3 +25,5 @@ export function TaskPanel({ title, markdown }: Props) {
     </div>
   );
 }
+
+export const TaskPanel = memo(TaskPanelComponent);

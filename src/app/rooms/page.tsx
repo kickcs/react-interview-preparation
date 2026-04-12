@@ -43,16 +43,15 @@ export const revalidate = 3600;
 export default async function RoomsLandingPage() {
   const catalog = await loadCatalog();
   return (
-    <main style={{ padding: "48px 24px", maxWidth: 720, margin: "0 auto", position: "relative", zIndex: 2 }}>
-      <pre style={{ color: "var(--room-phosphor)", margin: 0 }}>
-{`╔══════════════════════════╗
-║    ROOMS // live-coding   ║
-╚══════════════════════════╝`}
-      </pre>
-      <p className="room-label" style={{ marginTop: 16 }}>
-        pair-practice interview problems with up to 4 friends
+    <main className="mx-auto max-w-2xl px-4 py-10 md:px-6 md:py-16">
+      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+        Live-coding rooms
+      </h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Совместное решение задач для собеседования — до 4 участников, у каждого
+        свой редактор и песочница.
       </p>
-      <div style={{ marginTop: 32 }}>
+      <div className="mt-8">
         <CreateRoomForm catalog={catalog} />
       </div>
     </main>

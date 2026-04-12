@@ -34,11 +34,11 @@ export function CodeEditor({ value, language, onChange }: CodeEditorProps) {
       files={{ [file]: { code: value, active: true } }}
       options={{ recompileMode: "delayed", recompileDelay: 400 }}
     >
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <div style={{ flex: 1, minHeight: 0 }}>
+      <div className="flex h-full flex-col">
+        <div className="min-h-0 flex-1">
           <SandpackCodeEditor showTabs={false} showLineNumbers showInlineErrors closableTabs={false} />
         </div>
-        <div style={{ borderTop: "1px dashed var(--room-border)", maxHeight: 120 }}>
+        <div className="max-h-[120px] border-t border-dashed border-border">
           <SandpackConsole />
         </div>
       </div>

@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import type { TaskSource } from "@/shared/contracts";
 import { isValidNickname } from "@/entities/room/lib/is-valid-nickname";
 import { WS_BASE_URL } from "@/shared/config/ws";
+import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { FieldLabel } from "@/shared/ui/field-label";
+import { cn } from "@/shared/lib/utils";
 
 interface CatalogOption {
   category: string;
@@ -14,6 +18,9 @@ interface CatalogOption {
 interface CreateRoomFormProps {
   catalog: CatalogOption[];
 }
+
+const fieldClasses =
+  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 dark:bg-input/30";
 
 export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
   const router = useRouter();
@@ -68,35 +75,37 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
   };
 
   return (
-    <div className="room-box" style={{ maxWidth: 520 }}>
-      <div className="room-label">&gt; task source</div>
-      <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-        <button
-          className="room-btn"
-          data-variant={mode === "catalog" ? "primary" : undefined}
-          onClick={() => setMode("catalog")}
-        >
-          ( {mode === "catalog" ? "◉" : " "} ) catalog
-        </button>
-        <button
-          className="room-btn"
-          data-variant={mode === "custom" ? "primary" : undefined}
-          onClick={() => setMode("custom")}
-        >
-          ( {mode === "custom" ? "◉" : " "} ) custom
-        </button>
+    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div>
+        <FieldLabel>Источник задачи</FieldLabel>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === "catalog" ? "default" : "outline"}
+            onClick={() => setMode("catalog")}
+          >
+            Каталог
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "custom" ? "default" : "outline"}
+            onClick={() => setMode("custom")}
+          >
+            Своя
+          </Button>
+        </div>
       </div>
 
-      <hr className="room-hr" />
+      <div className="my-5 border-t border-border" />
 
       {mode === "catalog" ? (
-        <>
-          <div className="room-label">&gt; choose task</div>
+        <div className="space-y-2">
+          <FieldLabel htmlFor="room-task">Задача</FieldLabel>
           <select
-            className="room-input"
+            id="room-task"
+            className={cn(fieldClasses, "appearance-none pr-8")}
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
-            style={{ marginTop: 6 }}
           >
             {catalog.map((c) => (
               <option key={`${c.category}/${c.slug}`} value={c.slug}>
@@ -104,47 +113,57 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
               </option>
             ))}
           </select>
-        </>
+        </div>
       ) : (
-        <>
-          <div className="room-label">&gt; title</div>
-          <input
-            className="room-input"
-            value={customTitle}
-            onChange={(e) => setCustomTitle(e.target.value)}
-            style={{ marginTop: 6 }}
-          />
-          <div className="room-label" style={{ marginTop: 12 }}>&gt; markdown</div>
-          <textarea
-            className="room-input"
-            rows={8}
-            value={customMd}
-            onChange={(e) => setCustomMd(e.target.value)}
-            style={{ marginTop: 6, resize: "vertical" }}
-          />
-        </>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <FieldLabel htmlFor="room-title">Заголовок</FieldLabel>
+            <Input
+              id="room-title"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              placeholder="Например, Throttle hook"
+            />
+          </div>
+          <div className="space-y-2">
+            <FieldLabel htmlFor="room-md">Условие (Markdown)</FieldLabel>
+            <textarea
+              id="room-md"
+              rows={8}
+              value={customMd}
+              onChange={(e) => setCustomMd(e.target.value)}
+              className={cn(fieldClasses, "h-auto py-2 font-mono leading-relaxed resize-y")}
+              placeholder="## Задача..."
+            />
+          </div>
+        </div>
       )}
 
-      <hr className="room-hr" />
+      <div className="my-5 border-t border-border" />
 
-      <div className="room-label">&gt; your nickname</div>
-      <input
-        className="room-input"
-        value={nickname}
-        onChange={(e) => setNickname(e.target.value)}
-        maxLength={20}
-        style={{ marginTop: 6 }}
-        placeholder="alice"
-      />
+      <div className="space-y-2">
+        <FieldLabel htmlFor="room-nickname">Ваш никнейм</FieldLabel>
+        <Input
+          id="room-nickname"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          maxLength={20}
+          placeholder="alice"
+        />
+      </div>
 
-      {error && (
-        <div style={{ color: "var(--room-crimson)", marginTop: 12, fontSize: 12 }}>{error}</div>
-      )}
+      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
-      <div style={{ marginTop: 16, textAlign: "center" }}>
-        <button className="room-btn" data-variant="primary" disabled={pending} onClick={submit}>
-          [ {pending ? "CREATING…" : "CREATE ROOM"} ]
-        </button>
+      <div className="mt-6">
+        <Button
+          type="button"
+          size="lg"
+          className="w-full"
+          disabled={pending}
+          onClick={submit}
+        >
+          {pending ? "Создание…" : "Создать комнату"}
+        </Button>
       </div>
     </div>
   );

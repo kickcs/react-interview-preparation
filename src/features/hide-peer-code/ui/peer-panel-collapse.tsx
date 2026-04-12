@@ -1,4 +1,7 @@
 "use client";
+import { Eye, EyeOff } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+
 interface Props {
   collapsed: boolean;
   onToggle: () => void;
@@ -6,8 +9,14 @@ interface Props {
 
 export function PeerPanelCollapse({ collapsed, onToggle }: Props) {
   return (
-    <button className="room-btn" onClick={onToggle}>
-      [ H {collapsed ? "SHOW" : "HIDE"} ]
-    </button>
+    <Button
+      type="button"
+      size="icon-sm"
+      variant="ghost"
+      aria-label={collapsed ? "Показать код" : "Скрыть код"}
+      onClick={onToggle}
+    >
+      {collapsed ? <Eye /> : <EyeOff />}
+    </Button>
   );
 }
