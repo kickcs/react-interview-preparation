@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["es2022"],
+    "outDir": "dist-server",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": false,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/shared/contracts": ["src/shared/contracts/index.ts"],
+      "@/shared/contracts/*": ["src/shared/contracts/*"]
+    }
+  },
+  "include": [
+    "src-server/**/*.ts",
+    "src/shared/contracts/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist-server", "tests", ".next"]
+}

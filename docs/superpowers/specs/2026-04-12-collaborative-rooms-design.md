@@ -632,6 +632,146 @@ CMD ["npx", "concurrently", "--kill-others-on-fail", \
 
 ---
 
+## Visual Design
+
+**Концепция:** вход в комнату = "jack in" в общий терминал. Монокод-CRT-эстетика — фосфорно-зелёный на глубокой черноте, ASCII-углы, тикающий лог событий снизу, глиф-статусы. Остальной сайт остаётся спокойным greyscale — `/rooms` это намеренный контраст, момент "теперь это режим игры".
+
+**Почему это работает:** (1) монокод — родной язык фичи; (2) ретро-терминал даёт повод для деталей (scanlines, glyphs, boot) без скатывания в clutter; (3) создаёт узнаваемость — больше нигде на сайте такого нет.
+
+### Токены (`src/app/rooms/rooms.css`, отдельный global stylesheet)
+
+```css
+--room-bg:            oklch(0.08 0 0);
+--room-panel:         oklch(0.12 0 0);
+--room-border:        oklch(0.22 0 0);
+--room-border-strong: oklch(0.35 0 0);
+--room-fg:            oklch(0.92 0 0);
+--room-fg-dim:        oklch(0.58 0 0);
+--room-phosphor:      oklch(0.88 0.20 145);   /* alive / you / online */
+--room-phosphor-dim:  oklch(0.55 0.14 145);
+--room-amber:         oklch(0.82 0.16 75);    /* ready / attention */
+--room-crimson:       oklch(0.68 0.22 25);    /* error / disconnect */
+```
+
+### Типографика
+
+- Весь `/rooms/*` — `font-mono` (`JetBrains Mono`, уже в проекте)
+- Display 24/36 для баннеров, body 13/15, label 11 ALLCAPS tracking 0.12em
+- Курсор `█` мигает на текстовых инпутах вместо дефолтного caret
+- `border-radius: 0` внутри `/rooms` — глобально для всех элементов
+
+### Textures
+
+- Scanlines: `repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgb(255 255 255 / 0.02) 3px)` слоем `pointer-events: none` поверх layout
+- Отключается при `prefers-reduced-motion: reduce`
+- Никаких blur, shadows, gradients — только 1px hairline и solid fills
+
+### Глифы (единый язык статусов)
+
+| Glyph | Значение |
+|-------|----------|
+| `◉`   | онлайн / фокус |
+| `◇`   | thinking |
+| `✓`   | ready (амбер) |
+| `»`   | участник шарит код |
+| `░`   | пустой слот / скрытая панель |
+| `×`   | disconnected / error |
+
+### Главный view комнаты
+
+```
+┌─ ROOM #XK7P2M ─────────── ◉alice  »◇bob  ◉carl  ✓dana ─── [3/4]  [↗ COPY]  [× EXIT]
+│
+│ ┌─ TASK ─ catalog/react/debounce ──┐  ┌─ ALICE  ◇ private ────┐  ┌─ BOB  » ───────┐
+│ │                                  │  │  1  function deb() {  │  │  1  const fn=  │
+│ │  Реализовать debounce             │  │  2    // …            │  │  2    (…) => { │
+│ │  ────────────────────            │  │  3  }                 │  │  3    clearTim │
+│ │                                  │  │                       │  │                │
+│ │  Signature:                       │  │  [ S share ]  [R run] │  │  [H hide] [Rrun│
+│ │    debounce(fn, ms)              │  ├───────────────────────┤  ├────────────────┤
+│ │                                  │  │ > console              │  │ > console      │
+│ │  Expected: …                     │  │   (idle)              │  │   3 undefined  │
+│ │                                  │  └───────────────────────┘  └────────────────┘
+│ │  Constraints: …                  │
+│ │                                  │  ┌─ CARL  ◉ ─────────────┐  ┌─ SLOT 4 ───────┐
+│ │                                  │  │  1  // wip            │  │   ░░░░░░░░░░   │
+│ │                                  │  │                       │  │    WAITING     │
+│ │                                  │  │  [S share ]  [R run]  │  │                │
+│ │                                  │  ├───────────────────────┤  │    /rooms/XK7. │
+│ │                                  │  │ > console              │  │    [↗ COPY]    │
+│ └──────────────────────────────────┘  └───────────────────────┘  └────────────────┘
+│
+├─ LOG ────────────────────────────────────────────────────────────────────── [−] ──
+│ 14:32:07  alice  joined
+│ 14:33:01  dana   ready  ✓
+└──────────────────────────────────────────────────────────────────────────────────
+```
+
+Детали:
+- Top bar — одна строка, мини-presence через глифы (без аватаров)
+- Каждая ячейка = редактор + консоль, inner rule `├─────┤`
+- Твоя ячейка — `--room-border-strong`
+- Shared ячейка — префикс `»` + border → `--room-phosphor-dim`
+- Кнопки = `[ LETTER label ]`, letter = кейборд-шорткат (S share, H hide, R run)
+- LOG strip коллапсируется до 28px, показывает только последнюю строку
+
+### Landing `/rooms`
+
+```
+                           ╔══════════════════════════╗
+                           ║    ROOMS // live-coding   ║
+                           ╚══════════════════════════╝
+
+                  ┌──────────────────────────────────────┐
+                  │   > task                              │
+                  │     ( ) catalog       ( ) custom     │
+                  │                                      │
+                  │   > your nickname                    │
+                  │     [ amir_________________ ]█       │
+                  │                                      │
+                  │            [ CREATE ROOM ]           │
+                  └──────────────────────────────────────┘
+
+                  ─────────── or join an existing ────────
+                  [ paste invite link ________________ ] →
+```
+
+- Display-текст в `╔╗╚╝` box — закрепляет терминал-идентичность
+- Радио через ASCII `( )` / `(◉)` вместо нативных input-ов
+
+### ALL READY момент
+
+Когда все 4 в `ready`, однопиксельный амбер-border пробегает по периметру viewport-а (keyframe 900ms, один раз), в top bar появляется:
+
+```
+┌─ ROOM #XK7P2M ─ ◉◉◉◉ ─ [4/4] ── ▓▓▓ ALL HANDS READY — PRESS [R] TO COMPARE ▓▓▓ ──
+```
+
+В MVP `[R] compare` просто снимает локальные `collapsedPeers` и подсвечивает ячейки амбером — без полноценного diff-режима.
+
+### Error states
+
+**Room not found / full:** центрированный бокс с `×` глифом, crimson-border, кнопка возврата.
+
+**Connection lost:** оверлей поверх текущего layout с hatch-pattern штриховкой (не blur), крупный текст `× CONNECTION LOST` в `--room-crimson`, обратный отсчёт до reconnect, строка "your code is safe locally".
+
+### Motion (минимально и выразительно)
+
+1. **Boot on join (~700ms):** top bar → task → cell 1 → cell 2 → cell 3 → cell 4 печатаются построчно через `animation-delay` с шагом 80ms. Без fade — сразу с текстом, имитация появления строк в терминале.
+2. **Status flip (◇ → ✓):** 120ms `steps(3)` без easing, плюс 400ms амбер-вспышка border.
+3. **ALL READY sweep:** однопиксельный амбер-border по периметру viewport, 900ms, один проход.
+
+`prefers-reduced-motion: reduce` отключает boot и sweep.
+
+### Что это значит для архитектуры
+
+- Новый файл `src/app/rooms/rooms.css` с токенами и scanlines-оверлеем, импортируется в `src/app/rooms/layout.tsx`
+- Shadcn-примитивы НЕ используются внутри `/rooms/*` — все UI-элементы пишутся руками по монокод-языку (~150 строк CSS на примитивы: бокс, кнопка, инпут, label, console)
+- Sandpack-тема: custom фосфор-вариант на базе `vitesse-dark`, детали в implementation plan
+- Остальной сайт не меняется — `/rooms/*` изолирован через свой layout
+
+---
+
 ## План работ (верхнеуровневый)
 
 Детальный TDD-план будет создан в фазе `superpowers:writing-plans`. Верхнеуровневая последовательность:

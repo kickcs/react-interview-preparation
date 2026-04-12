@@ -77,6 +77,7 @@ export function useHydrated() {
 
   useEffect(() => {
     if (useUIStore.persist.hasHydrated()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHydrated(true);
       return;
     }
