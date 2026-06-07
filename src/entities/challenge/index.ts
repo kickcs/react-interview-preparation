@@ -4,6 +4,8 @@ export {
   getChallenge,
   getAdjacentChallenges,
 } from "./lib/get-challenges";
+export { extractStarter } from "./lib/extract-starter";
+export type { ChallengeStarter } from "./lib/extract-starter";
 export type {
   ChallengeCategoryMeta,
   ChallengeMeta,

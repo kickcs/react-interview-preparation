@@ -4,6 +4,7 @@ import {
   getChallengesByCategory,
   getChallenge,
   getAdjacentChallenges,
+  extractStarter,
 } from "@/entities/challenge";
 import { ChallengeView } from "@/widgets/challenge-view";
 
@@ -60,6 +61,7 @@ export default async function ChallengePage({ params }: PageProps) {
     <ChallengeView
       meta={challenge.meta}
       content={challenge.content}
+      starter={extractStarter(challenge.content)}
       adjacent={adjacent}
       categoryTitle={categoryMeta?.title ?? category}
       categoryHref={`/live-coding/${category}/${challenges[0]?.slug ?? slug}`}
