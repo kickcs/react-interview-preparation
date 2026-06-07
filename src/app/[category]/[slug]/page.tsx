@@ -4,6 +4,7 @@ import {
   getQuestionsByCategory,
   getQuestion,
   getAdjacentQuestions,
+  getAllQuestionParams,
 } from "@/entities/question";
 import { QuestionView } from "@/widgets/question-view";
 
@@ -14,19 +15,7 @@ interface PageProps {
   }>;
 }
 
-export async function generateStaticParams() {
-  const categories = await getCategories();
-  const allQuestions = await Promise.all(
-    categories.map((c) => getQuestionsByCategory(c.slug))
-  );
-
-  return categories.flatMap((category, i) =>
-    allQuestions[i].map((question) => ({
-      category: category.slug,
-      slug: question.slug,
-    }))
-  );
-}
+export const generateStaticParams = getAllQuestionParams;
 
 export async function generateMetadata({ params }: PageProps) {
   const { category, slug } = await params;

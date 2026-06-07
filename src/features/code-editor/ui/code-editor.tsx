@@ -76,6 +76,7 @@ export function CodeEditor({
 
   return (
     <SandpackProvider
+      key={language}
       template={template}
       theme="dark"
       files={files}

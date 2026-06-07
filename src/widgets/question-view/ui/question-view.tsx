@@ -1,16 +1,11 @@
 import Link from "next/link";
-import { Answer } from "@/shared/ui/answer";
-import { AnswerGroup } from "@/shared/ui/answer-group";
+import { Code2 } from "lucide-react";
 import { Spoiler } from "@/shared/ui/spoiler";
 import { QuestionNavigation } from "./question-navigation";
 import type { QuestionMeta, AdjacentQuestions } from "@/entities/question";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import { rehypePlugins } from "@/shared/config/mdx";
-
-const mdxComponents = {
-  Answer,
-  AnswerGroup,
-};
+import { mdxComponents } from "@/shared/ui/mdx-components";
 
 interface QuestionViewProps {
   meta: QuestionMeta;
@@ -44,7 +39,15 @@ export async function QuestionView({
         {questionIndex} из {totalQuestions}
       </div>
 
-      <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>
+      <h1 className="mb-4 text-2xl font-bold md:text-3xl">{meta.title}</h1>
+
+      <Link
+        href={`/${meta.category}/${meta.slug}/solo`}
+        className="mb-8 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium transition-colors hover:border-muted-foreground/50 hover:text-foreground"
+      >
+        <Code2 className="h-4 w-4" />
+        Решать в редакторе
+      </Link>
 
       <div className="content-separator" />
 

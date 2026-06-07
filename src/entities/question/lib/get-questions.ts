@@ -96,3 +96,19 @@ export async function getAdjacentQuestions(
 
   return { prev, next };
 }
+
+export async function getAllQuestionParams(): Promise<
+  { category: string; slug: string }[]
+> {
+  const categories = await getCategories();
+  const allQuestions = await Promise.all(
+    categories.map((c) => getQuestionsByCategory(c.slug))
+  );
+
+  return categories.flatMap((category, i) =>
+    allQuestions[i].map((question) => ({
+      category: category.slug,
+      slug: question.slug,
+    }))
+  );
+}
