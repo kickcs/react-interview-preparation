@@ -1,13 +1,18 @@
 "use client";
 import { AlertTriangle, WifiOff } from "lucide-react";
-import type { ConnectionStatus } from "@/shared/lib/use-room-socket";
+import type { ConnectionStatus, RoomErrorKind } from "@/shared/lib/use-room-socket";
 
 interface Props {
   status: ConnectionStatus;
   error: string | null;
+  errorKind: RoomErrorKind | null;
+  onReconnect?: () => void;
 }
 
-export function RoomErrors({ status, error }: Props) {
+export function RoomErrors({ status, error, errorKind, onReconnect }: Props) {
+  // Join failures are surfaced by the parent (it swaps back to the join form),
+  // so don't also flash a toast here.
+  if (errorKind === "join") return null;
   if (status === "joined" && !error) return null;
   if (status === "disconnected") {
     return (
@@ -23,6 +28,15 @@ export function RoomErrors({ status, error }: Props) {
           <p className="mt-3 text-xs text-muted-foreground">
             Your code is saved locally.
           </p>
+          {onReconnect && (
+            <button
+              type="button"
+              onClick={onReconnect}
+              className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              Reconnect now
+            </button>
+          )}
         </div>
       </div>
     );

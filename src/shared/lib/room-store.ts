@@ -119,10 +119,10 @@ export function createRoomStore() {
             const participants = new Map(state.participants);
             const p = participants.get(event.payload.participantId);
             if (p) participants.set(p.id, { ...p, hasSharedCode: false });
+            // Peer stopped sharing: their console is no longer rendered, so drop
+            // the entry entirely instead of leaving an empty array to leak in the Map.
             const peerConsoles = new Map(state.peerConsoles);
-            if (peerConsoles.has(event.payload.participantId)) {
-              peerConsoles.set(event.payload.participantId, []);
-            }
+            peerConsoles.delete(event.payload.participantId);
             return { sharedCodes, participants, peerConsoles };
           }
           default:
@@ -186,6 +186,10 @@ export function createRoomStore() {
 
     clearPeerConsole(id) {
       set((state) => {
+        // Only empty an existing buffer (peer cleared their console while still
+        // sharing). Don't create a key for a peer who isn't sharing — that would
+        // leak if a clear races a shared-code-cleared event.
+        if (!state.peerConsoles.has(id)) return state;
         const next = new Map(state.peerConsoles);
         next.set(id, []);
         return { peerConsoles: next };

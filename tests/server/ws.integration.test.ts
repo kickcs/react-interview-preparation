@@ -168,6 +168,25 @@ describe("ws integration", () => {
     expect(typeof payload.participantId).toBe("string");
   });
 
+  it("status:set broadcasts to peers but not back to sender", async () => {
+    const a = connect(harness.url);
+    const b = connect(harness.url);
+    clients.push(a, b);
+    await new Promise<void>((res) => a.emit("room:join", { roomId: "r1", nickname: "alice" }, () => res()));
+    await new Promise<void>((res) => b.emit("room:join", { roomId: "r1", nickname: "bob" }, () => res()));
+
+    let selfEcho = false;
+    a.on("room:participant-status", () => {
+      selfEcho = true;
+    });
+    const onPeer = wait<{ participantId: string; status: string }>(b, "room:participant-status");
+    a.emit("status:set", { status: "ready" });
+    const payload = await onPeer;
+    expect(payload.status).toBe("ready");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(selfEcho).toBe(false);
+  });
+
   it("relays console:output from author to peers", async () => {
     const a = connect(harness.url);
     const b = connect(harness.url);

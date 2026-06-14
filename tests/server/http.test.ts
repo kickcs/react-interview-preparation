@@ -63,6 +63,42 @@ describe("POST /api/rooms", () => {
   });
 });
 
+describe("CORS", () => {
+  it("answers preflight OPTIONS with 204 and CORS headers", async () => {
+    const store = makeStore({ t: 1000 });
+    const app = await buildApp({
+      store,
+      maxRooms: 500,
+      rateLimit: { max: 1000, timeWindow: "1 minute" },
+      corsOrigin: "*",
+    });
+    const res = await app.inject({
+      method: "OPTIONS",
+      url: "/api/rooms",
+      headers: { origin: "http://localhost:3000" },
+    });
+    expect(res.statusCode).toBe(204);
+    expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
+    expect(res.headers["access-control-allow-methods"]).toContain("POST");
+  });
+
+  it("echoes a configured origin and sets it on real responses", async () => {
+    const store = makeStore({ t: 1000 });
+    const app = await buildApp({
+      store,
+      maxRooms: 500,
+      rateLimit: { max: 1000, timeWindow: "1 minute" },
+      corsOrigin: "https://example.com",
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/rooms/missing",
+      headers: { origin: "https://example.com" },
+    });
+    expect(res.headers["access-control-allow-origin"]).toBe("https://example.com");
+  });
+});
+
 describe("GET /api/rooms/:id", () => {
   it("returns 404 for missing room", async () => {
     const store = makeStore({ t: 1000 });

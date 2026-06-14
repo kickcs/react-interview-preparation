@@ -6,7 +6,6 @@ import {
   getChallengeCategories,
   getChallengesByCategory as getChallenges,
 } from "@/entities/challenge";
-import type { ChallengeMeta } from "@/entities/challenge";
 import Script from "next/script";
 import { Sidebar, MobileSidebar } from "@/widgets/sidebar";
 import "./globals.css";

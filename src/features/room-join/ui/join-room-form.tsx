@@ -15,9 +15,11 @@ interface Props {
   roomId: string;
   onSubmit: (nickname: string) => void;
   participantCount: number;
+  /** Reason the previous join attempt failed (e.g. nickname taken), shown above the field. */
+  notice?: string | null;
 }
 
-export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
+export function JoinRoomForm({ roomId, onSubmit, participantCount, notice }: Props) {
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,12 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
       </div>
 
       <div className="my-5 border-t border-border" />
+
+      {notice && (
+        <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {notice}
+        </p>
+      )}
 
       <div className="space-y-2">
         <FieldLabel htmlFor="join-nickname">Your nickname</FieldLabel>

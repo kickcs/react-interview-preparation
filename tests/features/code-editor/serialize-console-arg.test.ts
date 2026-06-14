@@ -30,6 +30,8 @@ describe("serializeConsoleArg", () => {
   });
 
   it("handles bigint", () => {
-    expect(serializeConsoleArg(10n)).toBe("10");
+    // BigInt(10) rather than the 10n literal so the test typechecks under the
+    // project's ES2017 target while still exercising the bigint branch.
+    expect(serializeConsoleArg(BigInt(10))).toBe("10");
   });
 });

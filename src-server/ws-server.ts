@@ -61,6 +61,7 @@ async function main(): Promise<void> {
       max: config.maxRoomsPerIpPerMin,
       timeWindow: `${config.rateLimitTimeWindowMs} ms`,
     },
+    corsOrigin: config.corsOrigin,
     logger: true,
   });
 

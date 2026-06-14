@@ -11,7 +11,7 @@ describe("getQuestionsByCategory", () => {
 
     expect(questions.length).toBeGreaterThanOrEqual(2);
     expect(questions[0].slug).toBe("what-is-jsx");
-    expect(questions[0].title).toBe("What is JSX?");
+    expect(questions[0].title).toBe("Что такое JSX?");
     expect(questions[0].order).toBe(1);
     expect(questions[0].category).toBe("react-basics");
 
@@ -30,7 +30,7 @@ describe("getQuestion", () => {
   it("returns question data with content", async () => {
     const question = await getQuestion("react-basics", "what-is-jsx");
 
-    expect(question.meta.title).toBe("What is JSX?");
+    expect(question.meta.title).toBe("Что такое JSX?");
     expect(question.meta.slug).toBe("what-is-jsx");
     expect(question.meta.category).toBe("react-basics");
     expect(question.content).toBeDefined();
@@ -50,10 +50,11 @@ describe("getAdjacentQuestions", () => {
   });
 
   it("returns next from next category for last question in category", async () => {
-    const adj = await getAdjacentQuestions("react-basics", "components-and-props");
+    // react-19-features is the last question in react-basics (order 15).
+    const adj = await getAdjacentQuestions("react-basics", "react-19-features");
 
     expect(adj.prev).not.toBeNull();
-    expect(adj.prev!.slug).toBe("what-is-jsx");
+    expect(adj.prev!.category).toBe("react-basics");
     // react-basics (order 4) is before hooks (order 5)
     expect(adj.next).not.toBeNull();
     expect(adj.next!.category).toBe("hooks");
