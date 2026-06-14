@@ -6,7 +6,6 @@ on:
 
 jobs:
   verify:
-    name: lint · typecheck · test · build
     runs-on: ubuntu-latest
 
     steps:
