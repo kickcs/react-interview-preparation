@@ -37,6 +37,11 @@ describe("room-store peer consoles", () => {
     expect(store.getState().peerConsoles.get("p1")?.length).toBe(0);
   });
 
+  it("clearPeerConsole does not create a key for a non-sharing peer", () => {
+    store.getState().clearPeerConsole("ghost");
+    expect(store.getState().peerConsoles.has("ghost")).toBe(false);
+  });
+
   it("removePeerConsole deletes the key", () => {
     store.getState().appendPeerConsole("p1", [mkLog(1)]);
     store.getState().removePeerConsole("p1");
@@ -52,12 +57,15 @@ describe("room-store peer consoles", () => {
     expect(store.getState().peerConsoles.has("p1")).toBe(false);
   });
 
-  it("shared-code-cleared also clears peer console", () => {
+  it("shared-code-cleared removes the peer console entry", () => {
+    // When a peer stops sharing, their console is no longer rendered, so the
+    // entry is dropped from the Map entirely (rather than left as an empty
+    // array that would leak as peers come and go). This mirrors participant-left.
     store.getState().appendPeerConsole("p1", [mkLog(1)]);
     store.getState().applyEvent({
       type: "room:shared-code-cleared",
       payload: { participantId: "p1" },
     });
-    expect(store.getState().peerConsoles.get("p1")?.length).toBe(0);
+    expect(store.getState().peerConsoles.has("p1")).toBe(false);
   });
 });

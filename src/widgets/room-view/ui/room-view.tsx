@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useStore } from "zustand";
 import { roomStore } from "@/shared/lib/room-store";
 import { useRoomSocket } from "@/shared/lib/use-room-socket";
@@ -15,13 +15,18 @@ interface Props {
   roomId: string;
   nickname: string;
   task: TaskContent;
+  /** Called when the join handshake fails recoverably (nickname taken, room full),
+   * so the parent can drop the stored nickname and show the join form again. */
+  onJoinError?: (message: string) => void;
 }
 
-export function RoomView({ roomId, nickname, task }: Props) {
+export function RoomView({ roomId, nickname, task, onJoinError }: Props) {
   const state = useStore(roomStore);
   const {
     status,
     error,
+    errorKind,
+    reconnect,
     emitCodeUpdate,
     emitShare,
     emitUnshare,
@@ -29,6 +34,14 @@ export function RoomView({ roomId, nickname, task }: Props) {
     emitConsoleOutput,
     emitConsoleClear,
   } = useRoomSocket(roomId, nickname);
+
+  const joinErrorHandled = useRef(false);
+  useEffect(() => {
+    if (status === "error" && errorKind === "join" && error && !joinErrorHandled.current) {
+      joinErrorHandled.current = true;
+      onJoinError?.(error);
+    }
+  }, [status, errorKind, error, onJoinError]);
 
   const { participantsList, slots } = useMemo(() => {
     const list = Array.from(state.participants.values());
@@ -88,7 +101,7 @@ export function RoomView({ roomId, nickname, task }: Props) {
           })}
         </EditorsGrid>
       </div>
-      <RoomErrors status={status} error={error} />
+      <RoomErrors status={status} error={error} errorKind={errorKind} onReconnect={reconnect} />
     </main>
   );
 }

@@ -8,6 +8,9 @@ export interface BuildAppOptions {
   store: StateStore;
   maxRooms: number;
   rateLimit: { max: number; timeWindow: string };
+  /** Allowed origin for cross-origin HTTP requests (dev: browser on :3000 hits
+   * the ws-server on :3001). "*" mirrors the socket.io CORS default. */
+  corsOrigin?: string;
   logger?: boolean;
 }
 
@@ -25,6 +28,19 @@ function isTaskSource(x: unknown): x is TaskSource {
 
 export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: opts.logger ?? false });
+
+  const corsOrigin = opts.corsOrigin ?? "*";
+  app.addHook("onRequest", async (req, reply) => {
+    const requestOrigin = req.headers.origin;
+    const allow = corsOrigin === "*" ? (requestOrigin ?? "*") : corsOrigin;
+    reply.header("access-control-allow-origin", allow);
+    reply.header("vary", "Origin");
+    reply.header("access-control-allow-methods", "GET, POST, OPTIONS");
+    reply.header("access-control-allow-headers", "content-type");
+    if (req.method === "OPTIONS") {
+      reply.code(204).send();
+    }
+  });
 
   await app.register(rateLimit, {
     max: opts.rateLimit.max,

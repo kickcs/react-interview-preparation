@@ -1,8 +1,9 @@
 "use client";
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { RoomView } from "@/widgets/room-view";
 import { JoinRoomForm } from "@/features/room-join/ui/join-room-form";
 import { useAutoCollapseOnRouteEnter } from "@/shared/lib/use-auto-collapse-on-route-enter";
+import { roomStore } from "@/shared/lib/room-store";
 import type { TaskContent } from "@/shared/contracts";
 
 interface Props {
@@ -15,12 +16,25 @@ const subscribe = () => () => {};
 
 export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
   const [localNickname, setLocalNickname] = useState<string | null>(null);
+  const [cleared, setCleared] = useState(false);
+  const [joinNotice, setJoinNotice] = useState<string | null>(null);
   const stored = useSyncExternalStore<string | null | undefined>(
     subscribe,
     () => sessionStorage.getItem(`rooms.nickname.${roomId}`),
     () => undefined,
   );
   useAutoCollapseOnRouteEnter(roomId);
+
+  const handleJoinError = useCallback(
+    (message: string) => {
+      sessionStorage.removeItem(`rooms.nickname.${roomId}`);
+      roomStore.getState().reset();
+      setLocalNickname(null);
+      setCleared(true);
+      setJoinNotice(message);
+    },
+    [roomId],
+  );
 
   if (stored === undefined) {
     return (
@@ -32,7 +46,7 @@ export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
     );
   }
 
-  const nickname = localNickname ?? stored;
+  const nickname = localNickname ?? (cleared ? null : stored);
 
   if (!nickname) {
     return (
@@ -40,14 +54,24 @@ export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
         <JoinRoomForm
           roomId={roomId}
           participantCount={initialParticipantCount}
+          notice={joinNotice}
           onSubmit={(nick) => {
             sessionStorage.setItem(`rooms.nickname.${roomId}`, nick);
             setLocalNickname(nick);
+            setCleared(false);
+            setJoinNotice(null);
           }}
         />
       </main>
     );
   }
 
-  return <RoomView roomId={roomId} nickname={nickname} task={task} />;
+  return (
+    <RoomView
+      roomId={roomId}
+      nickname={nickname}
+      task={task}
+      onJoinError={handleJoinError}
+    />
+  );
 }

@@ -168,7 +168,7 @@ export function attachWs(
           status: payload.status,
         });
         if (!result.ok || !result.changed) return;
-        io.to(roomId).emit("room:participant-status", {
+        socket.to(roomId).emit("room:participant-status", {
           participantId: socket.id,
           status: payload.status,
         });
