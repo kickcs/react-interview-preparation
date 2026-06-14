@@ -27,7 +27,7 @@ export function PeerConsoleView({ logs }: Props) {
   if (logs.length === 0) {
     return (
       <div className="flex min-h-[140px] max-h-[200px] items-center justify-center border-t border-dashed border-border text-xs text-muted-foreground">
-        Нет вывода
+        No output
       </div>
     );
   }

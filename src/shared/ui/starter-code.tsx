@@ -25,13 +25,13 @@ export function StarterCode({ children }: StarterCodeProps) {
     <div className="my-6" ref={containerRef}>
       <div className="flex items-center justify-between rounded-t-lg border border-b-0 border-border bg-emerald-500/10 px-4 py-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-          Стартовый код
+          Starter code
         </span>
         <Button
           variant="ghost"
           size="icon-xs"
           onClick={handleCopy}
-          aria-label="Копировать код"
+          aria-label="Copy code"
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-emerald-400" />

@@ -35,8 +35,8 @@ export async function QuestionView({
         >
           {categoryTitle}
         </Link>{" "}
-        <span className="text-muted-foreground/50">›</span> Вопрос{" "}
-        {questionIndex} из {totalQuestions}
+        <span className="text-muted-foreground/50">›</span> Question{" "}
+        {questionIndex} of {totalQuestions}
       </div>
 
       <h1 className="mb-4 text-2xl font-bold md:text-3xl">{meta.title}</h1>
@@ -46,7 +46,7 @@ export async function QuestionView({
         className="mb-8 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium transition-colors hover:border-muted-foreground/50 hover:text-foreground"
       >
         <Code2 className="h-4 w-4" />
-        Решать в редакторе
+        Solve in editor
       </Link>
 
       <div className="content-separator" />

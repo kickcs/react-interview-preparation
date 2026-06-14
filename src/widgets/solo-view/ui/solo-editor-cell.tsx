@@ -19,7 +19,7 @@ export function SoloEditorCell({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <span className="text-sm font-medium">Редактор</span>
+        <span className="text-sm font-medium">Editor</span>
         <LanguageSwitch value={language} onChange={onLanguageChange} />
       </div>
       <div className="min-h-0 flex-1">

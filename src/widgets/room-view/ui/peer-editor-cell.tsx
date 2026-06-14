@@ -44,7 +44,7 @@ export function PeerEditorCell({
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="outline" className="gap-1">
             <StatusIcon />
-            {ready ? "Готов" : sharedCode ? "Делится" : "Думает"}
+            {ready ? "Ready" : sharedCode ? "Sharing" : "Thinking"}
           </Badge>
           <span className="truncate text-sm font-medium">{participant.nickname}</span>
         </div>
@@ -57,12 +57,12 @@ export function PeerEditorCell({
           {sharedCode ? (
             <>
               <EyeOff className="size-5" />
-              <p>Код скрыт</p>
+              <p>Code hidden</p>
             </>
           ) : (
             <>
               <Lock className="size-5" />
-              <p>Код пока приватный</p>
+              <p>Code is still private</p>
             </>
           )}
         </div>

@@ -33,7 +33,7 @@ export function TopBar({ roomId, participants, allReady }: Props) {
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Комната
+          Room
         </span>
         <span className="font-mono text-sm font-medium">{roomId}</span>
         <Badge variant="outline">{participants.length}/4</Badge>
@@ -56,7 +56,7 @@ export function TopBar({ roomId, participants, allReady }: Props) {
         {allReady && (
           <Badge variant="default" className="gap-1 bg-amber-500/15 text-amber-500">
             <Check />
-            Все готовы
+            All ready
           </Badge>
         )}
       </div>
@@ -64,11 +64,11 @@ export function TopBar({ roomId, participants, allReady }: Props) {
         <SidebarToggleButton variant="outline" />
         <Button type="button" size="sm" variant="outline" onClick={copy}>
           <Copy />
-          {copied ? "Скопировано" : "Скопировать"}
+          {copied ? "Copied" : "Copy"}
         </Button>
         <Button size="sm" variant="destructive" render={<Link href="/rooms" />}>
           <LogOut />
-          Выйти
+          Leave
         </Button>
       </div>
     </div>

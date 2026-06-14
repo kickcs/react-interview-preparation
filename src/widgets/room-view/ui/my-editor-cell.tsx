@@ -46,7 +46,7 @@ export function MyEditorCell({
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="secondary" className="gap-1">
             <StatusIcon />
-            Вы
+            You
           </Badge>
           <span className="truncate text-sm font-medium">{nickname}</span>
         </div>

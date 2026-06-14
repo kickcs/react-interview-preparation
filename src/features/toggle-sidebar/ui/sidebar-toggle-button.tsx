@@ -17,7 +17,7 @@ export function SidebarToggleButton({ variant = "ghost" }: Props) {
       size="icon"
       variant={variant}
       onClick={toggle}
-      aria-label={collapsed ? "Развернуть боковую панель" : "Свернуть боковую панель"}
+      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
       <Icon />
     </Button>

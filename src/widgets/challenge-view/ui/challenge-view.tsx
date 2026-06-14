@@ -24,13 +24,14 @@ interface ChallengeViewProps {
 }
 
 /**
- * Рендерит MDX задачи (описание + подсказки + решение). Режимы чтения и соло
- * никогда не находятся в DOM одновременно (взаимоисключающий тоггл в
- * ChallengeWorkspace), поэтому id спойлеров одинаковы в обоих — раскрытое
- * состояние подсказок/решения переносится при переключении режимов.
+ * Renders the task MDX (description + hints + solution). Reading and solo modes
+ * are never in the DOM at the same time (mutually-exclusive toggle in
+ * `ChallengeWorkspace`), so spoiler ids are identical in both — the expanded
+ * state of hints/solution carries over when switching modes.
  *
- * `hideStarter` убирает блок `<StarterCode>` в соло-режиме: там стартовый код
- * уже открыт в редакторе справа, дублировать его в описании не нужно.
+ * `hideStarter` removes the `<StarterCode>` block in solo mode: there the
+ * starter code is already open in the editor on the right, so duplicating it
+ * in the description is unnecessary.
  */
 function renderChallengeContent(
   content: string,
@@ -83,8 +84,8 @@ export async function ChallengeView({
         >
           {categoryTitle}
         </Link>{" "}
-        <span className="text-muted-foreground/50">›</span> Задача{" "}
-        {challengeIndex} из {totalChallenges}
+        <span className="text-muted-foreground/50">›</span> Task{" "}
+        {challengeIndex} of {totalChallenges}
       </div>
 
       <h1 className="mb-8 text-2xl font-bold md:text-3xl">{meta.title}</h1>

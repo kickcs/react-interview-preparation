@@ -17,11 +17,11 @@ export function RoomErrors({ status, error }: Props) {
             <WifiOff className="size-6" />
           </div>
           <h2 className="mt-4 text-lg font-semibold text-destructive">
-            Соединение потеряно
+            Connection lost
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">Переподключаемся…</p>
+          <p className="mt-2 text-sm text-muted-foreground">Reconnecting…</p>
           <p className="mt-3 text-xs text-muted-foreground">
-            Ваш код сохранён локально.
+            Your code is saved locally.
           </p>
         </div>
       </div>

@@ -18,7 +18,7 @@ export function ReadyToggle({ status, onChange }: Props) {
       onClick={() => onChange(ready ? "thinking" : "ready")}
     >
       {ready ? <Check /> : <CircleDashed />}
-      {ready ? "Готов" : "Не готов"}
+      {ready ? "Ready" : "Not ready"}
     </Button>
   );
 }

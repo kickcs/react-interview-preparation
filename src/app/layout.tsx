@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "React Interview Preparation",
   description:
-    "Подготовка к собеседованию для React-разработчиков на двух языках",
+    "Bilingual React interview preparation for developers",
 };
 
 export default async function RootLayout({

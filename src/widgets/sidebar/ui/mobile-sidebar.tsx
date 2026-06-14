@@ -53,7 +53,7 @@ export function MobileSidebar({
             <div>
               <div className="text-lg font-bold">React Interview</div>
               <div className="mt-1 text-xs font-normal text-muted-foreground">
-                Подготовка к собеседованию
+                Interview Prep
               </div>
             </div>
             <div className="flex items-center gap-1">

@@ -32,7 +32,7 @@ export function Solution({ id, children }: SolutionProps) {
           <Eye className="h-4 w-4 shrink-0 text-emerald-400" />
         )}
         <span className="font-medium text-emerald-400">
-          {revealed ? "Скрыть решение" : "Показать решение"}
+          {revealed ? "Hide solution" : "Show solution"}
         </span>
         <ChevronRight
           className={cn(

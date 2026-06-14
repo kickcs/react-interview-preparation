@@ -47,13 +47,13 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
     if (mode === "catalog") {
       const item = catalog.find((c) => c.slug === selected);
       if (!item) {
-        setError("Выбери задачу");
+        setError("Pick a task");
         return;
       }
       taskSource = { kind: "catalog", category: item.category, slug: item.slug };
     } else {
       if (!customTitle.trim() || !customMd.trim()) {
-        setError("Заполни заголовок и условие");
+        setError("Fill in the title and description");
         return;
       }
       taskSource = { kind: "custom", title: customTitle.trim(), markdown: customMd };
@@ -68,14 +68,14 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          setError(`Ошибка: ${body.error ?? res.status}`);
+          setError(`Error: ${body.error ?? res.status}`);
           return;
         }
         const { id } = (await res.json()) as { id: string };
         sessionStorage.setItem(`rooms.nickname.${id}`, nickCheck.value);
         router.push(`/rooms/${id}`);
       } catch {
-        setError("Сервер недоступен");
+        setError("Server unavailable");
       }
     });
   };
@@ -83,21 +83,21 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <div>
-        <FieldLabel>Источник задачи</FieldLabel>
+        <FieldLabel>Task source</FieldLabel>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Button
             type="button"
             variant={mode === "catalog" ? "default" : "outline"}
             onClick={() => setMode("catalog")}
           >
-            Каталог
+            Catalog
           </Button>
           <Button
             type="button"
             variant={mode === "custom" ? "default" : "outline"}
             onClick={() => setMode("custom")}
           >
-            Своя
+            Custom
           </Button>
         </div>
       </div>
@@ -106,7 +106,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
 
       {mode === "catalog" ? (
         <div className="space-y-2">
-          <FieldLabel htmlFor="room-task">Задача</FieldLabel>
+          <FieldLabel htmlFor="room-task">Task</FieldLabel>
           <select
             id="room-task"
             className={selectClasses}
@@ -123,23 +123,23 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
       ) : (
         <div className="space-y-4">
           <div className="space-y-2">
-            <FieldLabel htmlFor="room-title">Заголовок</FieldLabel>
+            <FieldLabel htmlFor="room-title">Title</FieldLabel>
             <Input
               id="room-title"
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
-              placeholder="Например, Throttle hook"
+              placeholder="e.g. Throttle hook"
             />
           </div>
           <div className="space-y-2">
-            <FieldLabel htmlFor="room-md">Условие (Markdown)</FieldLabel>
+            <FieldLabel htmlFor="room-md">Description (Markdown)</FieldLabel>
             <Textarea
               id="room-md"
               rows={8}
               value={customMd}
               onChange={(e) => setCustomMd(e.target.value)}
               className="font-mono leading-relaxed resize-y"
-              placeholder="## Задача..."
+              placeholder="## Task..."
             />
           </div>
         </div>
@@ -148,7 +148,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
       <div className="my-5 border-t border-border" />
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="room-nickname">Ваш никнейм</FieldLabel>
+        <FieldLabel htmlFor="room-nickname">Your nickname</FieldLabel>
         <Input
           id="room-nickname"
           value={nickname}
@@ -168,7 +168,7 @@ export function CreateRoomForm({ catalog }: CreateRoomFormProps) {
           disabled={pending}
           onClick={submit}
         >
-          {pending ? "Создание…" : "Создать комнату"}
+          {pending ? "Creating…" : "Create room"}
         </Button>
       </div>
     </div>

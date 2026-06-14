@@ -6,18 +6,18 @@ import { ChallengeSoloView } from "./challenge-solo-view";
 
 interface Props {
   title: string;
-  /** Обычный вид страницы (описание + навигация), отрендерен на сервере. */
+  /** Regular page view (description + navigation), server-rendered. */
   reading: ReactNode;
-  /** Описание задачи для соло-режима (то же MDX, без навигации). */
+  /** Task description for solo mode (same MDX, without navigation). */
   soloDescription: ReactNode;
-  /** Стартер из задачи; null — кнопка решения не показывается. */
+  /** Starter from the task; null — the "Solve in editor" button is not shown. */
   starter: ChallengeStarter | null;
 }
 
 /**
- * Переключает страницу задачи между режимом чтения и полноэкранным соло-режимом
- * на том же URL. Кнопка «Решать в редакторе» появляется только если у задачи
- * есть распознанный стартовый код.
+ * Toggles the task page between reading mode and fullscreen solo mode on the
+ * same URL. The "Solve in editor" button appears only if the task has
+ * recognized starter code.
  */
 export function ChallengeWorkspace({
   title,
@@ -47,7 +47,7 @@ export function ChallengeWorkspace({
           className="mb-8 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium transition-colors hover:border-muted-foreground/50 hover:text-foreground"
         >
           <Code2 className="h-4 w-4" />
-          Решать в редакторе
+          Solve in editor
         </button>
       )}
       {reading}

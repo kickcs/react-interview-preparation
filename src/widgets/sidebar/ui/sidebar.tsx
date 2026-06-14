@@ -54,7 +54,7 @@ export function Sidebar({
         <div>
           <div className="text-lg font-bold">React Interview</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            Подготовка к собеседованию
+            Interview Prep
           </div>
         </div>
         <div className="flex items-center gap-1">

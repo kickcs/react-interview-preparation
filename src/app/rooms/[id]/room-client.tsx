@@ -26,7 +26,7 @@ export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
     return (
       <main className="mx-auto flex max-w-md justify-center px-4 py-10 md:py-16">
         <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
-          <p className="text-sm text-muted-foreground">Загрузка комнаты…</p>
+          <p className="text-sm text-muted-foreground">Loading room…</p>
         </div>
       </main>
     );

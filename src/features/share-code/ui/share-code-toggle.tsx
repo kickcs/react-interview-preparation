@@ -16,7 +16,7 @@ export function ShareCodeToggle({ isSharing, onToggle }: Props) {
       onClick={onToggle}
     >
       <Share2 />
-      {isSharing ? "Скрыть" : "Поделиться"}
+      {isSharing ? "Hide" : "Share"}
     </Button>
   );
 }

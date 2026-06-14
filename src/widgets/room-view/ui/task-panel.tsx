@@ -13,7 +13,7 @@ function TaskPanelComponent({ title, markdown }: Props) {
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="border-b border-border px-4 py-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Задача
+          Task
         </p>
         <h2 className="mt-1 text-base font-semibold leading-tight">{title}</h2>
       </div>

@@ -36,7 +36,7 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            Комната
+            Room
           </p>
           <p className="mt-1 font-mono text-sm font-medium">{roomId}</p>
         </div>
@@ -46,7 +46,7 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
       <div className="my-5 border-t border-border" />
 
       <div className="space-y-2">
-        <FieldLabel htmlFor="join-nickname">Ваш никнейм</FieldLabel>
+        <FieldLabel htmlFor="join-nickname">Your nickname</FieldLabel>
         <Input
           id="join-nickname"
           value={nickname}
@@ -63,7 +63,7 @@ export function JoinRoomForm({ roomId, onSubmit, participantCount }: Props) {
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
       <Button type="button" size="lg" className="mt-6 w-full" onClick={handleSubmit}>
-        Войти в комнату
+        Join room
       </Button>
     </div>
   );

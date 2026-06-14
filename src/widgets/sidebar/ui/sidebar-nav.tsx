@@ -98,7 +98,7 @@ export function CollapseAllButton({ slugs }: { slugs: string[] }) {
   if (!hydrated) return null;
 
   const allCollapsed = slugs.every((s) => collapsedCategories[s]);
-  const label = allCollapsed ? "Развернуть все" : "Свернуть все";
+  const label = allCollapsed ? "Expand all" : "Collapse all";
 
   return (
     <Button
@@ -126,7 +126,7 @@ export function ToggleAllAnswersButton() {
 
   if (!hydrated) return null;
 
-  const label = allAnswersRevealed ? "Скрыть все ответы" : "Показать все ответы";
+  const label = allAnswersRevealed ? "Hide all answers" : "Show all answers";
 
   return (
     <Button
@@ -193,7 +193,7 @@ export function SidebarSearch({
         ref={inputRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Поиск вопросов…"
+        placeholder="Search questions…"
         className="h-8 pl-8 pr-8 text-base md:text-xs"
       />
       {value && (
@@ -458,17 +458,17 @@ export function SidebarNav({
 
       {isSearching && totalCategoryCount === 0 && (
         <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-          Ничего не найдено
+          Nothing found
         </div>
       )}
 
       {isSearching && totalMatchedCount > 0 && (
         <div className="px-3 pt-2 text-center text-[11px] text-muted-foreground">
           {totalMatchedCount === 1
-            ? "Найден 1 вопрос"
-            : `Найдено ${totalMatchedCount}`}
-          {" "}в {totalCategoryCount}{" "}
-          {totalCategoryCount === 1 ? "категории" : "категориях"}
+            ? "1 question found"
+            : `${totalMatchedCount} questions found`}
+          {" "}in {totalCategoryCount}{" "}
+          {totalCategoryCount === 1 ? "category" : "categories"}
         </div>
       )}
     </nav>

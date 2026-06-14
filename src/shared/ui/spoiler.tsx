@@ -33,12 +33,12 @@ export function Spoiler({ id, children }: SpoilerProps) {
           {isOpen ? (
             <>
               <EyeOff className="h-4 w-4" />
-              Скрыть ответ / Hide answer
+              Hide answer
             </>
           ) : (
             <>
               <Eye className="h-4 w-4" />
-              Показать ответ / Show answer
+              Show answer
             </>
           )}
         </button>

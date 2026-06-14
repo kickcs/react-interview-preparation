@@ -13,7 +13,7 @@ export function PeerPanelCollapse({ collapsed, onToggle }: Props) {
       type="button"
       size="icon-sm"
       variant="ghost"
-      aria-label={collapsed ? "Показать код" : "Скрыть код"}
+      aria-label={collapsed ? "Show code" : "Hide code"}
       onClick={onToggle}
     >
       {collapsed ? <Eye /> : <EyeOff />}

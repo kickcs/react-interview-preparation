@@ -18,10 +18,11 @@ const STARTER_BLOCK = /<StarterCode>([\s\S]*?)<\/StarterCode>/;
 const FENCE = /```([\w-]*)\r?\n([\s\S]*?)```/;
 
 /**
- * Достаёт стартовый код и его язык из первого `<StarterCode>` блока в сыром MDX
- * задачи. Язык берётся из инфостроки fenced-блока (```js / ```ts / ```jsx) и
- * маппится в редакторный `Language`. Возвращает null, если блока нет или язык
- * неизвестен — вызывающий код в этом случае не показывает кнопку редактора.
+ * Extracts starter code and its language from the first `<StarterCode>` block
+ * in raw MDX. The language is taken from the fenced-block info string
+ * (```js / ```ts / ```jsx) and mapped to the editor `Language`. Returns null
+ * if no block is found or the language is unknown — in that case the caller
+ * hides the editor button.
  */
 export function extractStarter(content: string): ChallengeStarter | null {
   const block = STARTER_BLOCK.exec(content);

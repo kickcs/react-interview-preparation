@@ -17,9 +17,10 @@ export function SoloView({ id, title, questionContent }: Props) {
 
   const handleLanguageChange = (next: Language) => {
     setLanguage(next);
-    // Подставляем стартер нового языка только если пользователь ещё не
-    // редактировал код (буфер равен стартеру текущего языка). Иначе сохраняем
-    // написанное — Sandpack пересоздастся под новый шаблон с тем же кодом.
+    // Substitute the new language's starter only if the user hasn't edited the
+    // code yet (the buffer equals the current language's starter). Otherwise
+    // keep what was written — Sandpack will recreate itself for the new
+    // template with the same code.
     if (code === SOLO_STARTERS[language]) {
       setCode(SOLO_STARTERS[next]);
     }

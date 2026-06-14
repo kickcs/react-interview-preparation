@@ -48,8 +48,8 @@ export default async function RoomsLandingPage() {
         Live-coding rooms
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Совместное решение задач для собеседования — до 4 участников, у каждого
-        свой редактор и песочница.
+        Collaborative interview practice — up to 4 participants, each with their
+        own editor and sandbox.
       </p>
       <div className="mt-8">
         <CreateRoomForm catalog={catalog} />

@@ -15,7 +15,7 @@ const langConfig = {
   },
   ru: {
     label: "RU",
-    sublabel: "Русский",
+    sublabel: "Russian",
     badgeClassName: "bg-purple-500/15 text-purple-400 border-purple-500/25",
     cardClassName: "bg-violet-500/[0.06] border-violet-500/15",
   },

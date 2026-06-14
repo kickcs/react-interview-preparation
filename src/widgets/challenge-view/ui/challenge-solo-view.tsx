@@ -12,9 +12,10 @@ interface Props {
 }
 
 /**
- * Полноэкранный режим решения live-coding задачи: слева описание (с подсказками
- * и решением под спойлерами из исходного MDX), справа редактор с консолью.
- * Язык и стартовый код заданы задачей — переключателя языков нет.
+ * Fullscreen mode for solving a live-coding task: description on the left
+ * (with hints and solution under spoilers from the source MDX), editor with
+ * console on the right. Language and starter code are fixed by the task —
+ * no language switcher.
  */
 export function ChallengeSoloView({ title, description, starter, onExit }: Props) {
   const [code, setCode] = useState<string>(starter.code);
@@ -28,7 +29,7 @@ export function ChallengeSoloView({ title, description, starter, onExit }: Props
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium transition-colors hover:border-muted-foreground/50 hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          К описанию
+          Back to description
         </button>
         <h1 className="truncate text-base font-semibold md:text-lg">{title}</h1>
       </div>
@@ -37,7 +38,7 @@ export function ChallengeSoloView({ title, description, starter, onExit }: Props
         <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Задача
+              Task
             </p>
             <h2 className="mt-1 text-base font-semibold leading-tight">{title}</h2>
           </div>
@@ -50,7 +51,7 @@ export function ChallengeSoloView({ title, description, starter, onExit }: Props
 
         <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
           <div className="border-b border-border px-3 py-2">
-            <span className="text-sm font-medium">Редактор</span>
+            <span className="text-sm font-medium">Editor</span>
           </div>
           <div className="min-h-0 flex-1">
             <CodeEditor

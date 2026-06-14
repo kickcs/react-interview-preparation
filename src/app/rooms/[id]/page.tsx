@@ -23,7 +23,7 @@ export default async function RoomIdPage({ params }: PageProps) {
   if (!probe) {
     return (
       <main className="mx-auto max-w-xl px-6 py-16 text-sm text-destructive">
-        Сервер недоступен
+        Server unavailable
       </main>
     );
   }
