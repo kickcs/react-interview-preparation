@@ -2,6 +2,28 @@
   "name": "react-interview-preparation",
   "version": "0.1.0",
   "private": true,
+  "description": "Bilingual (EN/RU) React interview-prep platform with an MDX Q&A library and real-time multiplayer live-coding rooms.",
+  "author": "kickcs",
+  "license": "MIT",
+  "homepage": "https://github.com/kickcs/react-interview-preparation#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kickcs/react-interview-preparation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kickcs/react-interview-preparation/issues"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "typescript",
+    "interview-preparation",
+    "live-coding",
+    "websockets",
+    "socket.io",
+    "sandpack",
+    "mdx"
+  ],
   "scripts": {
     "dev": "concurrently -n next,ws -c cyan,magenta \"next dev\" \"tsx watch src-server/ws-server.ts\"",
     "dev:next": "next dev",
