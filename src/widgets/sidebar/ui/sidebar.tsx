@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { useUIStore, useHydrated } from "@/shared/lib/ui-store";
+import {
+  useUIStore,
+  useHydrated,
+  selectSidebarCollapsed,
+} from "@/shared/lib/ui-store";
 import { SidebarToggleButton } from "@/features/toggle-sidebar";
 import {
   SidebarNav,
@@ -31,7 +35,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const hydrated = useHydrated();
-  const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  const collapsed = useUIStore(selectSidebarCollapsed);
   const slugs = useMemo(
     () => buildAllCategorySlugs(categories, challengeCategories),
     [categories, challengeCategories]
