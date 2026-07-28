@@ -2,7 +2,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { RoomView } from "@/widgets/room-view";
 import { JoinRoomForm } from "@/features/room-join/ui/join-room-form";
-import { useAutoCollapseOnRouteEnter } from "@/shared/lib/use-auto-collapse-on-route-enter";
+import { useCollapseSidebarWhileInRoom } from "@/shared/lib/use-collapse-sidebar-while-in-room";
 import { roomStore } from "@/shared/lib/room-store";
 import type { TaskContent } from "@/shared/contracts";
 
@@ -23,7 +23,7 @@ export function RoomClient({ roomId, task, initialParticipantCount }: Props) {
     () => sessionStorage.getItem(`rooms.nickname.${roomId}`),
     () => undefined,
   );
-  useAutoCollapseOnRouteEnter(roomId);
+  useCollapseSidebarWhileInRoom();
 
   const handleJoinError = useCallback(
     (message: string) => {

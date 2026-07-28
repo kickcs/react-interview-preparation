@@ -14,9 +14,46 @@ interface UIState {
   toggleSolution: (id: string) => void;
   allAnswersRevealed: boolean;
   toggleAllAnswersRevealed: () => void;
+  /** The user's own collapse preference — persisted across visits. */
   sidebarCollapsed: boolean;
+  /** Room pages hold the sidebar collapsed while mounted. Never persisted. */
+  roomCollapsed: boolean;
   toggleSidebar: () => void;
-  setSidebarCollapsed: (value: boolean) => void;
+  setRoomCollapsed: (value: boolean) => void;
+}
+
+/**
+ * The sidebar is collapsed when the user asked for it, or while a room page
+ * holds it. Room pages must not write to `sidebarCollapsed`: that flag is
+ * persisted, so a room-driven collapse would follow the user across the whole
+ * site and survive reloads.
+ */
+export function selectSidebarCollapsed(state: UIState): boolean {
+  return state.sidebarCollapsed || state.roomCollapsed;
+}
+
+type PersistedUIState = Pick<
+  UIState,
+  "collapsedCategories" | "allAnswersRevealed" | "sidebarCollapsed"
+>;
+
+export function partializeUIState(state: UIState): PersistedUIState {
+  return {
+    collapsedCategories: state.collapsedCategories,
+    allAnswersRevealed: state.allAnswersRevealed,
+    sidebarCollapsed: state.sidebarCollapsed,
+  };
+}
+
+/**
+ * v0 let room pages persist their collapse into `sidebarCollapsed`, which left
+ * the sidebar hidden site-wide for anyone who ever opened a room. Clear it once
+ * so those users get their sidebar back; a deliberate collapse costs one click.
+ */
+export function migrateUIState(persisted: unknown, version: number): unknown {
+  if (version >= 1) return persisted;
+  if (!persisted || typeof persisted !== "object") return persisted;
+  return { ...(persisted as Record<string, unknown>), sidebarCollapsed: false };
 }
 
 export const useUIStore = create<UIState>()(
@@ -65,17 +102,19 @@ export const useUIStore = create<UIState>()(
       toggleAllAnswersRevealed: () =>
         set((state) => ({ allAnswersRevealed: !state.allAnswersRevealed })),
       sidebarCollapsed: false,
+      roomCollapsed: false,
       toggleSidebar: () =>
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-      setSidebarCollapsed: (value) => set(() => ({ sidebarCollapsed: value })),
+        set((state) => ({
+          sidebarCollapsed: !selectSidebarCollapsed(state),
+          roomCollapsed: false,
+        })),
+      setRoomCollapsed: (value) => set(() => ({ roomCollapsed: value })),
     }),
     {
       name: "ui-store",
-      partialize: (state) => ({
-        collapsedCategories: state.collapsedCategories,
-        allAnswersRevealed: state.allAnswersRevealed,
-        sidebarCollapsed: state.sidebarCollapsed,
-      }),
+      version: 1,
+      migrate: migrateUIState,
+      partialize: partializeUIState,
     }
   )
 );
