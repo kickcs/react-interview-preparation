@@ -4,4 +4,4 @@ services:
     container_name: react-interview
     restart: unless-stopped
     ports:
-      - "8083:3000"
+      - "127.0.0.1:8083:3000"
